@@ -1,27 +1,28 @@
-// ================= Core Vue App Bootstrap =================
+// src/main.js
+// ========================= Core ============================
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 
-// ================= CSS (Bootstrap + your globals) =========
+// ========================= Styles ==========================
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap'
 import './assets/main.css'
-// UnoCSS (kama umetumia):
+// Acha hii tu kama unatumia UnoCSS; vinginevyo ifute.
 import 'virtual:uno.css'
 
-// =================== Multilingual (vue-i18n) ==============
+// ========================= i18n ============================
 import { createI18n } from 'vue-i18n'
 import en from './locales/en.json'
 import sw from './locales/sw.json'
 import fr from './locales/fr.json'
 
-const pickBrowserLang = () => {
+function pickBrowserLang () {
   try {
     const saved = localStorage.getItem('user_lang')
     if (saved) return saved
   } catch {}
-  const nav = (navigator.language || 'en').toLowerCase()
+  const nav = String((navigator.language || 'en')).toLowerCase()
   if (nav.startsWith('sw')) return 'sw'
   if (nav.startsWith('fr')) return 'fr'
   return 'en'
@@ -31,14 +32,13 @@ const i18n = createI18n({
   legacy: false,
   locale: pickBrowserLang(),
   fallbackLocale: 'en',
-  messages: { en, sw, fr },
+  messages: { en, sw, fr }
 })
 
-// =================== Toast Notifications ==================
-import Toast, { useToast } from 'vue-toastification'
+// ===================== Toasts (UX) =========================
+import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
-// Mobile-friendly toast defaults
 const toastOptions = {
   position: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     ? 'bottom-center'
@@ -48,21 +48,11 @@ const toastOptions = {
   pauseOnHover: true,
   draggable: true,
   maxToasts: 4,
-  newestOnTop: true,
+  newestOnTop: true
 }
 
-// =============== Optional: Axios (mobile-friendly) =========
-// import axios from 'axios'
-// export const api = axios.create({ baseURL: '/api', withCredentials: true })
-// api.interceptors.request.use((config) => {
-//   const token = localStorage.getItem('access_token')
-//   if (token) config.headers.Authorization = `Bearer ${token}`
-//   return config
-// })
-
-// ================= Mobile 100vh fix ========================
-// CSS: body { min-height: calc(var(--vh, 1vh) * 100); }
-const setVH = () => {
+// =================== Mobile 100vh fix ======================
+function setVH () {
   const vh = window.innerHeight * 0.01
   document.documentElement.style.setProperty('--vh', `${vh}px`)
 }
@@ -70,67 +60,70 @@ setVH()
 window.addEventListener('resize', setVH, { passive: true })
 window.addEventListener('orientationchange', setVH, { passive: true })
 
-// ================== Online / Offline toasts =================
+// ========== Online/Offline user feedback (toasts) ==========
 const netToast = {
-  showOnline: () => {
+  online () {
     try { window.$toast?.success?.('You are back online ✓') } catch {}
   },
-  showOffline: () => {
+  offline () {
     try { window.$toast?.warning?.('You are offline. Some features may pause.') } catch {}
-  },
+  }
 }
-window.addEventListener('online',  netToast.showOnline)
-window.addEventListener('offline', netToast.showOffline)
+window.addEventListener('online', netToast.online)
+window.addEventListener('offline', netToast.offline)
 
-// =============== Create App & Global handlers ==============
+// ========================= App =============================
 const app = createApp(App)
 app.use(router)
 app.use(i18n)
 app.use(Toast, toastOptions)
 
-// expose toast globally for non-component contexts (e.g. errorHandler)
+// Weka toast ipatikane hata nje ya components (kwa error handlers n.k.)
 try {
-  // After plugin registration, vue-toastification sets $toast on globalProperties
-  // We also mirror to window for utility handlers.
-  // eslint-disable-next-line no-undef
-  window.$toast = app.config.globalProperties.$toast || useToast()
+  window.$toast = app.config.globalProperties.$toast
 } catch {}
 
-// Better DX on dev + graceful runtime errors
+// ======== Vue error handler (inayoonyesha toast) ===========
 app.config.performance = import.meta.env.DEV
 app.config.errorHandler = (err, _instance, info) => {
-  // eslint-disable-next-line no-console
-  console.error('[AppError]', err, info)
+  // Logu ya dev
+  if (import.meta.env.DEV) console.error('[AppError]', err, info)
+  // Ujumbe wa urafiki kwa mtumiaji
   const t = i18n?.global?.t?.bind(i18n.global) || ((k) => k)
   const msg = t('errors.unexpected') || 'Unexpected error'
   try { window.$toast?.error?.(msg) } catch {}
 }
 
-// =============== Optional: register Service Worker =========
-if ('serviceWorker' in navigator) {
-  // Register only in production & when sw exists
-  const swUrl = '/sw.js'
-  fetch(swUrl, { method: 'HEAD' })
-    .then((r) => {
-      if (r.ok && import.meta.env.PROD) {
-        navigator.serviceWorker.register(swUrl).catch(() => {})
-      }
-    })
-    .catch(() => {})
-}
+// ========== Global window error & promise rejection =========
+window.addEventListener('error', (e) => {
+  if (import.meta.env.DEV) console.error('[WindowError]', e.error || e.message)
+})
+window.addEventListener('unhandledrejection', (e) => {
+  if (import.meta.env.DEV) console.error('[UnhandledRejection]', e.reason)
+  try { window.$toast?.error?.('Something went wrong') } catch {}
+})
 
-// =============== Small dev niceties ========================
-// Avoid noisy errors for redundant navigations in dev consoles
-if (import.meta.env.DEV) {
-  const _warn = console.warn
-  console.warn = (...args) => {
-    const msg = String(args?.[0] || '')
-    if (msg.includes('Avoided redundant navigation')) return
-    _warn(...args)
+// ======= Update <title> from route.meta.title + i18n =======
+router.beforeEach((to, _from, next) => {
+  const base = 'SmartBiz'
+  const t = i18n?.global?.t?.bind(i18n.global) || ((k) => k)
+  const page = to.meta?.title ? t(to.meta.title) : ''
+  document.title = page ? `${page} • ${base}` : base
+  next()
+})
+
+// ========== Optional: register Service Worker (prod) ========
+if ('serviceWorker' in navigator) {
+  const swUrl = '/sw.js'
+  // Sajili tu production ili kuepuka mkanganyiko wakati wa dev
+  if (import.meta.env.PROD) {
+    fetch(swUrl, { method: 'HEAD' })
+      .then(r => { if (r.ok) navigator.serviceWorker.register(swUrl).catch(() => {}) })
+      .catch(() => {})
   }
 }
 
-// =============== Mount after router is ready ===============
+// ================ Mount after router ready =================
 router.isReady().then(() => {
   app.mount('#app')
 })
