@@ -1,5 +1,5 @@
 <template>
-  <!-- SVG symbol sprites (no external icon libs required) -->
+  <!-- Inline SVG sprite (no external icon deps) -->
   <svg aria-hidden="true" class="d-none">
     <symbol id="i-dashboard" viewBox="0 0 24 24">
       <path d="M3 13h5v8H3zM10 3h4v18h-4zM16 8h5v13h-5z" />
@@ -24,21 +24,17 @@
     </symbol>
   </svg>
 
-  <!-- Mobile toggle button (visible on < lg) -->
+  <!-- Mobile toggle button -->
   <button
     class="btn btn-dark d-lg-none position-fixed top-0 start-0 m-2 z-3 shadow-sm"
     aria-label="Open sidebar"
-    @click="mobileOpen = true"
+    @click="openMobile()"
   >
     <svg width="20" height="20"><use href="#i-menu" /></svg>
   </button>
 
   <!-- Backdrop for mobile drawer -->
-  <div
-    class="sidebar-backdrop d-lg-none"
-    :class="{ show: mobileOpen }"
-    @click="mobileOpen = false"
-  />
+  <div class="sidebar-backdrop d-lg-none" :class="{ show: mobileOpen }" @click="closeMobile()" />
 
   <aside
     class="affiliate-sidebar bg-dark text-white p-3"
@@ -49,20 +45,24 @@
     <!-- Header -->
     <div class="d-flex align-items-center mb-3">
       <img
-        src="/logo-circle.png"
+        v-if="!hideLogo"
+        :src="LogoCircle"
         alt="SmartBiz logo"
         class="me-2 rounded-circle flex-shrink-0"
         width="40"
         height="40"
         @error="hideLogo = true"
-        v-show="!hideLogo"
       />
+      <div v-else class="logo-fallback me-2" aria-hidden="true">SB</div>
+
       <span class="fs-5 fw-bold text-truncate sidebar-title">Affiliate</span>
 
       <!-- Collapse toggle (desktop only) -->
       <button
         class="btn btn-outline-light btn-sm ms-auto d-none d-lg-inline-flex align-items-center"
         :title="collapsed ? 'Expand' : 'Collapse'"
+        :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :aria-expanded="(!collapsed).toString()"
         @click="toggleCollapse"
       >
         <svg width="18" height="18" v-if="!collapsed"><use href="#i-chevron-left" /></svg>
@@ -73,7 +73,7 @@
       <button
         class="btn btn-outline-light btn-sm ms-auto d-lg-none"
         aria-label="Close sidebar"
-        @click="mobileOpen = false"
+        @click="closeMobile()"
       >
         ×
       </button>
@@ -87,7 +87,7 @@
         <RouterLink :to="item.to" v-slot="{ href, navigate, isActive, isExactActive }">
           <a
             :href="href"
-            @click="navigate"
+            @click="(e) => onNavigate(e, navigate)"
             class="nav-link d-flex align-items-center gap-2 text-white rounded-3 px-2 py-2"
             :class="[{ active: isExactActive || (item.exact !== true && isActive) }, collapsed && 'justify-content-center']"
             :aria-current="(isExactActive || isActive) ? 'page' : undefined"
@@ -112,7 +112,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import LogoCircle from '@/assets/brand/logo-circle.png' // <- use the asset you moved
 
 const year = new Date().getFullYear()
 
@@ -128,19 +129,48 @@ const mobileOpen = ref(false)
 const hideLogo = ref(false)
 
 onMounted(() => {
-  try {
-    collapsed.value = localStorage.getItem('affiliate_sidebar_collapsed') === '1'
-  } catch {}
+  try { collapsed.value = localStorage.getItem('affiliate_sidebar_collapsed') === '1' } catch {}
+  window.addEventListener('keydown', onKey)
+  window.addEventListener('resize', onResize, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey)
+  window.removeEventListener('resize', onResize)
 })
 
 watch(collapsed, (v) => {
-  try {
-    localStorage.setItem('affiliate_sidebar_collapsed', v ? '1' : '0')
-  } catch {}
+  try { localStorage.setItem('affiliate_sidebar_collapsed', v ? '1' : '0') } catch {}
 })
 
 function toggleCollapse() {
   collapsed.value = !collapsed.value
+}
+
+function openMobile() {
+  mobileOpen.value = true
+  // prevent background scroll when drawer is open
+  document.documentElement.style.overflow = 'hidden'
+}
+
+function closeMobile() {
+  mobileOpen.value = false
+  document.documentElement.style.overflow = ''
+}
+
+function onNavigate(e, navigate) {
+  navigate(e)
+  // close drawer after navigation on mobile
+  if (mobileOpen.value) closeMobile()
+}
+
+function onKey(e) {
+  if (e.key === 'Escape' && mobileOpen.value) closeMobile()
+}
+
+function onResize() {
+  // if we resize to desktop, ensure drawer is closed
+  if (window.innerWidth >= 992 && mobileOpen.value) closeMobile()
 }
 </script>
 
@@ -155,17 +185,14 @@ function toggleCollapse() {
   z-index: 1040;
   transition: width .2s ease, transform .2s ease;
   box-shadow: inset -1px 0 0 rgba(255,255,255,.08);
+  background: radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.06), transparent 60%) #111;
 }
 
 /* Collapsed (desktop) */
-.affiliate-sidebar.collapsed {
-  width: 86px;
-}
-.affiliate-sidebar.collapsed .sidebar-title {
-  display: none;
-}
+.affiliate-sidebar.collapsed { width: 86px; }
+.affiliate-sidebar.collapsed .sidebar-title { display: none; }
 
-/* Mobile drawer behavior */
+/* Mobile drawer */
 @media (max-width: 991.98px) {
   .affiliate-sidebar {
     position: fixed;
@@ -174,9 +201,7 @@ function toggleCollapse() {
     width: 82%;
     max-width: 320px;
   }
-  .affiliate-sidebar.mobile-open {
-    transform: translateX(0);
-  }
+  .affiliate-sidebar.mobile-open { transform: translateX(0); }
   .sidebar-backdrop {
     position: fixed;
     inset: 0;
@@ -211,17 +236,19 @@ function toggleCollapse() {
   display: inline-flex;
   justify-content: center;
 }
-.nav-link svg {
-  fill: currentColor;
-}
+.nav-link svg { fill: currentColor; }
 
-/* Smooth text truncation */
-.label {
-  min-width: 0;
-}
+/* Truncation */
+.label { min-width: 0; }
 
-/* Rounded corners & subtle gradient for the aside */
-.affiliate-sidebar {
-  background: radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.06), transparent 60%) #111;
+/* Logo fallback (when image fails) */
+.logo-fallback {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffc107, #ff6a00);
+  color: #111;
+  font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.85rem;
 }
 </style>
