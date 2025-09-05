@@ -8,7 +8,7 @@ import router from './router'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap'
 import './assets/main.css'
-// Acha hii ikiwa unatumia UnoCSS (ipo kwenye devDependencies zako)
+// Keep this if UnoCSS is configured in Vite
 import 'virtual:uno.css'
 
 // ========================= i18n ============================
@@ -22,7 +22,7 @@ function pickBrowserLang() {
     const saved = localStorage.getItem('user_lang')
     if (saved) return saved
   } catch {}
-  const nav = String(navigator.language || 'en').toLowerCase()
+  const nav = String((typeof navigator !== 'undefined' ? navigator.language : 'en') || 'en').toLowerCase()
   if (nav.startsWith('sw')) return 'sw'
   if (nav.startsWith('fr')) return 'fr'
   return 'en'
@@ -39,10 +39,12 @@ const i18n = createI18n({
 import Toast, { useToast } from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
+const isMobile = /Android|iPhone|iPad|iPod/i.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : ''
+)
+
 const toastOptions = {
-  position: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    ? 'bottom-center'
-    : 'top-right',
+  position: isMobile ? 'bottom-center' : 'top-right',
   timeout: 3500,
   closeOnClick: true,
   pauseOnHover: true,
@@ -54,51 +56,80 @@ const toastOptions = {
 // ================== ApexCharts (global) ====================
 import VueApexCharts from 'vue3-apexcharts'
 
+// ======== Global Chart.js lazy-loader (safe for CI) ========
+/**
+ * Use from any component (Option A):
+ *   const Chart = await app.config.globalProperties.$ensureChartJs()
+ *
+ * Or with provide/inject (Option B):
+ *   const ensureChartJs = inject('ensureChartJs')
+ *   const Chart = await ensureChartJs()
+ *
+ * We import 'chart.js' (not 'chart.js/auto') to avoid resolver issues.
+ */
+let __ChartJS = null
+async function ensureChartJs() {
+  if (__ChartJS) return __ChartJS
+  const mod = await import('chart.js')
+  mod.Chart.register(...mod.registerables)
+  __ChartJS = mod.Chart
+  return __ChartJS
+}
+
 // ================ Mobile 100vh fix =========================
 function setVH() {
+  if (typeof window === 'undefined') return
   const vh = window.innerHeight * 0.01
   document.documentElement.style.setProperty('--vh', `${vh}px`)
 }
 setVH()
-window.addEventListener('resize', setVH, { passive: true })
-window.addEventListener('orientationchange', setVH, { passive: true })
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', setVH, { passive: true })
+  window.addEventListener('orientationchange', setVH, { passive: true })
+}
 
 // ======= Online/Offline user feedback (toasts + class) =====
 const netToast = {
   online() {
-    document.body.classList.remove('offline')
+    if (typeof document !== 'undefined') document.body.classList.remove('offline')
     try { window.$toast?.success?.('You are back online ✓') } catch {}
   },
   offline() {
-    document.body.classList.add('offline')
+    if (typeof document !== 'undefined') document.body.classList.add('offline')
     try { window.$toast?.warning?.('You are offline. Some features may pause.') } catch {}
   },
 }
-window.addEventListener('online', netToast.online)
-window.addEventListener('offline', netToast.offline)
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', netToast.online)
+  window.addEventListener('offline', netToast.offline)
+}
 
 // ========================= App =============================
 const app = createApp(App)
 app.use(router)
 app.use(i18n)
 app.use(Toast, toastOptions)
-app.use(VueApexCharts) // <apexchart> sasa inapatikana global
+app.use(VueApexCharts) // <apexchart> is now globally available
 
-// ---------- Directives ndogo zenye manufaa -----------
+// ---------- Handy directives ----------
 app.directive('autofocus', {
   mounted(el) { try { el.focus() } catch {} },
 })
 
-// Weka toast ipatikane hata nje ya components (kwa error handlers/utilities)
-try {
-  // Mara nyingine $toast huwekwa baada ya mount; tuhakikishe ipo.
-  nextTick(() => {
-    // eslint-disable-next-line no-undef
-    window.$toast = app.config.globalProperties.$toast || useToast()
-  })
-} catch {}
+// Provide globals
+app.provide('isMobile', isMobile)
+app.provide('ensureChartJs', ensureChartJs)
+app.config.globalProperties.$ensureChartJs = ensureChartJs
 
-// ======== Vue error handler (inayoonyesha toast) ===========
+// Make $toast available outside components (utilities/handlers)
+nextTick(() => {
+  try {
+    // In some setups $toast attaches after mount; ensure a fallback.
+    window.$toast = app.config.globalProperties.$toast || useToast()
+  } catch {}
+})
+
+// ======== Vue error handler (shows toast in prod) ==========
 app.config.performance = import.meta.env.DEV
 app.config.errorHandler = (err, _instance, info) => {
   if (import.meta.env.DEV) console.error('[AppError]', err, info)
@@ -108,30 +139,37 @@ app.config.errorHandler = (err, _instance, info) => {
 }
 
 // ======= Window errors & promise rejections (global) =======
-window.addEventListener('error', (e) => {
-  if (import.meta.env.DEV) console.error('[WindowError]', e.error || e.message)
-})
-window.addEventListener('unhandledrejection', (e) => {
-  if (import.meta.env.DEV) console.error('[UnhandledRejection]', e.reason)
-  try { window.$toast?.error?.('Something went wrong') } catch {}
-})
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) => {
+    if (import.meta.env.DEV) console.error('[WindowError]', e.error || e.message)
+  })
+  window.addEventListener('unhandledrejection', (e) => {
+    if (import.meta.env.DEV) console.error('[UnhandledRejection]', e.reason)
+    try { window.$toast?.error?.('Something went wrong') } catch {}
+  })
+}
 
-// ======= Update <title> + onyesha "route-loading" class =====
+// ======= Update <title> + route-loading class ===============
 router.beforeEach((to, _from, next) => {
-  document.body.classList.add('route-loading')
+  if (typeof document !== 'undefined') document.body.classList.add('route-loading')
   const base = 'SmartBiz'
   const t = i18n?.global?.t?.bind(i18n.global) || ((k) => k)
   const page = to.meta?.title ? t(to.meta.title) : ''
-  document.title = page ? `${page} • ${base}` : base
+  if (typeof document !== 'undefined') {
+    document.title = page ? `${page} • ${base}` : base
+  }
   next()
 })
 router.afterEach(() => {
-  // toa class baada ya frame moja ili CSS animations zifanye kazi vizuri
-  requestAnimationFrame(() => document.body.classList.remove('route-loading'))
+  if (typeof window !== 'undefined') {
+    requestAnimationFrame(() => {
+      try { document.body.classList.remove('route-loading') } catch {}
+    })
+  }
 })
 
 // ========== Optional: register Service Worker (prod) ========
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
   const swUrl = '/sw.js'
   fetch(swUrl, { method: 'HEAD' })
     .then((r) => { if (r.ok) navigator.serviceWorker.register(swUrl).catch(() => {}) })
