@@ -1,5 +1,5 @@
 <template>
-  <!-- Inline SVG sprite (no external icon deps) -->
+  <!-- Inline SVG sprite -->
   <svg aria-hidden="true" class="d-none">
     <symbol id="i-dashboard" viewBox="0 0 24 24">
       <path d="M3 13h5v8H3zM10 3h4v18h-4zM16 8h5v13h-5z" />
@@ -24,7 +24,7 @@
     </symbol>
   </svg>
 
-  <!-- Mobile toggle button -->
+  <!-- Mobile toggle -->
   <button
     class="btn btn-dark d-lg-none position-fixed top-0 start-0 m-2 z-3 shadow-sm"
     aria-label="Open sidebar"
@@ -33,14 +33,18 @@
     <svg width="20" height="20"><use href="#i-menu" /></svg>
   </button>
 
-  <!-- Backdrop for mobile drawer -->
+  <!-- Mobile backdrop -->
   <div class="sidebar-backdrop d-lg-none" :class="{ show: mobileOpen }" @click="closeMobile()" />
 
   <aside
+    ref="asideEl"
     class="affiliate-sidebar bg-dark text-white p-3"
     :class="{ collapsed, 'mobile-open': mobileOpen }"
     role="navigation"
     aria-label="Affiliate navigation"
+    :data-collapsed="collapsed ? 'true' : 'false'"
+    @keydown.up.prevent="focusPrev()"
+    @keydown.down.prevent="focusNext()"
   >
     <!-- Header -->
     <div class="d-flex align-items-center mb-3">
@@ -57,7 +61,7 @@
 
       <span class="fs-5 fw-bold text-truncate sidebar-title">Affiliate</span>
 
-      <!-- Collapse toggle (desktop only) -->
+      <!-- Collapse (desktop) -->
       <button
         class="btn btn-outline-light btn-sm ms-auto d-none d-lg-inline-flex align-items-center"
         :title="collapsed ? 'Expand' : 'Collapse'"
@@ -82,8 +86,8 @@
     <hr class="border-light opacity-25 my-3" />
 
     <!-- Nav -->
-    <ul class="nav flex-column gap-1">
-      <li v-for="item in navItems" :key="item.to" class="nav-item">
+    <ul class="nav flex-column gap-1" ref="listEl">
+      <li v-for="(item, i) in navItems" :key="item.to" class="nav-item">
         <RouterLink :to="item.to" v-slot="{ href, navigate, isActive, isExactActive }">
           <a
             :href="href"
@@ -92,6 +96,8 @@
             :class="[{ active: isExactActive || (item.exact !== true && isActive) }, collapsed && 'justify-content-center']"
             :aria-current="(isExactActive || isActive) ? 'page' : undefined"
             :title="collapsed ? item.label : undefined"
+            tabindex="0"
+            :data-index="i"
           >
             <span class="icon-wrap">
               <svg width="18" height="18" aria-hidden="true">
@@ -99,6 +105,10 @@
               </svg>
             </span>
             <span class="label text-truncate" v-show="!collapsed">{{ item.label }}</span>
+            <span
+              v-if="item.badge && !collapsed"
+              class="ms-auto badge bg-warning text-dark fw-semibold"
+            >{{ item.badge }}</span>
           </a>
         </RouterLink>
       </li>
@@ -113,20 +123,22 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import LogoCircle from '@/assets/brand/logo-circle.png' // <- use the asset you moved
+import LogoCircle from '@/assets/logo-circle.png' // correct path (under src/assets)
 
 const year = new Date().getFullYear()
 
 const navItems = [
   { to: '/affiliate', label: 'Dashboard', icon: 'i-dashboard', exact: true },
   { to: '/available-campaigns', label: 'Available Campaigns', icon: 'i-campaigns' },
-  { to: '/my-campaigns', label: 'My Campaigns', icon: 'i-my' },
+  { to: '/my-campaigns', label: 'My Campaigns', icon: 'i-my', badge: null },
   { to: '/promoter-leaderboard', label: 'Leaderboard', icon: 'i-trophy' },
 ]
 
 const collapsed = ref(false)
 const mobileOpen = ref(false)
 const hideLogo = ref(false)
+const asideEl = ref(null)
+const listEl = ref(null)
 
 onMounted(() => {
   try { collapsed.value = localStorage.getItem('affiliate_sidebar_collapsed') === '1' } catch {}
@@ -143,13 +155,10 @@ watch(collapsed, (v) => {
   try { localStorage.setItem('affiliate_sidebar_collapsed', v ? '1' : '0') } catch {}
 })
 
-function toggleCollapse() {
-  collapsed.value = !collapsed.value
-}
+function toggleCollapse() { collapsed.value = !collapsed.value }
 
 function openMobile() {
   mobileOpen.value = true
-  // prevent background scroll when drawer is open
   document.documentElement.style.overflow = 'hidden'
 }
 
@@ -160,7 +169,6 @@ function closeMobile() {
 
 function onNavigate(e, navigate) {
   navigate(e)
-  // close drawer after navigation on mobile
   if (mobileOpen.value) closeMobile()
 }
 
@@ -169,15 +177,35 @@ function onKey(e) {
 }
 
 function onResize() {
-  // if we resize to desktop, ensure drawer is closed
   if (window.innerWidth >= 992 && mobileOpen.value) closeMobile()
+}
+
+/* Keyboard navigation within the sidebar list */
+function focusables() {
+  return Array.from(listEl.value?.querySelectorAll('a.nav-link') || [])
+}
+function focusNext() {
+  const els = focusables()
+  const idx = els.indexOf(document.activeElement)
+  const next = els[idx + 1] || els[0]
+  next?.focus()
+}
+function focusPrev() {
+  const els = focusables()
+  const idx = els.indexOf(document.activeElement)
+  const prev = els[idx - 1] || els[els.length - 1]
+  prev?.focus()
 }
 </script>
 
 <style scoped>
-/* Layout + sizing */
+:root {
+  --sb-w: 260px;
+  --sb-w-collapsed: 86px;
+}
+
 .affiliate-sidebar {
-  width: 260px;
+  width: var(--sb-w);
   min-height: 100vh;
   position: sticky;
   top: 0;
@@ -188,11 +216,9 @@ function onResize() {
   background: radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.06), transparent 60%) #111;
 }
 
-/* Collapsed (desktop) */
-.affiliate-sidebar.collapsed { width: 86px; }
+.affiliate-sidebar.collapsed { width: var(--sb-w-collapsed); }
 .affiliate-sidebar.collapsed .sidebar-title { display: none; }
 
-/* Mobile drawer */
 @media (max-width: 991.98px) {
   .affiliate-sidebar {
     position: fixed;
@@ -203,52 +229,49 @@ function onResize() {
   }
   .affiliate-sidebar.mobile-open { transform: translateX(0); }
   .sidebar-backdrop {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(0,0,0,.45);
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0; pointer-events: none;
     transition: opacity .2s ease;
     z-index: 1039;
   }
-  .sidebar-backdrop.show {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  .sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
 }
 
 /* Nav styling */
 .nav-link {
   opacity: .9;
   transition: background-color .15s ease, opacity .15s ease, color .15s ease;
+  outline: none;
 }
-.nav-link:hover {
-  background: rgba(255,255,255,.08);
-  opacity: 1;
-}
+.nav-link:hover { background: rgba(255,255,255,.08); opacity: 1; }
 .nav-link.active {
   background: #ffc107;
   color: #212529 !important;
   font-weight: 600;
 }
-.nav-link .icon-wrap {
-  width: 22px;
-  display: inline-flex;
-  justify-content: center;
+.nav-link:focus-visible {
+  box-shadow: 0 0 0 .2rem rgba(255, 193, 7, .5);
 }
+.nav-link .icon-wrap { width: 22px; display: inline-flex; justify-content: center; }
 .nav-link svg { fill: currentColor; }
 
-/* Truncation */
+/* Collapsed tooltips rely on native title attr; show label only when expanded */
 .label { min-width: 0; }
 
-/* Logo fallback (when image fails) */
 .logo-fallback {
   width: 40px; height: 40px;
   border-radius: 50%;
   background: linear-gradient(135deg, #ffc107, #ff6a00);
-  color: #111;
-  font-weight: 800;
+  color: #111; font-weight: 800;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.85rem;
+  font-size: .85rem;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .affiliate-sidebar,
+  .sidebar-backdrop,
+  .nav-link { transition: none !important; }
 }
 </style>
