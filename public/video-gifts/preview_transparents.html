@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SmartBiz Transparent Gifts Preview</title>
+  <style>
+    body { background: #000; color: white; font-family: sans-serif; padding: 1rem; }
+    video { margin: 10px; max-width: 200px; border: 2px solid #fff; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h2>🎁 Transparent Video Gift Preview</h2>
+  <div id="gallery"></div>
+
+  <script>
+    const folder = "transparent/";
+    const videos = [
+      "rose_transparent.webm", "whale_transparent.webm", "quantum.webm", 
+      "luxury_transparent.webm", "mythic_transparent.webm"
+    ];
+
+    const gallery = document.getElementById("gallery");
+    videos.forEach(name => {
+      const v = document.createElement("video");
+      v.src = folder + name;
+      v.controls = true;
+      v.autoplay = false;
+      gallery.appendChild(v);
+    });
+  </script>
+</body>
+</html>
+

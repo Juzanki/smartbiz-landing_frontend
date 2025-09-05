@@ -1,0 +1,9 @@
+﻿@media (max-width: 768px) {
+  .grid-cols-3 { grid-template-columns: 1fr !important; }
+  .text-lg { font-size: 1rem !important; }
+  .gap-6 { gap: 1rem !important; }
+  .px-6 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  .flex-row { flex-direction: column !important; }
+  .hidden { display: none !important; }
+  /* ➕ Add more overrides as needed */
+}

@@ -1,0 +1,810 @@
+[START] .mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1228 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1225 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 00000270b31f8600] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 00000270b31f8600] Error parsing a filter description around: 
+[AVFilterGraph @ 00000270b31f8600] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\_transparent.webm 
+[START] aikingdom.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'aikingdom.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1228 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1225 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000025e9fee86c0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000025e9fee86c0] Error parsing a filter description around: 
+[AVFilterGraph @ 0000025e9fee86c0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\aikingdom_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\aikingdom_transparent.webm 
+[START] ascension.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'ascension.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1233 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1230 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000001be9c228540] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000001be9c228540] Error parsing a filter description around: 
+[AVFilterGraph @ 000001be9c228540] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\ascension_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\ascension_transparent.webm 
+[START] ascensiondrive.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'ascensiondrive.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1110 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1107 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000025bfc18df80] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000025bfc18df80] Error parsing a filter description around: 
+[AVFilterGraph @ 0000025bfc18df80] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\ascensiondrive_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\ascensiondrive_transparent.webm 
+[START] celestialhorse.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'celestialhorse.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1228 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1225 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000001663741e1c0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000001663741e1c0] Error parsing a filter description around: 
+[AVFilterGraph @ 000001663741e1c0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\celestialhorse_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\celestialhorse_transparent.webm 
+[START] dream.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'dream.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1230 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1227 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000023937608d40] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000023937608d40] Error parsing a filter description around: 
+[AVFilterGraph @ 0000023937608d40] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\dream_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\dream_transparent.webm 
+[START] feather.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'feather.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1107 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1104 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 00000264106186c0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 00000264106186c0] Error parsing a filter description around: 
+[AVFilterGraph @ 00000264106186c0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\feather_transparent.webm.
+Error opening output files: Invalid argument
+[ERROR] feather.mp4 
+[START] kissgun.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'kissgun.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1230 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1227 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000023ebe278c00] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000023ebe278c00] Error parsing a filter description around: 
+[AVFilterGraph @ 0000023ebe278c00] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\kissgun_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\kissgun_transparent.webm 
+[START] loly.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'loly.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1106 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1103 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000002b1c1698c80] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000002b1c1698c80] Error parsing a filter description around: 
+[AVFilterGraph @ 000002b1c1698c80] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\loly_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\loly_transparent.webm 
+[START] luxury.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'luxury.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1225 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1222 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000024c49118f00] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000024c49118f00] Error parsing a filter description around: 
+[AVFilterGraph @ 0000024c49118f00] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\luxury_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\luxury_transparent.webm 
+[START] moneytonardo.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'moneytonardo.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1226 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1223 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 00000260129589c0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 00000260129589c0] Error parsing a filter description around: 
+[AVFilterGraph @ 00000260129589c0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\moneytonardo_transparent.webm.
+Error opening output files: Invalid argument
+[ERROR] moneytonardo.mp4 
+[START] mystic.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'mystic.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1229 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1226 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 00000241a0fb8780] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 00000241a0fb8780] Error parsing a filter description around: 
+[AVFilterGraph @ 00000241a0fb8780] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\mystic_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\mystic_transparent.webm 
+[START] mythic.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'mythic.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1231 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1228 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 00000151e0488fc0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 00000151e0488fc0] Error parsing a filter description around: 
+[AVFilterGraph @ 00000151e0488fc0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\mythic_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\mythic_transparent.webm 
+[START] neonriders.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'neonriders.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1106 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1103 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000001ee1c1d86c0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000001ee1c1d86c0] Error parsing a filter description around: 
+[AVFilterGraph @ 000001ee1c1d86c0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\neonriders_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\neonriders_transparent.webm 
+[START] perfume.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'perfume.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1229 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1226 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000002dec3d986c0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000002dec3d986c0] Error parsing a filter description around: 
+[AVFilterGraph @ 000002dec3d986c0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\perfume_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\perfume_transparent.webm 
+[START] privatejet.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'privatejet.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1231 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1228 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 00000249986f86c0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 00000249986f86c0] Error parsing a filter description around: 
+[AVFilterGraph @ 00000249986f86c0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\privatejet_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\privatejet_transparent.webm 
+[START] roughrider.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'roughrider.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1230 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1227 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000002c9471f8d80] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000002c9471f8d80] Error parsing a filter description around: 
+[AVFilterGraph @ 000002c9471f8d80] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\roughrider_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\roughrider_transparent.webm 
+[START] royalchampagne.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'royalchampagne.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1229 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1226 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000024385a2d980] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000024385a2d980] Error parsing a filter description around: 
+[AVFilterGraph @ 0000024385a2d980] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\royalchampagne_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\royalchampagne_transparent.webm 
+[START] skyhunter.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'skyhunter.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1103 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1100 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000002f2babc9140] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000002f2babc9140] Error parsing a filter description around: 
+[AVFilterGraph @ 000002f2babc9140] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\skyhunter_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\skyhunter_transparent.webm 
+[START] smartbiz (2).mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'smartbiz (2).mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1225 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1222 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 00000263e0778fc0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 00000263e0778fc0] Error parsing a filter description around: 
+[AVFilterGraph @ 00000263e0778fc0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\smartbiz (2)_transparent.webm.
+Error opening output files: Invalid argument
+[ERROR] smartbiz (2).mp4 
+[START] smartbizuniverse.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'smartbizuniverse.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1107 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1104 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000001d620a0de00] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000001d620a0de00] Error parsing a filter description around: 
+[AVFilterGraph @ 000001d620a0de00] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\smartbizuniverse_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\smartbizuniverse_transparent.webm 
+[START] strike.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'strike.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1229 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1226 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000002afe57a9080] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000002afe57a9080] Error parsing a filter description around: 
+[AVFilterGraph @ 000002afe57a9080] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\strike_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\strike_transparent.webm 
+[START] universe.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'universe.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1232 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1229 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000022e9f168f00] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000022e9f168f00] Error parsing a filter description around: 
+[AVFilterGraph @ 0000022e9f168f00] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\universe_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\universe_transparent.webm 
+[START] watercar (2).mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'watercar (2).mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1234 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1231 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000019724688c00] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000019724688c00] Error parsing a filter description around: 
+[AVFilterGraph @ 0000019724688c00] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\watercar (2)_transparent.webm.
+Error opening output files: Invalid argument
+[ERROR] watercar (2).mp4 
+[START] wedding.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'wedding.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1103 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1101 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000018c61718840] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000018c61718840] Error parsing a filter description around: 
+[AVFilterGraph @ 0000018c61718840] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\wedding_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\wedding_transparent.webm 
+[START] whale.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'whale.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1226 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1223 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000017e62db8840] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000017e62db8840] Error parsing a filter description around: 
+[AVFilterGraph @ 0000017e62db8840] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\whale_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\whale_transparent.webm 
+[START] WhatsApp Video 2025-06-16 at 21.02.46_27786b45.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'WhatsApp Video 2025-06-16 at 21.02.46_27786b45.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1112 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1109 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000001f964ef7fc0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000001f964ef7fc0] Error parsing a filter description around: 
+[AVFilterGraph @ 000001f964ef7fc0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\WhatsApp Video 2025-06-16 at 21.02.46_27786b45_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\WhatsApp Video 2025-06-16 at 21.02.46_27786b45_transparent.webm 
+[START] WhatsApp Video 2025-06-16 at 21.02.54_a7ff93c6.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'WhatsApp Video 2025-06-16 at 21.02.54_a7ff93c6.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1105 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1102 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000001f44eba7fc0] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000001f44eba7fc0] Error parsing a filter description around: 
+[AVFilterGraph @ 000001f44eba7fc0] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\WhatsApp Video 2025-06-16 at 21.02.54_a7ff93c6_transparent.webm.
+Error opening output files: Invalid argument
+[OK] converted\WhatsApp Video 2025-06-16 at 21.02.54_a7ff93c6_transparent.webm 
+[START] WhatsApp Video 2025-06-23 at 08.35.20_2820d7a5.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'WhatsApp Video 2025-06-23 at 08.35.20_2820d7a5.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1229 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1226 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 0000026e24e28200] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 0000026e24e28200] Error parsing a filter description around: 
+[AVFilterGraph @ 0000026e24e28200] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\WhatsApp Video 2025-06-23 at 08.35.20_2820d7a5_transparent.webm.
+Error opening output files: Invalid argument
+[ERROR] WhatsApp Video 2025-06-23 at 08.35.20_2820d7a5.mp4 
+[START] WhatsApp Video 2025-06-23 at 08.35.27_cbc7fec2.mp4 
+ffmpeg version 7.1.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 14.2.0 (Rev1, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      59. 39.100 / 59. 39.100
+  libavcodec     61. 19.101 / 61. 19.101
+  libavformat    61.  7.100 / 61.  7.100
+  libavdevice    61.  3.100 / 61.  3.100
+  libavfilter    10.  4.100 / 10.  4.100
+  libswscale      8.  3.100 /  8.  3.100
+  libswresample   5.  3.100 /  5.  3.100
+  libpostproc    58.  3.100 / 58.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'WhatsApp Video 2025-06-23 at 08.35.27_cbc7fec2.mp4':
+  Metadata:
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42isom
+  Duration: 00:00:07.99, start: 0.000000, bitrate: 1229 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt470bg/smpte170m/bt709, progressive), 640x368, 1226 kb/s, 24.03 fps, 24 tbr, 30k tbn (default)
+      Metadata:
+        vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000002407ad27840] No option name near '/Windows/Fonts/arial.ttf:text=SmartBiz:fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable=between(t,0,5)'
+[AVFilterGraph @ 000002407ad27840] Error parsing a filter description around: 
+[AVFilterGraph @ 000002407ad27840] Error parsing filterchain 'chromakey=0x00FF00:0.2:0.1,format=yuva420p,drawtext=fontfile='C:/Windows/Fonts/arial.ttf':text='SmartBiz':fontcolor=yellow:fontsize=24:x=w-tw-20:y=h-th-20:enable='between(t,0,5)'' around: 
+Error opening output file converted\WhatsApp Video 2025-06-23 at 08.35.27_cbc7fec2_transparent.webm.
+Error opening output files: Invalid argument
+[ERROR] WhatsApp Video 2025-06-23 at 08.35.27_cbc7fec2.mp4 

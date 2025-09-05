@@ -1,0 +1,321 @@
+[
+  {
+    "id": "rose",
+    "name": "Rose",
+    "icon": "/Gifts/rose.png",
+    "coins": 2,
+    "tier": "Lite",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/rose_wm.webm",
+      "mp4": "/video-gifts/rose.mp4"
+    }
+  },
+  {
+    "id": "lolypop",
+    "name": "Lolypop",
+    "icon": "/Gifts/lolypop.png",
+    "coins": 2,
+    "tier": "Lite",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/lolypop_wm.webm",
+      "mp4": "/video-gifts/lolypop.mp4"
+    }
+  },
+  {
+    "id": "toucan",
+    "name": "Toucan Bird",
+    "icon": "/Gifts/toucan.png",
+    "coins": 4,
+    "tier": "Lite",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/toucan_wm.webm",
+      "mp4": "/video-gifts/toucan.mp4"
+    }
+  },
+  {
+    "id": "heartwings",
+    "name": "Heart Wings",
+    "icon": "/Gifts/heartwings.png",
+    "coins": 10,
+    "tier": "Popular",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/heartwings_wm.webm",
+      "mp4": "/video-gifts/heartwings.mp4"
+    }
+  },
+  {
+    "id": "perfume",
+    "name": "Perfume",
+    "icon": "/Gifts/perfume.png",
+    "coins": 25,
+    "tier": "Popular",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/perfume_wm.webm",
+      "mp4": "/video-gifts/perfume.mp4"
+    }
+  },
+  {
+    "id": "quantumburst",
+    "name": "Quantum Burst",
+    "icon": "/Gifts/quantumburst.png",
+    "coins": 5000,
+    "tier": "Epic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/quantumburst_wm.webm",
+      "mp4": "/video-gifts/quantumburst.mp4"
+    }
+  },
+  {
+    "id": "royalchampagne",
+    "name": "Royal Champagne",
+    "icon": "/Gifts/royalchampagne.png",
+    "coins": 3000,
+    "tier": "Epic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/royalchampagne_wm.webm",
+      "mp4": "/video-gifts/royalchampagne.mp4"
+    }
+  },
+  {
+    "id": "kissgun",
+    "name": "Kiss Blaster",
+    "icon": "/Gifts/kissgun.png",
+    "coins": 1000,
+    "tier": "Rare",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/kissgun_wm.webm",
+      "mp4": "/video-gifts/kissgun.mp4"
+    }
+  },
+  {
+    "id": "whale",
+    "name": "Whale Dive",
+    "icon": "/Gifts/whale.png",
+    "coins": 2000,
+    "tier": "Rare",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/whale_wm.webm",
+      "mp4": "/video-gifts/whale.mp4"
+    }
+  },
+  {
+    "id": "rainbow",
+    "name": "Rainbow",
+    "icon": "/Gifts/rainbow.png",
+    "coins": 3500,
+    "tier": "Classic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/rainbow_wm.webm",
+      "mp4": "/video-gifts/rainbow.mp4"
+    }
+  },
+  {
+    "id": "galaxyorbit",
+    "name": "Galaxy Orbit",
+    "icon": "/Gifts/galaxyorbit.png",
+    "coins": 12000,
+    "tier": "Mythic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/galaxyorbit_wm.webm",
+      "mp4": "/video-gifts/galaxyorbit.mp4"
+    }
+  },
+  {
+    "id": "neonriders",
+    "name": "Neon Riders",
+    "icon": "/Gifts/neonriders.png",
+    "coins": 18000,
+    "tier": "Mythic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/neonriders_wm.webm",
+      "mp4": "/video-gifts/neonriders.mp4"
+    }
+  },
+  {
+    "id": "strikecommander",
+    "name": "Strike Commander",
+    "icon": "/Gifts/strikecommander.png",
+    "coins": 30000,
+    "tier": "Mythic Elite",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/strikecommander_wm.webm",
+      "mp4": "/video-gifts/strikecommander.mp4"
+    }
+  },
+  {
+    "id": "eternalvows",
+    "name": "Eternal Vows",
+    "icon": "/Gifts/eternalvows.png",
+    "coins": 25000,
+    "tier": "Supreme",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/eternalvows_wm.webm",
+      "mp4": "/video-gifts/eternalvows.mp4"
+    }
+  },
+  {
+    "id": "roughrider",
+    "name": "Rough Rider",
+    "icon": "/Gifts/roughrider.png",
+    "coins": 8000,
+    "tier": "Legendary",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/roughrider_wm.webm",
+      "mp4": "/video-gifts/roughrider.mp4"
+    }
+  },
+  {
+    "id": "flyingfish",
+    "name": "Flying Fish",
+    "icon": "/Gifts/flyingfish.png",
+    "coins": 1200,
+    "tier": "Classic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/flyingfish_wm.webm",
+      "mp4": "/video-gifts/flyingfish.mp4"
+    }
+  },
+  {
+    "id": "mystictrain",
+    "name": "Mystic Train",
+    "icon": "/Gifts/mystictrain.png",
+    "coins": 3000,
+    "tier": "Royal",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/mystictrain_wm.webm",
+      "mp4": "/video-gifts/mystictrain.mp4"
+    }
+  },
+  {
+    "id": "cyberphoenix",
+    "name": "Cyber Phoenix",
+    "icon": "/Gifts/cyberphoenix.png",
+    "coins": 10000,
+    "tier": "Mythic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/cyberphoenix_wm.webm",
+      "mp4": "/video-gifts/cyberphoenix.mp4"
+    }
+  },
+  {
+    "id": "surprisestar",
+    "name": "Surprise Starburst",
+    "icon": "/Gifts/surprisestar.png",
+    "coins": 7000,
+    "tier": "Royal",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/surprisestar_wm.webm",
+      "mp4": "/video-gifts/surprisestar.mp4"
+    }
+  },
+  {
+    "id": "waterfallspirit",
+    "name": "Spirit Falls",
+    "icon": "/Gifts/waterfallspirit.png",
+    "coins": 15000,
+    "tier": "Mythic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/waterfallspirit_wm.webm",
+      "mp4": "/video-gifts/waterfallspirit.mp4"
+    }
+  },
+  {
+    "id": "furiouslion",
+    "name": "Furious Lion",
+    "icon": "/Gifts/furiouslion.png",
+    "coins": 11000,
+    "tier": "Mythic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/furiouslion_wm.webm",
+      "mp4": "/video-gifts/furiouslion.mp4"
+    }
+  },
+  {
+    "id": "whitedove",
+    "name": "White Spirit Dove",
+    "icon": "/Gifts/whitedove.png",
+    "coins": 3000,
+    "tier": "Rare",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/whitedove_wm.webm",
+      "mp4": "/video-gifts/whitedove.mp4"
+    }
+  },
+  {
+    "id": "toucanbird",
+    "name": "Toucan Bird",
+    "icon": "/Gifts/toucanbird.png",
+    "coins": 20,
+    "tier": "Lite",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/toucanbird_wm.webm",
+      "mp4": "/video-gifts/toucanbird.mp4"
+    }
+  },
+  {
+    "id": "combatjets",
+    "name": "Combat Jets",
+    "icon": "/Gifts/combatjets.png",
+    "coins": 18000,
+    "tier": "Mythic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/combatjets_wm.webm",
+      "mp4": "/video-gifts/combatjets.mp4"
+    }
+  },
+  {
+    "id": "watercar",
+    "name": "Water Car",
+    "icon": "/Gifts/watercar.png",
+    "coins": 5000,
+    "tier": "Royal",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/watercar_wm.webm",
+      "mp4": "/video-gifts/watercar.mp4"
+    }
+  },
+  {
+    "id": "weddingring",
+    "name": "Wedding Ring",
+    "icon": "/Gifts/weddingring.png",
+    "coins": 9000,
+    "tier": "Royal",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/weddingring_wm.webm",
+      "mp4": "/video-gifts/weddingring.mp4"
+    }
+  },
+  {
+    "id": "luxurycar",
+    "name": "Luxury Car",
+    "icon": "/Gifts/luxurycar.png",
+    "coins": 20000,
+    "tier": "Supreme",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/luxurycar_wm.webm",
+      "mp4": "/video-gifts/luxurycar.mp4"
+    }
+  },
+  {
+    "id": "celestialhorse",
+    "name": "Celestial Horse",
+    "icon": "/Gifts/celestialhorse.png",
+    "coins": 25000,
+    "tier": "Mythic",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/celestialhorse_wm.webm",
+      "mp4": "/video-gifts/celestialhorse.mp4"
+    }
+  },
+  {
+    "id": "smartbizuniversal",
+    "name": "SmartBiz Universal Studios",
+    "icon": "/Gifts/smartbizuniversal.png",
+    "coins": 28000,
+    "tier": "Supreme",
+    "video": {
+      "webm": "/video-gifts/transparent/watermarked/smartbizuniversal_wm.webm",
+      "mp4": "/video-gifts/smartbizuniversal.mp4"
+    }
+  }
+]
