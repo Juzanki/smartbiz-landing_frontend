@@ -19,6 +19,7 @@
         <!-- Search -->
         <div class="relative mt-2">
           <input
+            ref="searchRef"
             v-model="q"
             type="search"
             inputmode="search"
@@ -38,11 +39,24 @@
           <button class="chip" :class="{ 'chip-active': filter==='soon' }" @click="setFilter('soon')">Due soon</button>
 
           <div class="relative ml-auto">
-            <button class="chip" @click="sortOpen=!sortOpen" :aria-expanded="String(sortOpen)">{{ sortLabel }}</button>
-            <div v-if="sortOpen" class="menu" v-click-outside="() => sortOpen=false">
-              <button class="menu-item" @click="setSort('recent')">Recent</button>
-              <button class="menu-item" @click="setSort('due')">Due date</button>
-              <button class="menu-item" @click="setSort('progress')">Progress</button>
+            <button
+              class="chip"
+              :aria-expanded="String(sortOpen)"
+              aria-haspopup="menu"
+              @click="sortOpen=!sortOpen"
+            >
+              {{ sortLabel }}
+            </button>
+            <div
+              v-if="sortOpen"
+              class="menu"
+              role="menu"
+              v-click-outside="() => (sortOpen=false)"
+              @keydown.esc.stop.prevent="sortOpen=false"
+            >
+              <button class="menu-item" role="menuitem" @click="setSort('recent')">Recent</button>
+              <button class="menu-item" role="menuitem" @click="setSort('due')">Due date</button>
+              <button class="menu-item" role="menuitem" @click="setSort('progress')">Progress</button>
             </div>
           </div>
         </div>
@@ -207,8 +221,8 @@ const vClickOutside = {
   }
 }
 
-/* ----- Skeleton component (inline) ----- */
-export const SkeletonRow = defineComponent({
+/* ----- Inline Skeleton (no export in <script setup>) ----- */
+const SkeletonRow = defineComponent({
   name: 'SkeletonRow',
   setup(){
     return () => h('div', { class:'skel' }, [
@@ -231,9 +245,14 @@ const moreLoading = ref(false)
 const saving = ref(false)
 
 const q = ref('')
+const qDebounced = ref('')
+let qTimer: number | undefined
+watch(q, v => { clearTimeout(qTimer); qTimer = window.setTimeout(()=> { qDebounced.value = v; paginate(true) }, 220) as any })
+
 const filter = ref<'all'|'active'|'completed'|'soon'>('all')
 const sortBy = ref<'recent'|'due'|'progress'>('recent')
 const sortOpen = ref(false)
+const searchRef = ref<HTMLInputElement|null>(null)
 
 type Goal = {
   id: string
@@ -290,8 +309,8 @@ const sortLabel = computed(()=> sortBy.value==='recent' ? 'Recent' : sortBy.valu
 const filteredBase = computed<Goal[]>(()=>{
   const derived = all.value.map(g => ({ ...g, progress: clamp(Math.round((g.current / Math.max(1,g.target))*100), 0, 100) }))
   let v = derived
-  if (q.value) {
-    const s = q.value.toLowerCase()
+  if (qDebounced.value) {
+    const s = qDebounced.value.toLowerCase()
     v = v.filter(g => g.title.toLowerCase().includes(s) || (g.category||'').toLowerCase().includes(s))
   }
   if (filter.value==='active') v = v.filter(g => !g.completed)
@@ -356,7 +375,7 @@ function increment(g: Goal){
 function toggleFav(g: Goal){ g.favorite = !g.favorite; g.updatedAt = Date.now(); vibrate(6) }
 function toggleComplete(g: Goal){ g.completed = !g.completed; g.updatedAt = Date.now(); vibrate(8) }
 
-/* Long-press complete */
+/* Long-press complete (mobile) */
 let pressTimer: number | null = null
 function startPress(g: Goal){ if (pressTimer) clearTimeout(pressTimer); pressTimer = window.setTimeout(()=> { g.completed = true; g.updatedAt = Date.now(); vibrate(12) }, 500) as any }
 function endPress(){ if (pressTimer) { clearTimeout(pressTimer); pressTimer = null } }
@@ -398,6 +417,14 @@ function relative(d?:string){
 }
 function vibrate(ms:number){ try{ navigator.vibrate?.(ms) }catch{} }
 
+/* Keyboard: '/' to focus search */
+function onKey(e: KeyboardEvent){
+  if (e.key === '/' && document.activeElement !== searchRef.value) {
+    e.preventDefault()
+    searchRef.value?.focus()
+  }
+}
+
 /* ----- Seed & lifecycle ----- */
 function seed(){
   const now = Date.now()
@@ -414,8 +441,12 @@ onMounted(()=>{
   loading.value = false
   paginate(true)
   mountIO()
+  window.addEventListener('keydown', onKey)
 })
-onBeforeUnmount(unmountIO)
+onBeforeUnmount(()=>{
+  unmountIO()
+  window.removeEventListener('keydown', onKey)
+})
 </script>
 
 <style scoped>
