@@ -1,4 +1,3 @@
-<!-- src/components/Following.vue -->
 <template>
   <div
     class="min-h-[100svh] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white"
@@ -37,17 +36,10 @@
             :class="{ 'chip-active': activeRole==='all' }"
             :aria-pressed="String(activeRole==='all')"
             @click="setRole('all')"
-          >
-            All
-          </button>
+          >All</button>
 
           <div class="relative">
-            <button
-              class="chip"
-              :aria-expanded="String(sortOpen)"
-              aria-haspopup="menu"
-              @click="toggleSort"
-            >
+            <button class="chip" :aria-expanded="String(sortOpen)" aria-haspopup="menu" @click="toggleSort">
               {{ sortLabel }}
             </button>
 
@@ -75,27 +67,18 @@
             :class="{ 'chip-active': activeRole===r }"
             :aria-pressed="String(activeRole===r)"
             @click="setRole(r)"
-          >
-            {{ r }}
-          </button>
+          >{{ r }}</button>
         </div>
       </div>
     </header>
 
     <!-- Body -->
     <main class="max-w-xl mx-auto px-4 py-4 md:max-w-4xl">
-      <!-- Skeletons -->
       <div v-if="loading" class="space-y-3">
         <SkeletonRow v-for="i in 6" :key="i" />
       </div>
 
-      <!-- List/Grid -->
-      <div
-        v-else
-        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
-        role="list"
-        aria-label="Following list"
-      >
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3" role="list" aria-label="Following list">
         <article
           v-for="u in visible"
           :key="u.username"
@@ -127,24 +110,20 @@
               <p class="text-[12px] text-gray-400 truncate">{{ u.role }}</p>
             </div>
 
-            <!-- desktop actions -->
             <div class="hidden sm:flex gap-1">
               <button class="btn-cyan text-[11px] px-2 py-1" @click.stop="message(u)">Message</button>
               <button class="btn-dark text-[11px] px-2 py-1" @click.stop="askUnfollow(u)">Unfollow</button>
             </div>
 
-            <!-- mobile sheet -->
             <button class="icon-btn sm:hidden" aria-label="More" @click="openSheet(u)">⋯</button>
           </div>
         </article>
       </div>
 
-      <!-- Empty state -->
       <p v-if="!loading && !visible.length" class="text-gray-400 italic text-center mt-16">
         You’re not following anyone (yet) that matches your filters.
       </p>
 
-      <!-- Infinite scroll sentinel -->
       <div ref="sentinel" class="h-10 flex items-center justify-center">
         <span v-if="moreLoading" class="text-white/60 text-sm">Loading…</span>
       </div>
@@ -200,7 +179,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, defineCompo
 
 defineOptions({ name: 'Following' })
 
-/* ----- types ----- */
+/* types */
 type User = {
   username: string
   role?: string
@@ -363,19 +342,26 @@ function onKeydown(e: KeyboardEvent){
     searchRef.value?.focus()
   }
 }
-onMounted(async ()=>{
-  await seedData()
-  loading.value = false
-  mountIO()
-  window.addEventListener('keydown', onKeydown)
-})
-onBeforeUnmount(()=>{
-  unmountIO()
-  window.removeEventListener('keydown', onKeydown)
+
+/* local subcomponent: SkeletonRow */
+const SkeletonRow = defineComponent({
+  name: 'SkeletonRow',
+  setup(){
+    return () => h('div', { class: 'skel' }, [
+      h('div', { class:'flex items-center gap-3' }, [
+        h('div', { class:'w-11 h-11 rounded-full skel-bar' }),
+        h('div', { class:'flex-1' }, [
+          h('div', { class:'h-3 w-28 rounded skel-bar mb-2' }),
+          h('div', { class:'h-3 w-20 rounded skel-bar' })
+        ]),
+        h('div', { class:'h-7 w-16 rounded-full skel-bar' })
+      ])
+    ])
+  }
 })
 
-/* local directive: click-outside */
-const clickOutside = {
+/* local directive usable as v-click-outside */
+const vClickOutside = {
   mounted(el: HTMLElement, binding: { value: (e: Event)=>void }) {
     const handler = (e: Event) => { if (!el.contains(e.target as Node)) binding.value(e) }
     ;(el as any).__co__ = handler
@@ -388,41 +374,36 @@ const clickOutside = {
     document.removeEventListener('touchstart', handler, true)
   }
 }
-defineExpose({ refresh })
-/* register directive for template */
-const vClickOutside = clickOutside
-</script>
 
-<script lang="ts">
-/* register directive name globally for this SFC template scope */
-export default {
-  directives: { 'click-outside': (/* will be patched by <script setup> export above */) as any }
-}
+defineExpose({ refresh })
+
+onMounted(async ()=>{
+  await seedData()
+  loading.value = false
+  mountIO()
+  window.addEventListener('keydown', onKeydown)
+})
+onBeforeUnmount(()=>{
+  unmountIO()
+  window.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <style scoped>
 /* Chips & controls */
-.chip{
-  @apply px-2.5 py-1 rounded-full text-xs bg-white/10 border border-white/10 hover:bg-white/20 transition;
-}
+.chip{ @apply px-2.5 py-1 rounded-full text-xs bg-white/10 border border-white/10 hover:bg-white/20 transition; }
 .chip-active{ @apply bg-cyan-600 text-[#0b1324] border-cyan-500; }
-
 /* Dropdown menu */
-.menu{
-  @apply absolute right-0 mt-1 bg-[#0f172a] border border-cyan-800 rounded-xl shadow-xl p-1 z-10;
-}
+.menu{ @apply absolute right-0 mt-1 bg-[#0f172a] border border-cyan-800 rounded-xl shadow-xl p-1 z-10; }
 .menu-item{ @apply w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-white/10; }
-
 /* Buttons */
 .btn-cyan { @apply bg-cyan-600 hover:bg-cyan-500 text-white rounded-full transition; }
 .btn-dark { @apply bg-gray-700 hover:bg-gray-600 text-white rounded-full transition; }
 .icon-btn { @apply w-9 h-9 rounded-full grid place-items-center bg-white/10 border border-white/10 hover:bg-white/20 transition; }
 .btn-danger{ @apply bg-rose-600 hover:bg-rose-500 text-white rounded-md transition; }
-
 /* Utilities */
 .no-scrollbar::-webkit-scrollbar{ display:none }
 .no-scrollbar{ -ms-overflow-style:none; scrollbar-width:none }
-
 /* Skeleton row */
 .skel{ @apply bg-[#1e293b]/80 p-3 rounded-xl border border-cyan-700/50; }
 .skel-bar{
@@ -431,7 +412,6 @@ export default {
   animation: shimmer 1.1s linear infinite;
 }
 @keyframes shimmer { to { background-position-x: -200% } }
-
 /* mobile sheet buttons */
 .sheet-btn{ @apply w-full py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10; }
 .sheet-btn.warn{ @apply bg-rose-600/90 hover:bg-rose-500/90 border-rose-500/40 text-white; }
