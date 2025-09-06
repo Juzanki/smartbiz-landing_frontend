@@ -1,16 +1,25 @@
-<!-- FollowersMobileUltra.vue -->
+<!-- src/components/FollowersMobileUltra.vue -->
 <template>
   <div
     class="min-h-[100svh] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white"
-    @touchstart.passive="ptrStart" @touchmove.passive="ptrMove" @touchend.passive="ptrEnd"
+    @touchstart.passive="ptrStart"
+    @touchmove.passive="ptrMove"
+    @touchend.passive="ptrEnd"
   >
+    <!-- Offline banner -->
+    <div v-if="!online" class="sticky top-0 z-30 w-full bg-amber-500/15 text-amber-200 text-xs px-3 py-2 text-center">
+      You’re offline. Viewing cached data.
+    </div>
+
     <!-- Pull-to-refresh indicator -->
     <div class="ptr-indicator" :style="{ height: `${Math.max(0, ptr.delta)}px`, opacity: ptr.delta>0 ? 1:0 }">
       <span class="ptr-spinner" :class="{ spin: ptr.state==='loading' }"></span>
-      <span class="ml-2 text-xs">{{ ptr.state==='ready' ? 'Release to refresh' : ptr.state==='loading' ? 'Refreshing…' : 'Pull to refresh' }}</span>
+      <span class="ml-2 text-xs">
+        {{ ptr.state==='ready' ? 'Release to refresh' : ptr.state==='loading' ? 'Refreshing…' : 'Pull to refresh' }}
+      </span>
     </div>
 
-    <!-- Header -->
+    <!-- Header / Search / Filters -->
     <header
       class="sticky top-0 z-20 bg-gradient-to-b from-[#0f172a]/90 to-[#0f172a]/60 backdrop-blur-lg border-b border-cyan-800/40"
       :style="{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }"
@@ -19,17 +28,23 @@
       <div class="max-w-xl mx-auto px-3 pt-2 pb-3">
         <div class="flex items-center justify-between mb-2">
           <h1 class="text-2xl font-bold text-cyan-300">👥 Your Followers</h1>
-          <button class="chip" :class="{ 'chip-active': selectMode }" @click="toggleSelectMode" aria-pressed="selectMode">
-            {{ selectMode ? `Done (${selectedCount})` : 'Select' }}
-          </button>
+          <div class="flex items-center gap-2">
+            <button class="chip" @click="exportCSV" :disabled="selectedCount===0" title="Export selected to CSV">
+              Export
+            </button>
+            <button class="chip" :class="{ 'chip-active': selectMode }" @click="toggleSelectMode" aria-pressed="selectMode">
+              {{ selectMode ? `Done (${selectedCount})` : 'Select' }}
+            </button>
+          </div>
         </div>
 
-        <!-- Search + quick filters -->
         <div class="flex gap-2">
           <div class="relative flex-1">
             <input
               v-model.trim="q"
-              type="search" inputmode="search" autocomplete="off"
+              type="search"
+              inputmode="search"
+              autocomplete="off"
               placeholder="Search by name or @username"
               class="w-full bg-white/10 border border-white/10 rounded-xl pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-cyan-500"
               aria-label="Search followers"
@@ -41,28 +56,32 @@
           <button class="chip" :class="{ 'chip-active': filter==='mutual' }" @click="setFilter('mutual')">Mutual</button>
           <button class="chip" :class="{ 'chip-active': filter==='verified' }" @click="setFilter('verified')">✓</button>
 
-          <div class="relative">
-            <button class="chip" @click="sortOpen = !sortOpen" :aria-expanded="sortOpen ? 'true':'false'">
+          <div class="relative" ref="sortMenuRef">
+            <button class="chip" @click="toggleSort" :aria-expanded="sortOpen ? 'true':'false'">
               {{ sortLabel }}
             </button>
-            <div v-if="sortOpen" class="menu" @click.outside="sortOpen=false">
-              <button class="menu-item" @click="setSort('recent')">Recent</button>
-              <button class="menu-item" @click="setSort('name')">Name A–Z</button>
-              <button class="menu-item" @click="setSort('active')">Last Active</button>
+            <div v-if="sortOpen" class="menu" v-outside="() => sortOpen=false" role="menu" aria-label="Sort menu">
+              <button class="menu-item" @click="setSort('recent')" role="menuitem">Recent</button>
+              <button class="menu-item" @click="setSort('name')" role="menuitem">Name A–Z</button>
+              <button class="menu-item" @click="setSort('active')" role="menuitem">Last Active</button>
             </div>
           </div>
         </div>
 
-        <!-- Top stats + refresh -->
         <div class="flex items-center justify-between mt-2 text-xs text-white/70">
           <span>{{ prettyCount }} follower{{ totalCount!==1 ? 's' : '' }}</span>
-          <button class="underline underline-offset-4 hover:text-cyan-300" @click="hardRefresh">Refresh</button>
+          <div class="flex items-center gap-2">
+            <button class="underline underline-offset-4 hover:text-cyan-300" @click="hardRefresh">Refresh</button>
+            <button v-if="selectMode && visible.length" class="underline underline-offset-4 hover:text-cyan-300" @click="selectAllPage">
+              Select page
+            </button>
+          </div>
         </div>
       </div>
     </header>
 
     <!-- Body -->
-    <main class="max-w-xl mx-auto px-3 py-4 md:max-w-4xl">
+    <main class="max-w-xl mx-auto px-3 py-4 md:max-w-4xl" @keydown="onKey">
       <!-- Skeletons -->
       <div v-if="loading" class="space-y-3">
         <SkeletonCard v-for="i in 6" :key="i" />
@@ -70,12 +89,16 @@
 
       <!-- List / Grid -->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3" role="list" aria-label="Followers list">
-        <!-- Swipeable row -->
-        <div v-for="u in visible" :key="u.username" class="relative overflow-hidden rounded-xl" role="listitem">
-          <!-- Hidden actions layer (reveals on swipe) -->
-          <div class="absolute inset-0 flex items-stretch justify-end gap-2 px-2">
-            <button class="swipe-btn bg-cyan-600/80 hover:bg-cyan-500" @click="message(u)">💬</button>
-            <button class="swipe-btn bg-rose-600/80 hover:bg-rose-500" @click="removeUser(u)">🗑</button>
+        <div
+          v-for="u in visible"
+          :key="u.username"
+          class="relative overflow-hidden rounded-xl"
+          role="listitem"
+        >
+          <!-- Hidden actions layer -->
+          <div class="absolute inset-0 flex items-stretch justify-end gap-2 px-2 pointer-events-none">
+            <button class="swipe-btn bg-cyan-600/80 hover:bg-cyan-500 pointer-events-auto" @click="message(u)" title="Message">💬</button>
+            <button class="swipe-btn bg-rose-600/80 hover:bg-rose-500 pointer-events-auto" @click="removeUser(u)" title="Remove">🗑</button>
           </div>
 
           <!-- Foreground card -->
@@ -88,13 +111,18 @@
             @pointercancel="swipeEnd(u)"
             @pointerleave="swipeEnd(u)"
             @click="onRowClick(u)"
+            tabindex="0"
+            :aria-label="`${u.name} ${u.username}`"
           >
             <div class="flex items-center gap-4">
               <div class="relative">
                 <img
-                  :src="u.avatar" :alt="`${u.name} avatar`"
+                  :src="u.avatar"
+                  :alt="`${u.name} avatar`"
                   class="w-12 h-12 rounded-full object-cover ring-2 ring-cyan-500/50"
-                  loading="lazy" decoding="async" @error="onAvatarError($event)"
+                  loading="lazy"
+                  decoding="async"
+                  @error="onAvatarError($event, u)"
                 />
                 <span
                   class="absolute -bottom-0 -right-0 w-3.5 h-3.5 rounded-full border-2 border-[#0f172a]"
@@ -105,8 +133,10 @@
                 <!-- Selection tick -->
                 <button
                   v-if="selectMode"
-                  class="select-tick" :class="{ on: isSelected(u) }"
-                  @click.stop="toggleSelect(u)" aria-pressed="isSelected(u)"
+                  class="select-tick"
+                  :class="{ on: isSelected(u) }"
+                  @click.stop="toggleSelect(u)"
+                  :aria-pressed="isSelected(u) ? 'true':'false'"
                   title="Select"
                 >✔</button>
               </div>
@@ -196,45 +226,84 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, defineComponent, h } from 'vue'
 
-/* Emits */
+/* ============ Emits ============ */
 const emit = defineEmits(['message','remove','follow'])
 
-/* Loading & data */
+/* ============ Online state ============ */
+const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
+function onOnline () { online.value = true }
+function onOffline() { online.value = false }
+onMounted(() => {
+  window.addEventListener('online', onOnline)
+  window.addEventListener('offline', onOffline)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('online', onOnline)
+  window.removeEventListener('offline', onOffline)
+})
+
+/* ============ Loading & data ============ */
 const loading = ref(true)
 const moreLoading = ref(false)
-const all = ref([])
-const followers = ref([])
+const all = ref([])         // entire dataset (cached)
+const followers = ref([])   // paged/visible dataset
 const page = ref(1)
 const pageSize = 8
 
-/* Search & filters */
+/* ============ Search & filters ============ */
 const q = ref('')
 const qDebounced = ref('')
 let qTimer
 watch(q, (v)=>{ clearTimeout(qTimer); qTimer = setTimeout(()=> qDebounced.value = v, 220) })
-const filter = ref('all')   // all | mutual | verified
-const sort = ref('recent')  // recent | name | active
-const sortOpen = ref(false)
 
-/* Selection mode */
+const filter = ref(loadPref('followers:filter','all'))   // all | mutual | verified
+const sort = ref(loadPref('followers:sort','recent'))    // recent | name | active
+watch(filter, (v)=> savePref('followers:filter', v))
+watch(sort,   (v)=> savePref('followers:sort', v))
+
+const sortOpen = ref(false)
+const sortMenuRef = ref(null)
+function toggleSort(){ sortOpen.value = !sortOpen.value }
+
+/* Click-outside directive */
+const vOutside = {
+  mounted(el, binding) {
+    el.__onClickOutside__ = (e) => { if (!el.contains(e.target)) binding.value?.(e) }
+    document.addEventListener('mousedown', el.__onClickOutside__)
+    document.addEventListener('touchstart', el.__onClickOutside__, { passive: true })
+  },
+  unmounted(el) {
+    document.removeEventListener('mousedown', el.__onClickOutside__)
+    document.removeEventListener('touchstart', el.__onClickOutside__)
+  }
+}
+
+/* ============ Selection mode ============ */
 const selectMode = ref(false)
 const selected = reactive(new Set())
 const selectedCount = computed(() => selected.size)
-function toggleSelectMode(){ selectMode.value = !selectMode.value; if (!selectMode.value) selected.clear() }
+
+function toggleSelectMode(){
+  selectMode.value = !selectMode.value
+  if (!selectMode.value) selected.clear()
+}
 function isSelected(u){ return selected.has(u.username) }
 function toggleSelect(u){ isSelected(u) ? selected.delete(u.username) : selected.add(u.username); buzz(5) }
 function clearSelection(){ selected.clear() }
+function selectAllPage(){
+  visible.value.forEach(u => selected.add(u.username))
+  buzz(8)
+}
 
-/* Swipe state */
+/* ============ Swipe state ============ */
 const swipe = reactive({ active:null, startX:0, x: {} })
-function swipeStart(e, u){ swipe.active = u.username; swipe.startX = e.clientX || e.touches?.[0]?.clientX || 0 }
+function swipeStart(e, u){ swipe.active = u.username; swipe.startX = (e.clientX ?? e.touches?.[0]?.clientX) || 0 }
 function swipeMove(e, u){
   if (swipe.active !== u.username) return
-  const x = (e.clientX || e.touches?.[0]?.clientX || 0) - swipe.startX
-  // allow only left swipe to reveal actions
-  swipe.x[u.username] = Math.min(0, Math.max(-120, x))
+  const x = ((e.clientX ?? e.touches?.[0]?.clientX) || 0) - swipe.startX
+  swipe.x[u.username] = Math.min(0, Math.max(-120, x)) // only left
 }
 function swipeEnd(u){
   if (!u) return
@@ -243,26 +312,26 @@ function swipeEnd(u){
   swipe.active = null
 }
 
-/* Row click: select or open sheet (ignore if swiped open) */
+/* ============ Row interactions ============ */
 function onRowClick(u){
   if (Math.abs(swipe.x[u.username]||0) > 6) return
   if (selectMode.value) toggleSelect(u)
   else openSheet(u)
 }
 
-/* Bottom sheet */
+/* ============ Bottom sheet ============ */
 const sheet = reactive({ open:false, user:null })
 function openSheet(u){ sheet.open = true; sheet.user = u; buzz(6) }
 function closeSheet(){ sheet.open = false; sheet.user = null }
 
-/* Helpers */
+/* ============ Helpers ============ */
 function buzz(ms=8){ if (navigator.vibrate) try{ navigator.vibrate(ms) }catch{} }
-function pretty(n){ return n.toLocaleString?.() ?? String(n) }
+function pretty(n){ return n?.toLocaleString?.() ?? String(n) }
 const totalCount = computed(()=> all.value.length)
 const prettyCount = computed(()=> pretty(totalCount.value))
 const sortLabel = computed(()=> sort.value==='recent' ? 'Recent' : sort.value==='name' ? 'A–Z' : 'Active')
 
-/* Filtering + sort + search */
+/* ============ Filtering + sort + search ============ */
 const visible = computed(()=>{
   let v = [...followers.value]
   if (qDebounced.value) {
@@ -279,10 +348,19 @@ const visible = computed(()=>{
 function setFilter(v){ filter.value = v; buzz(4) }
 function setSort(v){ sort.value = v; sortOpen.value = false; buzz(4) }
 
-/* Avatar fallback */
-function onAvatarError(e){ e.target.src = '/user-avatar.png' }
+/* ============ Avatar fallback ============ */
+function onAvatarError(e, u){
+  e.target.onerror = null
+  // fallback: initials as SVG data URL
+  const initials = (u?.name || 'U').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase()
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'>
+    <rect width='100%' height='100%' rx='48' fill='#0ea5e9'></rect>
+    <text x='50%' y='55%' font-size='42' text-anchor='middle' fill='#0b1324' font-family='system-ui,Segoe UI,Roboto'>${initials}</text>
+  </svg>`
+  e.target.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg)
+}
 
-/* Actions */
+/* ============ Actions ============ */
 function message(u){ if (!u) return; buzz(8); emit('message', u) }
 function removeUser(u){
   if (!u) return
@@ -309,7 +387,33 @@ function bulkRemove(){
   selected.clear()
 }
 
-/* Infinite scroll */
+/* Export CSV for selected */
+function exportCSV(){
+  const users = [...selected].map(id => all.value.find(f=>f.username===id)).filter(Boolean)
+  if (!users.length) return
+  const rows = [
+    ['name','username','verified','pro','mutual','online','lastActive'].join(','),
+    ...users.map(u => [
+      qCSV(u.name),
+      qCSV(u.username),
+      u.verified ? '1':'0',
+      u.pro ? '1':'0',
+      u.mutual ? '1':'0',
+      u.online ? '1':'0',
+      new Date(u.lastActive||0).toISOString()
+    ].join(','))
+  ].join('\r\n')
+  const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'followers.csv'
+  document.body.appendChild(a); a.click(); a.remove()
+  URL.revokeObjectURL(url)
+}
+function qCSV(v){ const s = String(v ?? ''); return /[,"\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s }
+
+/* ============ Infinite scroll ============ */
 const sentinel = ref(null)
 let io
 function mountIO(){
@@ -324,7 +428,7 @@ function unmountIO(){ try{ io?.disconnect() }catch{} }
 async function loadMore(){
   if (moreLoading.value || loading.value) return
   moreLoading.value = true
-  await new Promise(r=> setTimeout(r, 600))
+  await delay(350)
   const start = (page.value-1) * pageSize
   const next = all.value.slice(start, start + pageSize)
   followers.value.push(...next)
@@ -332,7 +436,7 @@ async function loadMore(){
   moreLoading.value = false
 }
 
-/* Pull-to-refresh */
+/* ============ Pull-to-refresh ============ */
 const ptr = reactive({ startY:0, delta:0, state:'idle' }) // idle|ready|loading
 function ptrStart(e){
   if (window.scrollY > 0) return
@@ -351,6 +455,7 @@ async function ptrEnd(){
   setTimeout(()=> { ptr.delta = 0; if (ptr.state==='loading') ptr.state='idle' }, 300)
 }
 
+/* ============ Refresh / Seed data ============ */
 async function hardRefresh(){
   buzz(6)
   loading.value = true
@@ -360,10 +465,24 @@ async function hardRefresh(){
   loading.value = false
 }
 
-/* Seed data (mock) — replace with real API */
+/* Mock fetch with cache (replace with real API) */
 async function seedData(force=false){
-  if (all.value.length && !force) return
-  await new Promise(r=> setTimeout(r, 700))
+  const LS_KEY = 'followers:data:v1'
+  // load cache if exists and not forcing
+  if (!force){
+    try {
+      const cached = JSON.parse(localStorage.getItem(LS_KEY) || 'null')
+      if (cached && Array.isArray(cached) && cached.length){
+        all.value = cached
+        followers.value = all.value.slice(0, pageSize)
+        page.value = 2
+        return
+      }
+    } catch {}
+  }
+
+  // Simulate API
+  await delay(600)
   const base = [
     { name: 'Michael AI', username:'@michael_ai', avatar:'/user-avatar.png', bio:'AI Builder & Data Enthusiast', verified:true,  pro:true,  online:true  },
     { name: 'Rose Dev',   username:'@rose_dev',   avatar:'/user-avatar.png', bio:'Frontend Developer & Tech Educator', verified:false, pro:false, online:false },
@@ -389,14 +508,90 @@ async function seedData(force=false){
     joined: m.joined - k*3_600_000,
     lastActive: m.lastActive - k*5_000_000
   })) ).flat()
+
   followers.value = all.value.slice(0, pageSize)
   page.value = 2
+
+  try { localStorage.setItem(LS_KEY, JSON.stringify(all.value)) } catch {}
 }
 
-/* Lifecycle */
-const sentinel = ref(null)
-onMounted(async ()=>{ await seedData(); loading.value = false; mountIO() })
-onBeforeUnmount(unmountIO)
+/* ============ Keyboard shortcuts ============ */
+function onKey(e){
+  if (e.key === 'Escape' && sheet.open) { closeSheet(); return }
+  if (e.key === 'Escape' && selectMode.value) { toggleSelectMode(); return }
+  if (e.key === 'a' && (e.ctrlKey || e.metaKey) && selectMode.value) { e.preventDefault(); selectAllPage() }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectMode.value && selected.size){
+    bulkRemove()
+  }
+}
+
+/* ============ Utils ============ */
+function relativeTime(ts){
+  if (!ts) return 'recently'
+  const seconds = Math.floor((Date.now() - ts)/1000)
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds/60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes/60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours/24)
+  return `${days}d ago`
+}
+function delay(ms){ return new Promise(r=> setTimeout(r, ms)) }
+function savePref(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch{} }
+function loadPref(k, def){ try{ const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? def }catch{ return def } }
+
+/* ============ Lifecycle ============ */
+onMounted(async ()=>{
+  await seedData()
+  loading.value = false
+  mountIO()
+  window.addEventListener('keydown', onKey)
+})
+onBeforeUnmount(()=>{
+  unmountIO()
+  window.removeEventListener('keydown', onKey)
+})
+
+/* ============ Inline Skeleton card (no JSX) ============ */
+const SkeletonCard = defineComponent({
+  name: 'SkeletonCard',
+  setup(){
+    return () => h('div', { class: 'skel' }, [
+      h('div', { class: 'flex items-center gap-4' }, [
+        h('div', { class:'w-12 h-12 rounded-full skel-bar' }),
+        h('div', { class:'flex-1' }, [
+          h('div', { class:'h-3 w-40 rounded skel-bar mb-2' }),
+          h('div', { class:'h-3 w-24 rounded skel-bar' })
+        ])
+      ]),
+      h('div', { class:'h-3 w-3/4 rounded skel-bar mt-4' }),
+      h('div', { class:'flex gap-2 mt-4' }, [
+        h('div', { class:'h-8 w-20 rounded-full skel-bar' }),
+        h('div', { class:'h-8 w-20 rounded-full skel-bar' })
+      ])
+    ])
+  }
+})
+</script>
+
+<script>
+/* register directives for <script setup> usage */
+export default {
+  directives: {
+    outside: {
+      mounted(el, binding) {
+        el.__onClickOutside__ = (e) => { if (!el.contains(e.target)) binding.value?.(e) }
+        document.addEventListener('mousedown', el.__onClickOutside__)
+        document.addEventListener('touchstart', el.__onClickOutside__, { passive: true })
+      },
+      unmounted(el) {
+        document.removeEventListener('mousedown', el.__onClickOutside__)
+        document.removeEventListener('touchstart', el.__onClickOutside__)
+      }
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -424,11 +619,6 @@ onBeforeUnmount(unmountIO)
 }
 .select-tick.on{ @apply bg-cyan-500 text-[#0b1324] }
 
-/* Sheet */
-.sheet-btn{ @apply w-full bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl px-3 py-2 text-left; }
-.sheet-btn.warn{ @apply border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 }
-.sheet-btn.danger{ @apply border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 }
-
 /* Skeleton */
 .skel{ @apply bg-[#0f172a]/60 p-4 rounded-xl border border-cyan-700/60; }
 .skel-bar{
@@ -448,28 +638,3 @@ onBeforeUnmount(unmountIO)
 .ptr-spinner.spin{ animation: spin 1s linear infinite }
 @keyframes spin{ to{ transform: rotate(360deg) } }
 </style>
-
-<script lang="ts">
-/* Inline Skeleton subcomponent */
-import { defineComponent, h } from 'vue'
-export default {}
-export const SkeletonCard = defineComponent({
-  name: 'SkeletonCard',
-  setup(){
-    return () => h('div', { class: 'skel' }, [
-      h('div', { class: 'flex items-center gap-4' }, [
-        h('div', { class:'w-12 h-12 rounded-full skel-bar' }),
-        h('div', { class:'flex-1' }, [
-          h('div', { class:'h-3 w-40 rounded skel-bar mb-2' }),
-          h('div', { class:'h-3 w-24 rounded skel-bar' })
-        ])
-      ]),
-      h('div', { class:'h-3 w-3/4 rounded skel-bar mt-4' }),
-      h('div', { class:'flex gap-2 mt-4' }, [
-        h('div', { class:'h-8 w-20 rounded-full skel-bar' }),
-        h('div', { class:'h-8 w-20 rounded-full skel-bar' })
-      ])
-    ])
-  }
-})
-</script>
