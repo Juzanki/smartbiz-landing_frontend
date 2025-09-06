@@ -1,9 +1,10 @@
+<!-- src/components/Following.vue -->
 <template>
   <div
     class="min-h-[100svh] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white"
     :style="{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }"
   >
-    <!-- Header: sticky, mobile-first -->
+    <!-- Header -->
     <header
       class="sticky top-0 z-20 bg-gradient-to-b from-[#0f172a]/90 to-[#0f172a]/60 backdrop-blur-lg border-b border-cyan-800/40"
       :style="{ paddingTop: 'max(.5rem, env(safe-area-inset-top))' }"
@@ -15,10 +16,11 @@
           <span class="text-xs text-white/70">{{ prettyCount }} account{{ totalCount!==1 ? 's' : '' }}</span>
         </div>
 
-        <!-- Search + filters + sort -->
+        <!-- Search + sort -->
         <div class="flex gap-2">
           <div class="relative flex-1">
             <input
+              ref="searchRef"
               v-model="q"
               type="search"
               inputmode="search"
@@ -30,34 +32,48 @@
             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-white/60">🔎</span>
           </div>
 
-          <!-- Quick filter chips -->
           <button
             class="chip"
             :class="{ 'chip-active': activeRole==='all' }"
+            :aria-pressed="String(activeRole==='all')"
             @click="setRole('all')"
           >
             All
           </button>
 
           <div class="relative">
-            <button class="chip" @click="sortOpen = !sortOpen" :aria-expanded="String(sortOpen)">
+            <button
+              class="chip"
+              :aria-expanded="String(sortOpen)"
+              aria-haspopup="menu"
+              @click="toggleSort"
+            >
               {{ sortLabel }}
             </button>
-            <div v-if="sortOpen" class="menu" @click.outside="sortOpen=false">
-              <button class="menu-item" @click="setSort('recent')">Recently followed</button>
-              <button class="menu-item" @click="setSort('name')">Name A–Z</button>
-              <button class="menu-item" @click="setSort('active')">Last Active</button>
+
+            <!-- menu -->
+            <div
+              v-if="sortOpen"
+              class="menu"
+              role="menu"
+              v-click-outside="() => (sortOpen=false)"
+              @keydown.esc.stop.prevent="sortOpen=false"
+            >
+              <button class="menu-item" role="menuitem" @click="setSort('recent')">Recently followed</button>
+              <button class="menu-item" role="menuitem" @click="setSort('name')">Name A–Z</button>
+              <button class="menu-item" role="menuitem" @click="setSort('active')">Last Active</button>
             </div>
           </div>
         </div>
 
-        <!-- Role scroller (auto from data) -->
+        <!-- dynamic role chips -->
         <div class="mt-2 flex gap-2 overflow-x-auto no-scrollbar pb-1">
           <button
             v-for="r in roleList"
             :key="r"
             class="chip shrink-0"
             :class="{ 'chip-active': activeRole===r }"
+            :aria-pressed="String(activeRole===r)"
             @click="setRole(r)"
           >
             {{ r }}
@@ -73,7 +89,7 @@
         <SkeletonRow v-for="i in 6" :key="i" />
       </div>
 
-      <!-- List (mobile 1-col) / Grid (md+) -->
+      <!-- List/Grid -->
       <div
         v-else
         class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
@@ -94,13 +110,13 @@
                 class="w-11 h-11 rounded-full object-cover ring-2 ring-cyan-500/30"
                 loading="lazy"
                 decoding="async"
-                @error="onAvatarError($event)"
+                @error="onAvatarError"
               />
               <span
                 class="absolute -bottom-0 -right-0 w-3.5 h-3.5 rounded-full border-2 border-[#1e293b]"
                 :class="u.online ? 'bg-emerald-400' : 'bg-gray-500'"
                 :title="u.online ? 'Online' : 'Offline'"
-              ></span>
+              />
             </div>
 
             <div class="min-w-0 flex-1">
@@ -111,19 +127,19 @@
               <p class="text-[12px] text-gray-400 truncate">{{ u.role }}</p>
             </div>
 
-            <!-- Quick actions (desktop show) -->
+            <!-- desktop actions -->
             <div class="hidden sm:flex gap-1">
               <button class="btn-cyan text-[11px] px-2 py-1" @click.stop="message(u)">Message</button>
               <button class="btn-dark text-[11px] px-2 py-1" @click.stop="askUnfollow(u)">Unfollow</button>
             </div>
 
-            <!-- Mobile: open sheet -->
+            <!-- mobile sheet -->
             <button class="icon-btn sm:hidden" aria-label="More" @click="openSheet(u)">⋯</button>
           </div>
         </article>
       </div>
 
-      <!-- Empty -->
+      <!-- Empty state -->
       <p v-if="!loading && !visible.length" class="text-gray-400 italic text-center mt-16">
         You’re not following anyone (yet) that matches your filters.
       </p>
@@ -134,8 +150,15 @@
       </div>
     </main>
 
-    <!-- Bottom Sheet (mobile actions) -->
-    <div v-if="sheet.open" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" @click.self="closeSheet" role="dialog" aria-modal="true">
+    <!-- Bottom Sheet -->
+    <div
+      v-if="sheet.open"
+      class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      @keydown.esc="closeSheet"
+      @click.self="closeSheet"
+    >
       <div
         class="fixed left-1/2 -translate-x-1/2 bottom-0 w-full max-w-xl mx-auto bg-[#0f172a] border-t border-cyan-800 rounded-t-2xl p-3"
         :style="{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }"
@@ -156,11 +179,13 @@
       </div>
     </div>
 
-    <!-- Confirm Unfollow Dialog -->
+    <!-- Confirm Unfollow -->
     <div v-if="confirm.open" class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" role="dialog" aria-modal="true">
       <div class="w-full max-w-sm bg-[#0f172a] border border-cyan-800 rounded-2xl p-4 shadow-2xl">
         <h3 class="text-lg font-semibold text-cyan-300 mb-2">Unfollow user?</h3>
-        <p class="text-sm text-white/80 mb-4">You will stop seeing updates from <span class="font-medium">{{ confirm.user?.username }}</span>.</p>
+        <p class="text-sm text-white/80 mb-4">
+          You will stop seeing updates from <span class="font-medium">{{ confirm.user?.username }}</span>.
+        </p>
         <div class="flex items-center justify-end gap-2">
           <button class="btn-dark px-3 py-1.5" @click="confirm.open=false">Cancel</button>
           <button class="btn-danger px-3 py-1.5" @click="unfollow(confirm.user)">Unfollow</button>
@@ -170,42 +195,57 @@
   </div>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, defineComponent, h } from 'vue'
 
-/* Emits (optional for parent integration) */
-const emit = defineEmits(['message','unfollow','refresh'])
+defineOptions({ name: 'Following' })
 
-/* --- Data & state --- */
+/* ----- types ----- */
+type User = {
+  username: string
+  role?: string
+  avatar: string
+  verified?: boolean
+  online?: boolean
+  followedAt?: number
+  lastActive?: number
+}
+
+/* emits */
+const emit = defineEmits<{
+  (e: 'message', u: User): void
+  (e: 'unfollow', u: User): void
+  (e: 'refresh'): void
+}>()
+
+/* state */
 const loading     = ref(true)
 const moreLoading = ref(false)
-const all         = ref([])   // full dataset (server)
-const list        = ref([])   // paged render list
-const page        = ref(1)
-const pageSize    = 9
+const all   = ref<User[]>([])
+const list  = ref<User[]>([])
+const page  = ref(1)
+const pageSize = 9
 
-/* Search / Filter / Sort */
+/* search / filter / sort */
 const q = ref('')
 const qDebounced = ref('')
-let qTimer
-watch(q, v => { clearTimeout(qTimer); qTimer = setTimeout(()=> qDebounced.value = v, 220) })
+let qTimer: any
+watch(q, v => { clearTimeout(qTimer); qTimer = setTimeout(()=> (qDebounced.value = v), 220) })
 
-const activeRole = ref('all')     // 'all' or any role
-const sortBy     = ref('recent')  // recent | name | active
+const activeRole = ref<'all' | string>('all')
+const sortBy     = ref<'recent' | 'name' | 'active'>('recent')
 const sortOpen   = ref(false)
-const sortLabel  = computed(()=> sortBy.value==='recent' ? 'Recent' : sortBy.value==='name' ? 'A–Z' : 'Active')
+const sortLabel  = computed(() => sortBy.value==='recent' ? 'Recent' : sortBy.value==='name' ? 'A–Z' : 'Active')
 
-/* Bottom sheet & Confirm */
-const sheet = reactive({ open:false, user:null })
-function openSheet(u){ sheet.open = true; sheet.user = u; vibrate(6) }
+/* sheet + confirm */
+const sheet   = reactive<{ open: boolean; user: User | null }>({ open:false, user:null })
+const confirm = reactive<{ open: boolean; user: User | null }>({ open:false, user:null })
+function openSheet(u: User){ sheet.open = true; sheet.user = u; vibrate(6) }
 function closeSheet(){ sheet.open = false; sheet.user = null }
-
-const confirm = reactive({ open:false, user:null })
-function askUnfollow(u){ confirm.open = true; confirm.user = u; sheet.open=false; vibrate(10) }
-function unfollow(u){
+function askUnfollow(u?: User | null){ if(!u) return; confirm.open = true; confirm.user = u; sheet.open=false; vibrate(10) }
+function unfollow(u?: User | null){
   if (!u) return
   vibrate(12)
-  // Optimistic removal
   const idxAll = all.value.findIndex(x=> x.username===u.username)
   const idxCur = list.value.findIndex(x=> x.username===u.username)
   if (idxAll>=0) all.value.splice(idxAll,1)
@@ -214,20 +254,24 @@ function unfollow(u){
   emit('unfollow', u)
 }
 
-/* Derived roles from dataset */
-const roleList = computed(()=>{
+/* derived */
+const roleList = computed(() => {
   const set = new Set(all.value.map(u => (u.role || '').trim()).filter(Boolean))
   return Array.from(set).sort()
 })
+const totalCount  = computed(() => all.value.length)
+const prettyCount = computed(() => totalCount.value.toLocaleString?.() ?? String(totalCount.value))
 
-/* Helpers */
-const totalCount = computed(()=> all.value.length)
-const prettyCount = computed(()=> (totalCount.value).toLocaleString?.() ?? String(totalCount.value))
-function vibrate(ms){ if (navigator.vibrate) try{ navigator.vibrate(ms) }catch{} }
-function onAvatarError(e){ e.target.src = '/user-avatar.png' }
+/* helpers */
+function vibrate(ms:number){ if (typeof navigator !== 'undefined' && 'vibrate' in navigator) try{ navigator.vibrate(ms) }catch{} }
+function onAvatarError(e: Event){ (e.target as HTMLImageElement).src = '/user-avatar.png' }
+function setRole(r: string){ activeRole.value = r; vibrate(4) }
+function setSort(s: 'recent'|'name'|'active'){ sortBy.value = s; sortOpen.value = false; vibrate(4) }
+function toggleSort(){ sortOpen.value = !sortOpen.value; vibrate(3) }
+function message(u?: User | null){ if (!u) return; vibrate(8); emit('message', u) }
 
-/* Filter + search + sort pipeline */
-const visible = computed(()=>{
+/* filter/sort pipeline */
+const visible = computed(() => {
   let v = [...list.value]
   if (qDebounced.value) {
     const s = qDebounced.value.toLowerCase()
@@ -242,17 +286,12 @@ const visible = computed(()=>{
   else v.sort((a,b)=> (b.followedAt||0) - (a.followedAt||0))
   return v
 })
-function setRole(r){ activeRole.value = r; vibrate(4) }
-function setSort(s){ sortBy.value = s; sortOpen.value = false; vibrate(4) }
 
-/* Actions */
-function message(u){ if (!u) return; vibrate(8); emit('message', u) }
-
-/* Infinite scroll */
-const sentinel = ref(null)
-let io
+/* infinite scroll */
+const sentinel = ref<HTMLElement | null>(null)
+let io: IntersectionObserver | undefined
 function mountIO(){
-  if (!('IntersectionObserver' in window)) return
+  if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return
   io = new IntersectionObserver(entries=>{
     entries.forEach(e=>{ if (e.isIntersecting) loadMore() })
   }, { rootMargin: '400px 0px' })
@@ -270,7 +309,7 @@ async function loadMore(){
   moreLoading.value = false
 }
 
-/* Refresh (public) */
+/* refresh (public) */
 async function refresh(){
   vibrate(6)
   loading.value = true
@@ -281,11 +320,11 @@ async function refresh(){
   emit('refresh')
 }
 
-/* Mock seed — replace with real API fetch */
+/* mock API */
 async function seedData(force=false){
   if (all.value.length && !force) return
   await new Promise(r=> setTimeout(r, 600))
-  const base = [
+  const base: User[] = [
     { username:'@david_tech',  role:'AI Enthusiast',     avatar:'/avatars/david.png',     verified:true,  online:true  },
     { username:'@queenbizz',   role:'Startup Founder',   avatar:'/avatars/queenbizz.png', verified:false, online:false },
     { username:'@smartdev',    role:'Fullstack Engineer',avatar:'/avatars/smartdev.png',  verified:false, online:true  },
@@ -303,13 +342,12 @@ async function seedData(force=false){
     lastActive: u.online ? now - Math.floor(Math.random()*40)*1000
                          : now - (5 + Math.floor(Math.random()*4000))*1000
   }))
-  // duplicate pages to demo infinite scroll
   all.value = Array.from({length: 3}, (_,k)=>
     enriched.map(m=> ({
       ...m,
       username: `${m.username}_${k}`,
-      followedAt: m.followedAt - k*3_600_000,
-      lastActive: m.lastActive - k*1_800_000
+      followedAt: (m.followedAt||now) - k*3_600_000,
+      lastActive: (m.lastActive||now) - k*1_800_000
     }))
   ).flat()
 
@@ -317,9 +355,49 @@ async function seedData(force=false){
   page.value = 2
 }
 
-/* Lifecycle */
-onMounted(async ()=>{ await seedData(); loading.value = false; mountIO() })
-onBeforeUnmount(unmountIO)
+/* keyboard UX: '/' to focus search */
+const searchRef = ref<HTMLInputElement | null>(null)
+function onKeydown(e: KeyboardEvent){
+  if (e.key === '/' && document.activeElement !== searchRef.value){
+    e.preventDefault()
+    searchRef.value?.focus()
+  }
+}
+onMounted(async ()=>{
+  await seedData()
+  loading.value = false
+  mountIO()
+  window.addEventListener('keydown', onKeydown)
+})
+onBeforeUnmount(()=>{
+  unmountIO()
+  window.removeEventListener('keydown', onKeydown)
+})
+
+/* local directive: click-outside */
+const clickOutside = {
+  mounted(el: HTMLElement, binding: { value: (e: Event)=>void }) {
+    const handler = (e: Event) => { if (!el.contains(e.target as Node)) binding.value(e) }
+    ;(el as any).__co__ = handler
+    document.addEventListener('mousedown', handler, true)
+    document.addEventListener('touchstart', handler, true)
+  },
+  unmounted(el: HTMLElement) {
+    const handler = (el as any).__co__
+    document.removeEventListener('mousedown', handler, true)
+    document.removeEventListener('touchstart', handler, true)
+  }
+}
+defineExpose({ refresh })
+/* register directive for template */
+const vClickOutside = clickOutside
+</script>
+
+<script lang="ts">
+/* register directive name globally for this SFC template scope */
+export default {
+  directives: { 'click-outside': (/* will be patched by <script setup> export above */) as any }
+}
 </script>
 
 <style scoped>
@@ -349,28 +427,12 @@ onBeforeUnmount(unmountIO)
 .skel{ @apply bg-[#1e293b]/80 p-3 rounded-xl border border-cyan-700/50; }
 .skel-bar{
   background: linear-gradient(110deg, rgba(255,255,255,.08) 8%, rgba(255,255,255,.02) 18%, rgba(255,255,255,.08) 33%);
-  background-size: 200% 100%; animation: shimmer 1.1s linear infinite;
+  background-size: 200% 100%;
+  animation: shimmer 1.1s linear infinite;
 }
 @keyframes shimmer { to { background-position-x: -200% } }
-</style>
 
-<script lang="ts">
-/* Inline Skeleton subcomponent (file moja) */
-import { defineComponent, h } from 'vue'
-export default {}
-export const SkeletonRow = defineComponent({
-  name: 'SkeletonRow',
-  setup(){
-    return () => h('div', { class: 'skel' }, [
-      h('div', { class:'flex items-center gap-3' }, [
-        h('div', { class:'w-11 h-11 rounded-full skel-bar' }),
-        h('div', { class:'flex-1' }, [
-          h('div', { class:'h-3 w-28 rounded skel-bar mb-2' }),
-          h('div', { class:'h-3 w-20 rounded skel-bar' })
-        ]),
-        h('div', { class:'h-7 w-16 rounded-full skel-bar' })
-      ])
-    ])
-  }
-})
-</script>
+/* mobile sheet buttons */
+.sheet-btn{ @apply w-full py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10; }
+.sheet-btn.warn{ @apply bg-rose-600/90 hover:bg-rose-500/90 border-rose-500/40 text-white; }
+</style>
