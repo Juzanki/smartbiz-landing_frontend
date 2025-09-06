@@ -1,3 +1,4 @@
+<!-- src/components/ui/Toast.vue -->
 <template>
   <!-- Container respects safe-area; defaults to bottom on phones -->
   <div
@@ -10,11 +11,7 @@
     <!-- Screenreader live region -->
     <span class="sr-only" aria-live="polite">{{ srAnnounce }}</span>
 
-    <transition-group
-      name="stack"
-      tag="div"
-      class="space-y-2 sm:space-y-3"
-    >
+    <transition-group name="stack" tag="div" class="space-y-2 sm:space-y-3">
       <div
         v-for="t in items"
         :key="t.id"
@@ -73,27 +70,46 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
-/** Props */
-const props = withDefaults(defineProps({
+/** ✅ Runtime props only (NO withDefaults) */
+const props = defineProps({
   /** 'bottom' (mobile default), 'top', 'top-right', 'top-left', 'bottom-right', 'bottom-left' */
-  position: { type: String, default: 'bottom' },
+  position:    { type: String,  default: 'bottom' },
   /** Max toasts rendered at once (newest replaces oldest) */
-  max: { type: Number, default: 4 },
+  max:         { type: Number,  default: 4 },
   /** Show progress bar */
-  showProgress: { type: Boolean, default: true },
+  showProgress:{ type: Boolean, default: true },
   /** Base TTL fallback (ms) if not provided in push() */
-  defaultTtl: { type: Number, default: 4000 },
+  defaultTtl:  { type: Number,  default: 4000 },
   /** Safe-area padding toggle */
-  safeArea: { type: Boolean, default: true }
-}), {
-  position: 'bottom'
+  safeArea:    { type: Boolean, default: true }
 })
 
+type ToastType = 'success' | 'warn' | 'error' | 'info'
+type ToastAction = { label: string; handler?: (() => void) | null }
+type ToastItem = {
+  id: string
+  type: ToastType
+  title: string
+  text: string
+  ttl: number
+  t0: number
+  remaining: number
+  paused: boolean
+  dx: number
+  vx: number
+  _downX: number
+  _lastX: number
+  _lastTs: number
+  _raf?: number
+  _lastTick?: number
+  action: ToastAction | null
+}
+
 /** State */
-const items = ref([])
+const items = ref<ToastItem[]>([])
 const srAnnounce = ref('')
 
 /** Container placement */
@@ -109,37 +125,33 @@ const wrapClass = computed(() => {
   }
 })
 const wrapStyle = computed(() => ({
-  paddingTop:   props.safeArea ? 'max(env(safe-area-inset-top,0px), 0px)'    : '0px',
-  paddingBottom:props.safeArea ? 'max(env(safe-area-inset-bottom,0px), 12px)': '12px',
-  paddingLeft:  props.safeArea ? 'max(env(safe-area-inset-left,0px), 0px)'   : '0px',
-  paddingRight: props.safeArea ? 'max(env(safe-area-inset-right,0px), 0px)'  : '0px'
+  paddingTop:    props.safeArea ? 'max(env(safe-area-inset-top,0px), 0px)'     : '0px',
+  paddingBottom: props.safeArea ? 'max(env(safe-area-inset-bottom,0px), 12px)' : '12px',
+  paddingLeft:   props.safeArea ? 'max(env(safe-area-inset-left,0px), 0px)'    : '0px',
+  paddingRight:  props.safeArea ? 'max(env(safe-area-inset-right,0px), 0px)'   : '0px'
 }))
 
 /** Helpers */
-function now() { return performance.now ? performance.now() : Date.now() }
-function uid() {
-  try { return crypto.randomUUID() } catch { return Math.random().toString(36).slice(2) }
-}
+function now() { return (performance as any)?.now ? performance.now() : Date.now() }
+function uid() { try { return crypto.randomUUID() } catch { return Math.random().toString(36).slice(2) } }
 
 /** Public API */
-function push(type, text, ttlOrOpts) {
-  const opts = typeof ttlOrOpts === 'object' ? ttlOrOpts : { ttl: ttlOrOpts }
+function push(type: ToastType, text: string, ttlOrOpts?: number | Partial<ToastItem> & { ttl?: number; title?: string; action?: ToastAction }) {
+  const opts = (typeof ttlOrOpts === 'object' && ttlOrOpts !== null) ? ttlOrOpts : { ttl: ttlOrOpts }
   const ttl = Math.max(0, Number(opts.ttl ?? props.defaultTtl))
   const id  = uid()
   const t0  = now()
-  const item = {
+  const item: ToastItem = {
     id,
-    type: (['success','warn','error','info'].includes(type) ? type : 'info'),
-    title: opts.title || '',
+    type: (['success','warn','error','info'] as ToastType[]).includes(type) ? type : 'info',
+    title: String((opts as any).title || ''),
     text: String(text ?? ''),
     ttl,
     t0,
     remaining: ttl,
     paused: false,
-    // swipe
     dx: 0, vx: 0, _downX: 0, _lastX: 0, _lastTs: t0,
-    // optional action
-    action: opts.action ? { label: String(opts.action.label||'Open'), handler: opts.action.handler || null } : null
+    action: (opts as any).action ? { label: String((opts as any).action.label || 'Open'), handler: (opts as any).action.handler || null } : null
   }
 
   // cap stack
@@ -156,48 +168,46 @@ function push(type, text, ttlOrOpts) {
   if (ttl > 0) startTimer(item)
   return id
 }
-function success(text, ttl) { return push('success', text, ttl) }
-function warn(text, ttl)    { return push('warn', text, ttl) }
-function error(text, ttl)   { return push('error', text, ttl) }
-function info(text, ttl)    { return push('info', text, ttl) }
-function clear()            { items.value.splice(0) }
-function dismiss(id)        { items.value = items.value.filter(i => i.id !== id) }
+function success(text: string, ttl?: number) { return push('success', text, ttl) }
+function warn(text: string, ttl?: number)    { return push('warn', text, ttl) }
+function error(text: string, ttl?: number)   { return push('error', text, ttl) }
+function info(text: string, ttl?: number)    { return push('info', text, ttl) }
+function clear() { items.value.splice(0) }
+function dismiss(id: string) { items.value = items.value.filter(i => i.id !== id) }
+function handleAction(t: ToastItem){ try{ t.action?.handler?.() }finally{ dismiss(t.id) } }
 
 defineExpose({ push, success, warn, error, info, clear, dismiss })
 
 /** Timers (pause/resume with hover/press/focus) */
-function startTimer(t) {
-  const tick = (ts) => {
+function startTimer(t: ToastItem) {
+  const tick = (ts: number) => {
     if (!items.value.find(i => i.id === t.id)) return // already removed
     if (t.paused) { t._raf = requestAnimationFrame(tick); return }
 
     const dt = ts - (t._lastTick ?? ts); t._lastTick = ts
     t.remaining -= dt
-    if (t.remaining <= 0) {
-      dismiss(t.id)
-      return
-    }
+    if (t.remaining <= 0) { dismiss(t.id); return }
     t._raf = requestAnimationFrame(tick)
   }
   t._lastTick = now()
   t._raf = requestAnimationFrame(tick)
 }
-function pause(t){ if (!t.paused){ t.paused = true } }
-function resume(t){ if (t.paused){ t.paused = false; t._lastTick = now() } }
+function pause(t: ToastItem){ if (!t.paused) t.paused = true }
+function resume(t: ToastItem){ if (t.paused){ t.paused = false; t._lastTick = now() } }
 
 /** Progress bar width */
-function progressPct(t){
+function progressPct(t: ToastItem){
   if (!t.ttl) return 0
   return Math.max(0, Math.min(100, (t.remaining / t.ttl) * 100))
 }
 
 /** Swipe-to-dismiss */
 const SWIPE_THRESHOLD = 90
-function onPointerDown(t, e){
+function onPointerDown(t: ToastItem, e: PointerEvent){
   t._downX = e.clientX; t._lastX = e.clientX; t._lastTs = now(); t.dx = 0; t.vx = 0
   pause(t)
 }
-function onPointerMove(t, e){
+function onPointerMove(t: ToastItem, e: PointerEvent){
   if (!t._downX && t._downX !== 0) return
   const x = e.clientX
   const ts = now()
@@ -205,21 +215,14 @@ function onPointerMove(t, e){
   t.vx = (x - t._lastX) / Math.max(1, ts - t._lastTs)
   t._lastX = x; t._lastTs = ts
 }
-function onPointerUp(t){
+function onPointerUp(t: ToastItem){
   const abs = Math.abs(t.dx)
-  if (abs > SWIPE_THRESHOLD || Math.abs(t.vx) > 0.8){
-    dismiss(t.id)
-  }else{
-    // snap back
-    t.dx = 0
-    resume(t)
-  }
+  if (abs > SWIPE_THRESHOLD || Math.abs(t.vx) > 0.8){ dismiss(t.id) }
+  else { t.dx = 0; resume(t) }
 }
-function toastStyle(t){
-  return { transform: `translate3d(${t.dx}px,0,0)` }
-}
+function toastStyle(t: ToastItem){ return { transform: `translate3d(${t.dx}px,0,0)` } }
 
-/** Optional: clean RAFs on unmount */
+/** Clean RAFs on unmount */
 onBeforeUnmount(()=> items.value.forEach(t => cancelAnimationFrame(t._raf || 0)))
 onMounted(()=> {/* no-op */})
 </script>
@@ -234,10 +237,10 @@ onMounted(()=> {/* no-op */})
   pointer-events: none;
   z-index: 9999;
 }
-.place-bottom     { bottom: 0; }
-.place-top        { top: 0; }
-.place-top-right  { top: 0; justify-items: end; padding-inline: 12px; }
-.place-top-left   { top: 0; justify-items: start; padding-inline: 12px; }
+.place-bottom      { bottom: 0; }
+.place-top         { top: 0; }
+.place-top-right   { top: 0; justify-items: end; padding-inline: 12px; }
+.place-top-left    { top: 0; justify-items: start; padding-inline: 12px; }
 .place-bottom-right{ bottom: 0; justify-items: end; padding-inline: 12px; }
 .place-bottom-left { bottom: 0; justify-items: start; padding-inline: 12px; }
 
@@ -253,14 +256,14 @@ onMounted(()=> {/* no-op */})
     0 10px 24px rgba(0,0,0,.35),
     inset 0 1px 0 rgba(255,255,255,.06);
   padding: 10px 12px 8px;
-  touch-action: pan-y; /* allow horizontal swipe */
+  touch-action: pan-y;
 }
 
-/* Variants (subtle tinted glow) */
+/* Variants */
 .type-success { border-color: rgba(16,185,129,.45); box-shadow: 0 8px 24px rgba(16,185,129,.18), inset 0 1px 0 rgba(255,255,255,.06); }
-.type-warn    { border-color: rgba(245,158,11,.45);  box-shadow: 0 8px 24px rgba(245,158,11,.18), inset 0 1px 0 rgba(255,255,255,.06); }
-.type-error   { border-color: rgba(244,63,94,.45);   box-shadow: 0 8px 24px rgba(244,63,94,.18),  inset 0 1px 0 rgba(255,255,255,.06); }
-.type-info    { border-color: rgba(59,130,246,.45);  box-shadow: 0 8px 24px rgba(59,130,246,.18),  inset 0 1px 0 rgba(255,255,255,.06); }
+.type-warn    { border-color: rgba(245,158,11,.45); box-shadow: 0 8px 24px rgba(245,158,11,.18), inset 0 1px 0 rgba(255,255,255,.06); }
+.type-error   { border-color: rgba(244,63,94,.45); box-shadow: 0 8px 24px rgba(244,63,94,.18), inset 0 1px 0 rgba(255,255,255,.06); }
+.type-info    { border-color: rgba(59,130,246,.45); box-shadow: 0 8px 24px rgba(59,130,246,.18), inset 0 1px 0 rgba(255,255,255,.06); }
 
 /* Layout */
 .toast-main{
@@ -300,7 +303,7 @@ onMounted(()=> {/* no-op */})
   transition: width .12s linear;
 }
 
-/* Stacking transition */
+/* Transitions */
 .stack-enter-active, .stack-leave-active{ transition: all .18s ease, opacity .18s ease; }
 .stack-enter-from{ opacity: 0; transform: translateY(8px) scale(.98); }
 .stack-leave-to  { opacity: 0; transform: translateY(-8px) scale(.98); }
@@ -310,7 +313,7 @@ onMounted(()=> {/* no-op */})
   .stack-enter-active, .stack-leave-active{ transition: none }
 }
 
-/* Light mode support (if app not using global dark class) */
+/* Light mode */
 :root:not(.dark) .toast{
   background: rgba(255,255,255,.98);
   color: #0b1020;
