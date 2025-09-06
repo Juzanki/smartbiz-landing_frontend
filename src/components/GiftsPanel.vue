@@ -1,4 +1,3 @@
-<!-- src/components/GiftsPanel.vue -->
 <template>
   <!-- ===== Overlay mode ===== -->
   <transition name="overlay-fade">
@@ -14,25 +13,164 @@
         <section
           v-show="show"
           ref="sheetEl"
-          v-bind="$attrs"
           class="sheet fixed left-1/2 -translate-x-1/2 bottom-0 w-full md:max-w-md md:mx-auto
                  md:rounded-2xl md:my-8 bg-gradient-to-b from-[#0f172a] to-[#0b1222]
                  text-white border-t md:border border-cyan-800 shadow-2xl"
           :style="{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }"
           @keydown.esc.prevent.stop="close"
           @keydown.tab.prevent="trapFocus"
+          @touchstart.passive="onSwipeStart"
+          @touchmove.passive="onSwipeMove"
+          @touchend.passive="onSwipeEnd"
         >
-          <GiftsBody />
+          <!-- === BODY (shared) === -->
+          <div class="px-4">
+            <header class="pt-3 pb-2 flex items-center justify-between">
+              <h2 :id="headingId" class="text-lg font-bold text-pink-300">🎁 Choose Your Gift</h2>
+              <button class="icon-btn" @click="close" aria-label="Close">✖</button>
+            </header>
+
+            <!-- Search + categories -->
+            <div class="space-y-2">
+              <div class="relative">
+                <input
+                  ref="searchEl"
+                  v-model="q"
+                  type="search"
+                  inputmode="search"
+                  autocomplete="off"
+                  placeholder="Search gifts…"
+                  class="w-full bg-white/10 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-400/60"
+                  aria-label="Search gifts"
+                />
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-white/70">🔎</span>
+              </div>
+
+              <div v-if="categories.length" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <button class="chip" :class="{ 'chip-active': activeCat==='All' }" @click="setCat('All')">All</button>
+                <button
+                  v-for="c in categories"
+                  :key="c"
+                  class="chip shrink-0"
+                  :class="{ 'chip-active': activeCat===c }"
+                  @click="setCat(c)"
+                >{{ c }}</button>
+              </div>
+            </div>
+
+            <!-- Grid / skeletons -->
+            <div class="pt-2 pb-3 max-h-[62vh] overflow-y-auto no-scrollbar overscroll-contain" ref="scroller">
+              <div
+                v-if="!loading"
+                class="grid grid-cols-3 sm:grid-cols-4 gap-3"
+                role="listbox"
+                aria-label="Gifts"
+                :aria-activedescendant="selectedId ? `gift-${selectedId}` : undefined"
+              >
+                <button
+                  v-for="gift in visible"
+                  :key="gift.id"
+                  :id="`gift-${gift.id}`"
+                  class="tile"
+                  role="option"
+                  :aria-selected="String(gift.id===selectedId)"
+                  :class="[
+                    gift.id===selectedId ? 'tile-active' : '',
+                    ringClass(gift.class)
+                  ]"
+                  @click="selectGift(gift)"
+                  @dblclick="toggleFav(gift)"
+                  @touchstart.passive="onTouchStart(gift)"
+                  @touchend.passive="onTouchEnd"
+                >
+                  <span v-if="isFav(gift.id)" class="absolute top-1 right-1 text-[12px]">💖</span>
+
+                  <img
+                    :src="gift.icon"
+                    :alt="gift.name"
+                    class="w-[clamp(40px,12vw,58px)] h-[clamp(40px,12vw,58px)] object-contain mb-1 gift-icon"
+                    loading="lazy"
+                    decoding="async"
+                    @error="onImgError"
+                  />
+
+                  <span class="text-[12px] font-semibold text-center leading-tight line-clamp-1">
+                    {{ gift.name }}
+                  </span>
+
+                  <span class="text-yellow-300 text-[11px] font-bold">
+                    🪙 {{ formatCoins(gift.coins ?? gift.price ?? 0) }}
+                  </span>
+
+                  <span class="tier" :class="badgeClass(gift.class)">{{ gift.class || 'Lite' }}</span>
+
+                  <div class="mt-0.5 flex items-center gap-1 text-[10px] text-white/60">
+                    <span v-if="gift.animation">✨ {{ gift.animation }}</span>
+                    <span v-if="gift.duration" class="text-white/40">· ⏱ {{ (gift.duration/1000).toFixed(1) }}s</span>
+                  </div>
+                </button>
+              </div>
+
+              <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                <div v-for="i in 12" :key="i" class="tile">
+                  <div class="rounded-lg" :style="box(58)"></div>
+                  <div class="h-2 w-16 mt-2 rounded" :style="bar()"></div>
+                  <div class="h-2 w-10 mt-1 rounded" :style="bar()"></div>
+                </div>
+              </div>
+
+              <!-- sentinel -->
+              <div ref="sentinel" class="h-8 grid place-items-center">
+                <span v-if="moreLoading" class="text-white/60 text-sm">Loading…</span>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="px-0 pt-2 bg-gradient-to-t from-[#0b1222] to-transparent">
+              <div class="flex items-center justify-between text-[12px] text-white/80 mb-1 px-4">
+                <span>Balance: <strong class="text-yellow-300">🪙 {{ formatCoins(balance) }}</strong></span>
+                <button class="underline underline-offset-4 hover:text-pink-300" @click="$emit('topup')">Top up</button>
+              </div>
+
+              <div class="flex items-center gap-3 px-4">
+                <div class="flex items-center gap-2 min-w-0 flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2">
+                  <img v-if="selectedGift" :src="selectedGift.icon" :alt="selectedGift.name" class="w-7 h-7 object-contain" />
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium truncate">{{ selectedGift?.name ?? 'Select a gift' }}</p>
+                    <p class="text-[11px] text-white/70">
+                      🪙 {{ formatCoins(unitCost||0) }} × {{ qty }} =
+                      <span class="text-yellow-300 font-semibold">{{ formatCoins(totalCost||0) }}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div class="stepper">
+                  <button class="step" @click="dec" aria-label="Decrease">−</button>
+                  <span class="count" aria-live="polite">{{ qty }}</span>
+                  <button class="step" @click="inc" aria-label="Increase">+</button>
+                </div>
+
+                <button
+                  class="btn-primary"
+                  :disabled="!selectedGift || totalCost > balance || sending"
+                  @click="sendNow"
+                >{{ sending ? '…' : 'Send' }}</button>
+              </div>
+
+              <p v-if="selectedGift && totalCost > balance" class="mt-1 text-[11px] text-rose-300 px-4">
+                Insufficient balance. Top up to continue.
+              </p>
+            </footer>
+          </div>
         </section>
       </transition>
     </div>
   </transition>
 
-  <!-- ===== Inline mode (hakuna overlay ya ndani) ===== -->
+  <!-- ===== Inline mode ===== -->
   <section
     v-else-if="show && inline"
     ref="sheetEl"
-    v-bind="$attrs"
     class="sheet w-full md:max-w-md md:mx-auto rounded-t-2xl md:rounded-2xl
            bg-gradient-to-b from-[#0f172a] to-[#0b1222] text-white
            border-t md:border border-cyan-800 shadow-2xl"
@@ -40,24 +178,132 @@
     @keydown.esc.prevent.stop="close"
     @keydown.tab.prevent="trapFocus"
   >
-    <GiftsBody />
+    <!-- Tuna-reuse sehemu hiyo hiyo ya juu (ili kuepuka DRY, imebakia hapa kwa uwazi) -->
+    <div class="px-4">
+      <header class="pt-3 pb-2 flex items-center justify-between">
+        <h2 :id="headingId" class="text-lg font-bold text-pink-300">🎁 Choose Your Gift</h2>
+        <button class="icon-btn" @click="close" aria-label="Close">✖</button>
+      </header>
+
+      <!-- Search + categories -->
+      <div class="space-y-2">
+        <div class="relative">
+          <input
+            ref="searchEl"
+            v-model="q"
+            type="search"
+            inputmode="search"
+            autocomplete="off"
+            placeholder="Search gifts…"
+            class="w-full bg-white/10 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-400/60"
+            aria-label="Search gifts"
+          />
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-white/70">🔎</span>
+        </div>
+
+        <div v-if="categories.length" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button class="chip" :class="{ 'chip-active': activeCat==='All' }" @click="setCat('All')">All</button>
+          <button
+            v-for="c in categories"
+            :key="c"
+            class="chip shrink-0"
+            :class="{ 'chip-active': activeCat===c }"
+            @click="setCat(c)"
+          >{{ c }}</button>
+        </div>
+      </div>
+
+      <!-- Grid / skeletons -->
+      <div class="pt-2 pb-3 max-h-[62vh] overflow-y-auto no-scrollbar overscroll-contain" ref="scroller">
+        <div
+          v-if="!loading"
+          class="grid grid-cols-3 sm:grid-cols-4 gap-3"
+          role="listbox"
+          aria-label="Gifts"
+          :aria-activedescendant="selectedId ? `gift2-${selectedId}` : undefined"
+        >
+          <button
+            v-for="gift in visible"
+            :key="gift.id"
+            :id="`gift2-${gift.id}`"
+            class="tile"
+            role="option"
+            :aria-selected="String(gift.id===selectedId)"
+            :class="[ gift.id===selectedId ? 'tile-active' : '', ringClass(gift.class) ]"
+            @click="selectGift(gift)"
+            @dblclick="toggleFav(gift)"
+            @touchstart.passive="onTouchStart(gift)"
+            @touchend.passive="onTouchEnd"
+          >
+            <span v-if="isFav(gift.id)" class="absolute top-1 right-1 text-[12px]">💖</span>
+            <img :src="gift.icon" :alt="gift.name" class="w-[clamp(40px,12vw,58px)] h-[clamp(40px,12vw,58px)] object-contain mb-1 gift-icon" loading="lazy" decoding="async" @error="onImgError" />
+            <span class="text-[12px] font-semibold text-center leading-tight line-clamp-1">{{ gift.name }}</span>
+            <span class="text-yellow-300 text-[11px] font-bold">🪙 {{ formatCoins(gift.coins ?? gift.price ?? 0) }}</span>
+            <span class="tier" :class="badgeClass(gift.class)">{{ gift.class || 'Lite' }}</span>
+            <div class="mt-0.5 flex items-center gap-1 text-[10px] text-white/60">
+              <span v-if="gift.animation">✨ {{ gift.animation }}</span>
+              <span v-if="gift.duration" class="text-white/40">· ⏱ {{ (gift.duration/1000).toFixed(1) }}s</span>
+            </div>
+          </button>
+        </div>
+
+        <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+          <div v-for="i in 12" :key="i" class="tile">
+            <div class="rounded-lg" :style="box(58)"></div>
+            <div class="h-2 w-16 mt-2 rounded" :style="bar()"></div>
+            <div class="h-2 w-10 mt-1 rounded" :style="bar()"></div>
+          </div>
+        </div>
+
+        <div ref="sentinel" class="h-8 grid place-items-center">
+          <span v-if="moreLoading" class="text-white/60 text-sm">Loading…</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="px-0 pt-2 bg-gradient-to-t from-[#0b1222] to-transparent">
+        <div class="flex items-center justify-between text-[12px] text-white/80 mb-1 px-4">
+          <span>Balance: <strong class="text-yellow-300">🪙 {{ formatCoins(balance) }}</strong></span>
+          <button class="underline underline-offset-4 hover:text-pink-300" @click="$emit('topup')">Top up</button>
+        </div>
+        <div class="flex items-center gap-3 px-4">
+          <div class="flex items-center gap-2 min-w-0 flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2">
+            <img v-if="selectedGift" :src="selectedGift.icon" :alt="selectedGift.name" class="w-7 h-7 object-contain" />
+            <div class="min-w-0">
+              <p class="text-sm font-medium truncate">{{ selectedGift?.name ?? 'Select a gift' }}</p>
+              <p class="text-[11px] text-white/70">
+                🪙 {{ formatCoins(unitCost||0) }} × {{ qty }} =
+                <span class="text-yellow-300 font-semibold">{{ formatCoins(totalCost||0) }}</span>
+              </p>
+            </div>
+          </div>
+          <div class="stepper">
+            <button class="step" @click="dec" aria-label="Decrease">−</button>
+            <span class="count" aria-live="polite">{{ qty }}</span>
+            <button class="step" @click="inc" aria-label="Increase">+</button>
+          </div>
+          <button class="btn-primary" :disabled="!selectedGift || totalCost > balance || sending" @click="sendNow">{{ sending ? '…' : 'Send' }}</button>
+        </div>
+        <p v-if="selectedGift && totalCost > balance" class="mt-1 text-[11px] text-rose-300 px-4">
+          Insufficient balance. Top up to continue.
+        </p>
+      </footer>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, defineComponent, h, nextTick } from 'vue'
-defineOptions({ inheritAttrs: false })
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 /* ---------- Props / Emits ---------- */
-const props = defineProps({
-  show: { type: Boolean, default: false },
-  /** Weka true ukishaweka overlay ya mzazi (mf. LiveRoom). */
-  inline: { type: Boolean, default: false },
-  /** items: [{ id,name,icon,coins|price,class,category,animation,duration }] */
-  items: { type: Array as () => any[], default: () => [] },
-  balance: { type: Number, default: 5000 },
-  loading: { type: Boolean, default: false }
-})
+const props = withDefaults(defineProps<{
+  show: boolean
+  inline?: boolean
+  items: any[]
+  balance?: number
+  loading?: boolean
+}>(), { inline: false, items: () => [], balance: 5000, loading: false })
+
 const emit = defineEmits<{
   (e:'close'): void
   (e:'send',  payload:{ gift:any, quantity:number, total:number }): void
@@ -70,17 +316,22 @@ const headingId = `hdr-${Math.random().toString(36).slice(2,8)}`
 const sheetEl   = ref<HTMLElement|null>(null)
 const scroller  = ref<HTMLElement|null>(null)
 const searchEl  = ref<HTMLInputElement|null>(null)
+const sentinel  = ref<HTMLElement|null>(null)
 
 /* ---------- State ---------- */
 const selectedId = ref<string|null>(null)
-const qty        = ref<number>(1)
-const q          = ref<string>('')
-const activeCat  = ref<string>('All')
-const sending    = ref<boolean>(false)
+const qty        = ref(1)
+const q          = ref('')
+const activeCat  = ref<'All'|string>('All')
+const sending    = ref(false)
+const moreLoading= ref(false)
 
 /* ---------- Favorites ---------- */
-const favSet = ref<Set<string>>(new Set(JSON.parse(localStorage.getItem('gift:favs') || '[]')))
-watch(favSet, v => localStorage.setItem('gift:favs', JSON.stringify([...v])), { deep: true })
+const favSet = ref<Set<string>>(new Set())
+onMounted(() => {
+  try { favSet.value = new Set(JSON.parse(localStorage.getItem('gift:favs') || '[]')) } catch {}
+})
+watch(favSet, v => { try { localStorage.setItem('gift:favs', JSON.stringify([...v])) } catch {} }, { deep: true })
 
 /* ---------- Data & Categories ---------- */
 const all = ref<any[]>([])
@@ -90,11 +341,10 @@ const categories = computed<string[]>(() => {
   return Array.from(set).sort()
 })
 
-/* ---------- Pagination ---------- */
-const page       = ref(1)
-const pageSize   = 12
-const list       = ref<any[]>([])
-const moreLoading= ref(false)
+/* ---------- Filtering + Pagination ---------- */
+const page     = ref(1)
+const pageSize = 12
+const list     = ref<any[]>([])
 
 const filteredBase = computed<any[]>(() => {
   let v = [...all.value]
@@ -103,10 +353,10 @@ const filteredBase = computed<any[]>(() => {
     const s = q.value.toLowerCase()
     v = v.filter(g => (g.name || '').toLowerCase().includes(s))
   }
-  v.sort((a,b) => Number(isFav(b.id)) - Number(isFav(a.id))) // favs first
+  v.sort((a,b) => Number(isFav(b.id)) - Number(isFav(a.id)))
   return v
 })
-const visible = computed<any[]>(() => list.value)
+const visible = computed(() => list.value)
 
 async function paginate(reset=false){
   if (reset) { list.value = []; page.value = 1 }
@@ -115,13 +365,13 @@ async function paginate(reset=false){
   list.value.push(...next)
   page.value++
 }
-const sentinel = ref<HTMLElement|null>(null)
+
 let io: IntersectionObserver | null = null
 function mountIO(){
   if (!('IntersectionObserver' in window)) return
   io = new IntersectionObserver(entries=>{
     entries.forEach(e=>{
-      if (e.isIntersecting && !moreLoading.value && !props.loading) {
+      if (e.isIntersecting && !props.loading && !moreLoading.value) {
         moreLoading.value = true
         setTimeout(()=>{ paginate(); moreLoading.value = false }, 220)
       }
@@ -141,12 +391,12 @@ function setCat(c:string){ activeCat.value = c; vibrate(6); paginate(true) }
 function selectGift(g:any){ selectedId.value = g.id; vibrate(8) }
 function isFav(id:string){ return favSet.value.has(id) }
 function toggleFav(g:any){ favSet.value.has(g.id) ? favSet.value.delete(g.id) : favSet.value.add(g.id); vibrate(6) }
-function onImgError(e:any){ e.target.src = '/gifts/placeholder.png' }
+function onImgError(e: Event){ (e.target as HTMLImageElement).src = '/gifts/placeholder.png' }
 function inc(){ qty.value = Math.min(99, qty.value + 1); vibrate(4) }
 function dec(){ qty.value = Math.max(1, qty.value - 1); vibrate(4) }
 
 function sendNow(){
-  if (!selectedGift.value || totalCost.value > props.balance || sending.value) return
+  if (!selectedGift.value || totalCost.value > (props.balance||0) || sending.value) return
   sending.value = true
   vibrate(12)
   setTimeout(() => {
@@ -165,7 +415,7 @@ function close(){ emit('close') }
 function trapFocus(e: KeyboardEvent){
   const root = sheetEl.value; if (!root) return
   const focusables = Array.from(
-    root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    root.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')
   ).filter(el => !el.hasAttribute('disabled'))
   if (!focusables.length) return
   const first = focusables[0], last = focusables[focusables.length - 1]
@@ -173,21 +423,9 @@ function trapFocus(e: KeyboardEvent){
   else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault() }
 }
 
-watch(() => props.show, async (v) => {
-  if (!props.inline) document.body.style.overflow = v ? 'hidden' : ''
-  if (v) {
-    await nextTick()
-    paginate(true)
-    setTimeout(() => { searchEl.value?.focus?.(); mountIO() }, 10)
-  } else {
-    unmountIO()
-  }
-})
-watch([q, activeCat], () => paginate(true))
-
 /* ---------- Swipe-to-close (mobile) ---------- */
-const swipe = ref<{y0:number, dy:number, active:boolean}>({ y0:0, dy:0, active:false })
-function onSwipeStart(ev: TouchEvent){ const t = ev.touches?.[0]; if (!t) return; swipe.value = { y0: t.clientY, dy: 0, active: true } }
+const swipe = ref({ y0:0, dy:0, active:false })
+function onSwipeStart(ev: TouchEvent){ const t = ev.touches?.[0]; if (!t) return; swipe.value = { y0:t.clientY, dy:0, active:true } }
 function onSwipeMove(ev: TouchEvent){
   if (!swipe.value.active) return
   const t = ev.touches?.[0]; if (!t) return
@@ -204,6 +442,17 @@ function onSwipeEnd(){
 
 /* ---------- Lifecycle ---------- */
 function onGlobalKey(e: KeyboardEvent){ if (e.key === 'Escape' && props.show) close() }
+watch(() => props.show, async v => {
+  if (!props.inline) document.body.style.overflow = v ? 'hidden' : ''
+  if (v) {
+    await nextTick()
+    paginate(true)
+    setTimeout(() => { searchEl.value?.focus?.(); mountIO() }, 10)
+  } else {
+    unmountIO()
+  }
+})
+watch([q, activeCat], () => paginate(true))
 onMounted(() => window.addEventListener('keydown', onGlobalKey))
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGlobalKey)
@@ -211,7 +460,7 @@ onBeforeUnmount(() => {
   if (!props.inline) document.body.style.overflow = ''
 })
 
-/* ---------- Utils ---------- */
+/* ---------- Utils / styles for skeleton ---------- */
 function vibrate(ms:number){ try{ navigator.vibrate?.(ms) }catch{} }
 function formatCoins(value:number){
   const v = Number(value || 0)
@@ -219,8 +468,6 @@ function formatCoins(value:number){
   if (v < 1_000_000) return (v/1000).toFixed(1).replace('.0','') + 'K'
   return (v/1_000_000).toFixed(1).replace('.0','') + 'M'
 }
-
-/* ---------- Visual helpers ---------- */
 function badgeClass(level?:string){
   switch (level) {
     case 'Lite': return 'bg-green-500/80 shadow-md'
@@ -239,117 +486,9 @@ function ringClass(level?:string){
     'ring-pink':  level === 'Supreme',
   }
 }
-
-/* ---------- Inner body (mobile-first UI) ---------- */
-const GiftsBody = defineComponent({
-  name: 'GiftsBody',
-  setup(){
-    return () => h('div', { class:'px-4' }, [
-      // Header
-      h('header', { class:'pt-3 pb-2 flex items-center justify-between' }, [
-        h('h2', { id: headingId, class:'text-lg font-bold text-pink-300' }, '🎁 Choose Your Gift'),
-        h('button', { class:'icon-btn', onClick: close, 'aria-label':'Close' }, '✖')
-      ]),
-      // Search + categories
-      h('div', { class:'space-y-2' }, [
-        h('div', { class:'relative' }, [
-          h('input', {
-            ref: searchEl,
-            class:'w-full bg-white/10 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-400/60',
-            placeholder:'Search gifts…', 'aria-label':'Search gifts',
-            value: q.value, onInput:(e:any)=> (q.value = e.target.value)
-          }),
-          h('span', { class:'absolute left-3 top-1/2 -translate-y-1/2 text-white/70' }, '🔎')
-        ]),
-        categories.value.length
-          ? h('div', { class:'flex gap-2 overflow-x-auto no-scrollbar pb-1' }, [
-              h('button', { class:`chip ${activeCat.value==='All'?'chip-active':''}`, onClick:()=>setCat('All') }, 'All'),
-              ...categories.value.map(c =>
-                h('button', { key:c, class:`chip shrink-0 ${activeCat.value===c?'chip-active':''}`, onClick:()=>setCat(c) }, c)
-              )
-            ])
-          : null
-      ]),
-      // Grid / skeletons
-      h('div', { class:'pt-2 pb-3 max-h-[62vh] overflow-y-auto no-scrollbar overscroll-contain', ref: scroller }, [
-        !props.loading
-          ? h('div', { class:'grid grid-cols-3 sm:grid-cols-4 gap-3', role:'listbox', 'aria-label':'Gifts',
-                       'aria-activedescendant': selectedId.value ? `gift-${selectedId.value}` : undefined }, [
-              ...visible.value.map((gift:any) => h('button', {
-                id:`gift-${gift.id}`, key:gift.id, class:`tile ${gift.id===selectedId.value?'tile-active':''} ${ringClass(gift.class)}`,
-                role:'option', 'aria-selected': String(gift.id===selectedId.value),
-                onClick:()=>selectGift(gift),
-                onDblclick:()=>toggleFav(gift),
-                onTouchstart:()=>onTouchStart(gift),
-                onTouchend:()=>onTouchEnd()
-              }, [
-                isFav(gift.id) ? h('span',{ class:'absolute top-1 right-1 text-[12px]'},'💖') : null,
-                h('img',{ src:gift.icon, alt:gift.name, class:'w-[clamp(40px,12vw,58px)] h-[clamp(40px,12vw,58px)] object-contain mb-1 gift-icon',
-                          loading:'lazy', decoding:'async', onError:onImgError }),
-                h('span',{ class:'text-[12px] font-semibold text-center leading-tight line-clamp-1'}, gift.name),
-                h('span',{ class:'text-yellow-300 text-[11px] font-bold'}, `🪙 ${formatCoins(gift.coins ?? gift.price ?? 0)}`),
-                h('span',{ class:`tier ${badgeClass(gift.class)}` }, gift.class || 'Lite'),
-                h('div',{ class:'mt-0.5 flex items-center gap-1 text-[10px] text-white/60' }, [
-                  gift.animation ? h('span',null,`✨ ${gift.animation}`) : null,
-                  gift.duration ? h('span',{ class:'text-white/40'}, `· ⏱ ${(gift.duration/1000).toFixed(1)}s`) : null
-                ])
-              ]))
-            ])
-          : h('div',{ class:'grid grid-cols-3 sm:grid-cols-4 gap-3' }, Array.from({length:12}).map((_,i)=>h(SkeletonGift,{ key:i }))),
-        h('div', { ref: sentinel, class:'h-8 grid place-items-center' }, [
-          moreLoading.value ? h('span',{ class:'text-white/60 text-sm' },'Loading…') : null
-        ])
-      ]),
-      // Footer
-      h('footer', { class:'px-0 pt-2 bg-gradient-to-t from-[#0b1222] to-transparent' }, [
-        h('div', { class:'flex items-center justify-between text-[12px] text-white/80 mb-1 px-4' }, [
-          h('span', null, ['Balance: ', h('strong',{ class:'text-yellow-300' }, `🪙 ${formatCoins(props.balance||0)}`)]),
-          h('button', { class:'underline underline-offset-4 hover:text-pink-300', onClick:()=>emit('topup') }, 'Top up')
-        ]),
-        h('div', { class:'flex items-center gap-3 px-4' }, [
-          h('div', { class:'flex items-center gap-2 min-w-0 flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2' }, [
-            selectedGift.value ? h('img',{ src:selectedGift.value.icon, alt:selectedGift.value.name, class:'w-7 h-7 object-contain' }) : null,
-            h('div',{ class:'min-w-0' }, [
-              h('p',{ class:'text-sm font-medium truncate' }, selectedGift.value?.name ?? 'Select a gift'),
-              h('p',{ class:'text-[11px] text-white/70' }, [
-                `🪙 ${formatCoins(unitCost.value||0)} × ${qty.value} = `,
-                h('span',{ class:'text-yellow-300 font-semibold' }, formatCoins(totalCost.value||0))
-              ])
-            ])
-          ]),
-          h('div',{ class:'stepper' }, [
-            h('button',{ class:'step', onClick:dec, 'aria-label':'Decrease' }, '−'),
-            h('span',{ class:'count', 'aria-live':'polite' }, String(qty.value)),
-            h('button',{ class:'step', onClick:inc, 'aria-label':'Increase' }, '+'),
-          ]),
-          h('button',{
-            class:'btn-primary',
-            disabled: !selectedGift.value || totalCost.value > (props.balance||0) || sending.value,
-            onClick:sendNow
-          }, sending.value ? '…' : 'Send')
-        ]),
-        (selectedGift.value && totalCost.value > (props.balance||0))
-          ? h('p',{ class:'mt-1 text-[11px] text-rose-300 px-4' }, 'Insufficient balance. Top up to continue.')
-          : null
-      ])
-    ])
-  }
-})
-
-/* ---------- Skeleton ---------- */
-const SkeletonGift = defineComponent({
-  name: 'SkeletonGift',
-  setup(){
-    return () => h('div', { class: 'tile' }, [
-      h('div', { class:'rounded-lg', style: box(58) }),
-      h('div', { class:'h-2 w-16 mt-2 rounded', style: bar() }),
-      h('div', { class:'h-2 w-10 mt-1 rounded', style: bar() }),
-    ])
-    function bar(){ return { background: grad(), backgroundSize:'200% 100%', animation:'shimmer 1.2s linear infinite' } }
-    function box(size:number){ return { width:`${size}px`, height:`${size}px`, background:grad(), backgroundSize:'200% 100%', animation:'shimmer 1.2s linear infinite' } }
-    function grad(){ return 'linear-gradient(110deg, rgba(255,255,255,.12) 8%, rgba(255,255,255,.05) 18%, rgba(255,255,255,.12) 33%)' }
-  }
-})
+function bar(){ return { background: grad(), backgroundSize:'200% 100%', animation:'shimmer 1.2s linear infinite' } }
+function box(size:number){ return { width:`${size}px`, height:`${size}px`, background:grad(), backgroundSize:'200% 100%', animation:'shimmer 1.2s linear infinite' } }
+function grad(){ return 'linear-gradient(110deg, rgba(255,255,255,.12) 8%, rgba(255,255,255,.05) 18%, rgba(255,255,255,.12) 33%)' }
 </script>
 
 <style scoped>
@@ -397,8 +536,7 @@ const SkeletonGift = defineComponent({
   .sheet-slide-enter-active, .sheet-slide-leave-active,
   .overlay-fade-enter-active, .overlay-fade-leave-active { transition: none !important; }
 }
-</style>
 
-<style>
+/* Skeleton shimmer */
 @keyframes shimmer { to { background-position-x: -200% } }
 </style>
