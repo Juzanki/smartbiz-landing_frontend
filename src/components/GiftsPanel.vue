@@ -74,10 +74,7 @@
                   class="tile"
                   role="option"
                   :aria-selected="String(gift.id===selectedId)"
-                  :class="[
-                    gift.id===selectedId ? 'tile-active' : '',
-                    ringClass(gift.class)
-                  ]"
+                  :class="[ gift.id===selectedId ? 'tile-active' : '', ringClass(gift.class) ]"
                   @click="selectGift(gift)"
                   @dblclick="toggleFav(gift)"
                   @touchstart.passive="onTouchStart(gift)"
@@ -169,7 +166,7 @@
 
   <!-- ===== Inline mode ===== -->
   <section
-    v-else-if="show && inline"
+    v-if="show && inline"
     ref="sheetEl"
     class="sheet w-full md:max-w-md md:mx-auto rounded-t-2xl md:rounded-2xl
            bg-gradient-to-b from-[#0f172a] to-[#0b1222] text-white
