@@ -1,3 +1,4 @@
+<!-- src/components/GoalTracker.vue -->
 <template>
   <div
     class="min-h-[100svh] bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white"
@@ -38,7 +39,7 @@
 
           <div class="relative ml-auto">
             <button class="chip" @click="sortOpen=!sortOpen" :aria-expanded="String(sortOpen)">{{ sortLabel }}</button>
-            <div v-if="sortOpen" class="menu" @click.outside="sortOpen=false">
+            <div v-if="sortOpen" class="menu" v-click-outside="() => sortOpen=false">
               <button class="menu-item" @click="setSort('recent')">Recent</button>
               <button class="menu-item" @click="setSort('due')">Due date</button>
               <button class="menu-item" @click="setSort('progress')">Progress</button>
@@ -188,8 +189,41 @@
   </div>
 </template>
 
-<script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, defineComponent, h } from 'vue'
+
+/* ----- Local directive: click-outside ----- */
+const vClickOutside = {
+  mounted(el: HTMLElement, binding: { value: (e: Event)=>void }) {
+    const handler = (e: Event) => { if (!el.contains(e.target as Node)) binding.value(e) }
+    ;(el as any).__co__ = handler
+    document.addEventListener('mousedown', handler, true)
+    document.addEventListener('touchstart', handler, true)
+  },
+  unmounted(el: HTMLElement) {
+    const handler = (el as any).__co__
+    document.removeEventListener('mousedown', handler, true)
+    document.removeEventListener('touchstart', handler, true)
+  }
+}
+
+/* ----- Skeleton component (inline) ----- */
+export const SkeletonRow = defineComponent({
+  name: 'SkeletonRow',
+  setup(){
+    return () => h('div', { class:'skel' }, [
+      h('div', { class:'flex items-center gap-3' }, [
+        h('div', { class:'w-12 h-12 rounded-full skel-bar' }),
+        h('div', { class:'flex-1' }, [
+          h('div', { class:'h-3 w-40 rounded skel-bar mb-2' }),
+          h('div', { class:'h-3 w-24 rounded skel-bar' })
+        ]),
+        h('div', { class:'h-8 w-8 rounded-full skel-bar' })
+      ]),
+      h('div', { class:'h-2 w-full rounded skel-bar mt-3' })
+    ])
+  }
+})
 
 /* ----- State ----- */
 const loading = ref(true)
@@ -197,22 +231,36 @@ const moreLoading = ref(false)
 const saving = ref(false)
 
 const q = ref('')
-const filter = ref('all')          // all | active | completed | soon
-const sortBy = ref('recent')       // recent | due | progress
+const filter = ref<'all'|'active'|'completed'|'soon'>('all')
+const sortBy = ref<'recent'|'due'|'progress'>('recent')
 const sortOpen = ref(false)
 
-const all = ref([])                // full dataset (persisted)
-const list = ref([])               // paginated for render
+type Goal = {
+  id: string
+  title: string
+  category?: string
+  priority?: string
+  current: number
+  target: number
+  unit?: string
+  due?: string
+  favorite?: boolean
+  completed?: boolean
+  updatedAt?: number
+  progress?: number
+}
+const all = ref<Goal[]>([])
+const list = ref<Goal[]>([])
 const page = ref(1)
 const pageSize = 10
-const sentinel = ref(null)
-let io
+const sentinel = ref<HTMLElement|null>(null)
+let io: IntersectionObserver | null = null
 
 /* ----- Sheet & form ----- */
 const sheet = reactive({ open:false })
 const editing = ref(false)
-const form = reactive({
-  id: null, title: '', category: '', priority: '',
+const form = reactive<Goal>({
+  id: '' as any, title: '', category: '', priority: '',
   current: 0, target: 1, unit: '', due: '', favorite: false, completed: false,
 })
 
@@ -225,9 +273,7 @@ function loadPersisted(){
     else seed()
   } catch { seed() }
 }
-function persist(){
-  try { localStorage.setItem(KEY, JSON.stringify(all.value)) } catch {}
-}
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(all.value)) } catch {} }
 watch(all, persist, { deep:true })
 
 /* ----- Derived stats ----- */
@@ -241,42 +287,37 @@ const prettyCount = computed(()=> (all.value.length).toLocaleString?.() ?? Strin
 const sortLabel = computed(()=> sortBy.value==='recent' ? 'Recent' : sortBy.value==='due' ? 'Due date' : 'Progress')
 
 /* ----- Computed pipeline ----- */
-const filteredBase = computed(()=>{
-  // progress derive
+const filteredBase = computed<Goal[]>(()=>{
   const derived = all.value.map(g => ({ ...g, progress: clamp(Math.round((g.current / Math.max(1,g.target))*100), 0, 100) }))
   let v = derived
-  // search
   if (q.value) {
     const s = q.value.toLowerCase()
     v = v.filter(g => g.title.toLowerCase().includes(s) || (g.category||'').toLowerCase().includes(s))
   }
-  // filter
   if (filter.value==='active') v = v.filter(g => !g.completed)
   if (filter.value==='completed') v = v.filter(g => g.completed)
   if (filter.value==='soon') {
     const in7 = Date.now() + 7*24*3600*1000
     v = v.filter(g => !g.completed && g.due && new Date(g.due).getTime() <= in7)
   }
-  // sort
   if (sortBy.value==='recent') v.sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0))
   else if (sortBy.value==='due') v.sort((a,b)=> (a.due?new Date(a.due).getTime():Infinity) - (b.due?new Date(b.due).getTime():Infinity))
-  else if (sortBy.value==='progress') v.sort((a,b)=> b.progress - a.progress)
-  // favorites first always
+  else if (sortBy.value==='progress') v.sort((a,b)=> (b.progress||0) - (a.progress||0))
   v.sort((a,b)=> Number(b.favorite) - Number(a.favorite))
   return v
 })
 const visible = computed(()=> list.value)
 
 /* ----- Actions ----- */
-function setFilter(f){ filter.value = f; vibrate(6); paginate(true) }
-function setSort(s){ sortBy.value = s; sortOpen.value = false; vibrate(6); paginate(true) }
+function setFilter(f: typeof filter.value){ filter.value = f; vibrate(6); paginate(true) }
+function setSort(s: typeof sortBy.value){ sortBy.value = s; sortOpen.value = false; vibrate(6); paginate(true) }
 
-function openSheet(goal=null){
+function openSheet(goal: Goal|null = null){
   editing.value = !!goal
   sheet.open = true
   if (goal) Object.assign(form, { ...goal })
-  else Object.assign(form, { id: null, title:'', category:'', priority:'', current:0, target:1, unit:'', due:'', favorite:false, completed:false })
-  setTimeout(()=> document.querySelector('.input')?.focus?.(), 30)
+  else Object.assign(form, { id: '' as any, title:'', category:'', priority:'', current:0, target:1, unit:'', due:'', favorite:false, completed:false })
+  setTimeout(()=> (document.querySelector('.input') as HTMLInputElement | null)?.focus?.(), 30)
 }
 function closeSheet(){ sheet.open = false }
 
@@ -289,7 +330,7 @@ function save(){
       if (idx>=0) all.value[idx] = { ...all.value[idx], ...form, updatedAt: Date.now() }
     } else {
       const id = `g_${Math.random().toString(36).slice(2,8)}`
-      all.value.unshift({ ...form, id, updatedAt: Date.now(), createdAt: Date.now() })
+      all.value.unshift({ ...form, id, updatedAt: Date.now() })
     }
     saving.value = false
     sheet.open = false
@@ -297,7 +338,7 @@ function save(){
     paginate(true)
   }, 380)
 }
-function remove(id){
+function remove(id: string){
   const idx = all.value.findIndex(g=> g.id===id)
   if (idx>=0) all.value.splice(idx,1)
   sheet.open = false
@@ -305,20 +346,20 @@ function remove(id){
   paginate(true)
 }
 
-function increment(g){
+function increment(g: Goal){
   if (g.completed) return
   g.current = (g.current||0) + 1
   g.updatedAt = Date.now()
   if (g.current >= g.target) g.completed = true
   vibrate(8)
 }
-function toggleFav(g){ g.favorite = !g.favorite; g.updatedAt = Date.now(); vibrate(6) }
-function toggleComplete(g){ g.completed = !g.completed; g.updatedAt = Date.now(); vibrate(8) }
+function toggleFav(g: Goal){ g.favorite = !g.favorite; g.updatedAt = Date.now(); vibrate(6) }
+function toggleComplete(g: Goal){ g.completed = !g.completed; g.updatedAt = Date.now(); vibrate(8) }
 
 /* Long-press complete */
-let pressTimer=null
-function startPress(g){ clearTimeout(pressTimer); pressTimer = setTimeout(()=> { g.completed = true; g.updatedAt = Date.now(); vibrate(12) }, 500) }
-function endPress(){ clearTimeout(pressTimer) }
+let pressTimer: number | null = null
+function startPress(g: Goal){ if (pressTimer) clearTimeout(pressTimer); pressTimer = window.setTimeout(()=> { g.completed = true; g.updatedAt = Date.now(); vibrate(12) }, 500) as any }
+function endPress(){ if (pressTimer) { clearTimeout(pressTimer); pressTimer = null } }
 
 /* ----- Infinite scroll ----- */
 async function paginate(reset=false){
@@ -343,9 +384,9 @@ function mountIO(){
 function unmountIO(){ try{ io?.disconnect() }catch{} }
 
 /* ----- Utils ----- */
-function ring(p){ return `conic-gradient(#22d3ee ${p*3.6}deg, rgba(255,255,255,.08) 0)` }
-function clamp(n, a, b){ return Math.max(a, Math.min(b, n)) }
-function relative(d){
+function ring(p:number){ return `conic-gradient(#22d3ee ${p*3.6}deg, rgba(255,255,255,.08) 0)` }
+function clamp(n:number, a:number, b:number){ return Math.max(a, Math.min(b, n)) }
+function relative(d?:string){
   if (!d) return '—'
   const ts = new Date(d).getTime()
   const diff = Math.floor((ts - Date.now())/1000)
@@ -355,17 +396,17 @@ function relative(d){
   const h = Math.floor(m/60); if (h<24) return diff>=0 ? `in ${h}h` : `${h}h ago`
   const dd = Math.floor(h/24); return diff>=0 ? `in ${dd}d` : `${dd}d ago`
 }
-function vibrate(ms){ if (navigator.vibrate) try{ navigator.vibrate(ms) }catch{} }
+function vibrate(ms:number){ try{ navigator.vibrate?.(ms) }catch{} }
 
 /* ----- Seed & lifecycle ----- */
 function seed(){
   const now = Date.now()
   all.value = [
-    { id:'g_1', title:'Read 30 pages', category:'Learning', priority:'Medium', current:10, target:30, unit:'pages', due: new Date(now+3*864e5).toISOString().slice(0,10), favorite:true, completed:false, updatedAt:now-3600e3 },
-    { id:'g_2', title:'Run 20 km',     category:'Fitness',  priority:'High',   current:12, target:20, unit:'km',    due: new Date(now+6*864e5).toISOString().slice(0,10), favorite:false,completed:false, updatedAt:now-5400e3 },
+    { id:'g_1', title:'Read 30 pages', category:'Learning', priority:'Medium', current:10, target:30, unit:'pages', due: new Date(now+3*864e5).toISOString().slice(0,10), favorite:true,  completed:false, updatedAt:now-3600e3 },
+    { id:'g_2', title:'Run 20 km',     category:'Fitness',  priority:'High',   current:12, target:20, unit:'km',    due: new Date(now+6*864e5).toISOString().slice(0,10), favorite:false, completed:false, updatedAt:now-5400e3 },
     { id:'g_3', title:'Ship v1 MVP',   category:'Work',     priority:'High',   current:1,  target:4,  unit:'milestones', due: new Date(now+12*864e5).toISOString().slice(0,10), favorite:false, completed:false, updatedAt:now-9200e3 },
     { id:'g_4', title:'Drink water',   category:'Health',   priority:'Low',    current:7,  target:8,  unit:'glasses', due:'', favorite:false, completed:false, updatedAt:now-1800e3 },
-    { id:'g_5', title:'Meditate',      category:'Mind',     priority:'Medium', current:30, target:30, unit:'mins', due:'', favorite:true, completed:true, updatedAt:now-7200e3 },
+    { id:'g_5', title:'Meditate',      category:'Mind',     priority:'Medium', current:30, target:30, unit:'mins',   due:'', favorite:true,  completed:true,  updatedAt:now-7200e3 },
   ]
 }
 onMounted(()=>{
@@ -409,25 +450,3 @@ onBeforeUnmount(unmountIO)
 .no-scrollbar::-webkit-scrollbar{ display:none }
 .no-scrollbar{ -ms-overflow-style:none; scrollbar-width:none }
 </style>
-
-<script lang="ts">
-/* Inline skeleton subcomponent */
-import { defineComponent, h } from 'vue'
-export default {}
-export const SkeletonRow = defineComponent({
-  name: 'SkeletonRow',
-  setup(){
-    return () => h('div', { class:'skel' }, [
-      h('div', { class:'flex items-center gap-3' }, [
-        h('div', { class:'w-12 h-12 rounded-full skel-bar' }),
-        h('div', { class:'flex-1' }, [
-          h('div', { class:'h-3 w-40 rounded skel-bar mb-2' }),
-          h('div', { class:'h-3 w-24 rounded skel-bar' })
-        ]),
-        h('div', { class:'h-8 w-8 rounded-full skel-bar' })
-      ]),
-      h('div', { class:'h-2 w-full rounded skel-bar mt-3' })
-    ])
-  }
-})
-</script>
