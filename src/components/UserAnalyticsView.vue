@@ -1,3 +1,4 @@
+<!-- src/components/UserAnalyticsView.vue -->
 <template>
   <section class="p-4 sm:p-6">
     <!-- Header -->
@@ -14,13 +15,14 @@
           class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
           aria-label="Refresh"
         >
-          <svg class="w-5 h-5" :class="loading && 'animate-spin'" viewBox="0 0 20 20" fill="currentColor">
+          <svg class="w-5 h-5" :class="loading && !reducedMotion ? 'animate-spin' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path d="M3.3 10a6.7 6.7 0 1 1 2 4.74l1.4-1.4A4.7 4.7 0 1 0 5.3 10H3.3zM10 16.7c-1.8 0-3.45-.73-4.64-1.92l-1.41 1.41A8.7 8.7 0 1 0 10 1.3v2a6.7 6.7 0 1 1 0 13.4z"/>
           </svg>
         </button>
         <button
           @click="exportCsv"
           class="px-3 py-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-black text-xs font-medium active:scale-95"
+          aria-label="Export CSV"
         >
           Export CSV
         </button>
@@ -28,13 +30,14 @@
     </div>
 
     <!-- Filters (thumb-reach on mobile) -->
-    <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-2 mb-3">
+    <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-2 mb-3" role="tablist" aria-label="Date range">
       <button
         v-for="r in ranges" :key="r.key" @click="range = r.key"
         class="px-3 h-9 rounded-full text-sm whitespace-nowrap"
         :class="range===r.key
           ? 'bg-blue-700 text-white'
           : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white'"
+        role="tab" :aria-selected="String(range===r.key)"
       >
         {{ r.label }}
       </button>
@@ -66,8 +69,9 @@
       </div>
 
       <div v-if="loading" class="animate-pulse">
-        <div class="h-40 rounded-xl bg-gray-200 dark:bg-white/10"></div>
+        <div class="h-40 rounded-xl bg-gray-200 dark:bg:white/10 dark:bg-white/10"></div>
       </div>
+
       <canvas
         v-else
         ref="canvasRef"
@@ -77,7 +81,7 @@
       ></canvas>
 
       <!-- Mini legend -->
-      <div class="flex flex-wrap gap-3 mt-3 text-xs text-gray-600 dark:text-white/70">
+      <div class="flex flex-wrap gap-3 mt-3 text-xs text-gray-600 dark:text-white/70" aria-live="polite">
         <div class="flex items-center gap-1">
           <span class="inline-block w-3 h-3 rounded-sm bg-current"></span> Active Users
         </div>
@@ -90,57 +94,68 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch, defineComponent, PropType } from 'vue'
 
-/** ---------------------------
- * Demo data + helpers (replace with your API later)
- * --------------------------*/
+/* ---------------- Types ---------------- */
 type Point = { date: string; value: number }
-type Card = { label: string; value: string | number; delta?: number; trend?: 'up'|'down'|'flat'; series?: number[] }
+type CardT = { label: string; value: string | number; delta?: number; trend?: 'up'|'down'|'flat'; series?: number[] }
 
+/* ---------------- Ranges ---------------- */
 const ranges = [
   { key: '7d', label: 'Last 7 days' },
   { key: '30d', label: 'Last 30 days' },
   { key: '90d', label: 'Last 90 days' },
 ] as const
+type RangeKey = typeof ranges[number]['key']
 
-const range = ref<typeof ranges[number]['key']>('30d')
+/* ---------------- State ---------------- */
+const range = ref<RangeKey>('30d')
 const loading = ref(true)
 const lastUpdated = ref(new Date().toLocaleString())
+const reducedMotion = ref<boolean>(matchMediaSafe('(prefers-reduced-motion: reduce)')?.matches ?? false)
 
-// raw time series (most recent last)
-const series = ref<Point[]>([])
+/* ---------------- Series + Canvas ---------------- */
+const series = ref<Point[]>([]) // most recent last
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let resizeObs: ResizeObserver | null = null
 let rAF: number | null = null
+let themeMQ: MediaQueryList | null = null
+let motionMQ: MediaQueryList | null = null
 
-// Simulate initial load
+/* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
   await simulateLoad()
   draw()
   observeResize()
+  // redraw when theme changes
+  themeMQ = matchMediaSafe('(prefers-color-scheme: dark)')
+  themeMQ?.addEventListener?.('change', draw)
+  // reduced motion watcher
+  motionMQ = matchMediaSafe('(prefers-reduced-motion: reduce)')
+  motionMQ?.addEventListener?.('change', (e: MediaQueryListEvent) => reducedMotion.value = e.matches)
+  // keyboard left/right to switch ranges
+  window.addEventListener('keydown', onKey)
 })
 onBeforeUnmount(() => {
-  if (resizeObs) resizeObs.disconnect()
+  resizeObs?.disconnect()
   if (rAF) cancelAnimationFrame(rAF)
+  themeMQ?.removeEventListener?.('change', draw)
+  motionMQ?.removeEventListener?.('change', () => {})
+  window.removeEventListener('keydown', onKey)
 })
 
-watch(range, () => {
-  // Recompute cards & redraw chart
-  nextTickDraw()
-})
+watch(range, () => nextTickDraw())
 
+/* ---------------- Data load (demo) ---------------- */
 async function simulateLoad() {
   loading.value = true
-  await new Promise(r => setTimeout(r, 450)) // skeleton
-  series.value = generateDemo(120)           // 120 days
+  await sleep(450)                      // skeleton state
+  series.value = generateDemo(120)      // 120 days
   loading.value = false
   lastUpdated.value = new Date().toLocaleString()
 }
 
-/** ---------------------------
- * Computed data
- * --------------------------*/
+/* ---------------- Computed ---------------- */
 const sliced = computed(() => {
   const take = range.value === '7d' ? 7 : range.value === '30d' ? 30 : 90
   return series.value.slice(-take)
@@ -162,18 +177,18 @@ const growthPct = computed(() => {
 })
 
 const bounceRate = computed(() => {
-  // Demo: slightly inversely related to users (lower users → higher bounce)
+  // Demo: inversely related to avg users
   const v = Math.max(10, 60 - (stats.value.avg / 50))
   return Math.round(v)
 })
 
-const cards = computed<Card[]>(() => [
+const cards = computed<CardT[]>(() => [
   {
     label: 'Active Users',
     value: fmtNumber(stats.value.last),
     delta: Math.round(growthPct.value * 10) / 10,
     trend: growthPct.value > 0.5 ? 'up' : growthPct.value < -0.5 ? 'down' : 'flat',
-    series: sliced.value.map(p=>p.value).slice(-14) // for sparkline
+    series: sliced.value.map(p=>p.value).slice(-14)
   },
   {
     label: 'Monthly Growth',
@@ -185,7 +200,7 @@ const cards = computed<Card[]>(() => [
   {
     label: 'Bounce Rate',
     value: `${bounceRate.value}%`,
-    delta: -Math.round((growthPct.value/8)*10)/10, // demo relation
+    delta: -Math.round((growthPct.value/8)*10)/10,
     trend: bounceRate.value <= 35 ? 'up' : 'down',
     series: sliced.value.map(p=>p.value).slice(-14)
   }
@@ -197,9 +212,7 @@ const prettyRangeLabel = computed(() => {
   return a && b ? `${a} → ${b}` : ''
 })
 
-/** ---------------------------
- * Draw simple line chart (no libs)
- * --------------------------*/
+/* ---------------- Chart (vanilla Canvas) ---------------- */
 function nextTickDraw() {
   if (rAF) cancelAnimationFrame(rAF)
   rAF = requestAnimationFrame(draw)
@@ -219,15 +232,16 @@ function draw() {
   canvas.style.width = width + 'px'
   canvas.style.height = height + 'px'
 
-  const ctx = canvas.getContext('2d')!
-  ctx.scale(dpr, dpr)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
   // background
-  const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  const dark = matchMediaSafe('(prefers-color-scheme: dark)')?.matches ?? false
   ctx.fillStyle = dark ? '#0b0b10' : '#ffffff'
   ctx.fillRect(0, 0, width, height)
 
-  // axes (light)
+  // axes baseline
   ctx.strokeStyle = dark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)'
   ctx.lineWidth = 1
   const pad = 16
@@ -236,7 +250,7 @@ function draw() {
   ctx.lineTo(width - pad, height - pad)
   ctx.stroke()
 
-  // series
+  // data
   const data = sliced.value.map(p => p.value)
   if (!data.length) return
   const min = Math.min(...data)
@@ -245,10 +259,10 @@ function draw() {
 
   // gradient line color
   const grad = ctx.createLinearGradient(0, 0, 0, height)
-  grad.addColorStop(0, dark ? '#7dd3fc' : '#1e3a8a')   // top
-  grad.addColorStop(1, dark ? '#a78bfa' : '#2563eb')   // bottom
+  grad.addColorStop(0, dark ? '#7dd3fc' : '#1e3a8a')
+  grad.addColorStop(1, dark ? '#a78bfa' : '#2563eb')
 
-  // area fill
+  // area
   ctx.beginPath()
   data.forEach((v, i) => {
     const x = pad + (i/(data.length-1)) * (width - pad*2)
@@ -282,13 +296,11 @@ function draw() {
   ctx.fill()
 }
 
-/** ---------------------------
- * Actions
- * --------------------------*/
+/* ---------------- Actions ---------------- */
 async function refresh() {
   if (loading.value) return
   loading.value = true
-  await new Promise(r => setTimeout(r, 400))
+  await sleep(400)
   // Append a new point to simulate fresh data
   const next = series.value[series.value.length-1]?.value ?? 120
   const jitter = Math.max(20, Math.round(next + (Math.random()*14-7)))
@@ -303,7 +315,7 @@ async function refresh() {
 function exportCsv() {
   const rows = [['Date','Active Users']]
   sliced.value.forEach(p => rows.push([p.date, String(p.value)]))
-  const csv = rows.map(r => r.join(',')).join('\n')
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -313,9 +325,7 @@ function exportCsv() {
   URL.revokeObjectURL(url)
 }
 
-/** ---------------------------
- * Utilities
- * --------------------------*/
+/* ---------------- Utilities ---------------- */
 function fmtNumber(n: number) {
   return new Intl.NumberFormat().format(Math.round(n))
 }
@@ -345,62 +355,23 @@ function observeResize() {
   resizeObs = new ResizeObserver(() => nextTickDraw())
   resizeObs.observe(el)
 }
-</script>
+function matchMediaSafe(q: string){ try { return window.matchMedia?.(q) ?? null } catch { return null } }
+function onKey(e: KeyboardEvent){
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    const idx = ranges.findIndex(r => r.key === range.value)
+    const next = e.key === 'ArrowRight' ? Math.min(idx+1, ranges.length-1) : Math.max(idx-1, 0)
+    range.value = ranges[next].key
+  }
+}
+function sleep(ms:number){ return new Promise(r => setTimeout(r, ms)) }
 
-<script lang="ts">
-/* Local inline component: SummaryCard */
-import { defineComponent, PropType } from 'vue'
-type Card = { label: string; value: string | number; delta?: number; trend?: 'up'|'down'|'flat'; series?: number[] }
-
-export default defineComponent({
+/* ---------------- Inline component: SummaryCard ---------------- */
+const SummaryCard = defineComponent({
   name: 'SummaryCard',
   props: {
-    card: { type: Object as PropType<Card>, required: true }
+    card: { type: Object as PropType<CardT>, required: true }
   },
-  setup(props) {
-    return { props }
-  },
-  template: `
-  <div class="bg-white dark:bg-[#0b0b10] rounded-xl shadow p-4 border border-gray-200 dark:border-white/10">
-    <div class="flex items-start justify-between">
-      <h2 class="text-xs sm:text-sm text-gray-600 dark:text-white/70">{{ props.card.label }}</h2>
-      <span v-if="props.card.delta !== undefined"
-            :class="[
-              'px-1.5 py-0.5 rounded text-[10px] font-semibold',
-              props.card.trend==='up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-              : props.card.trend==='down' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
-            ]">
-        <span v-if="props.card.trend==='up'">▲</span>
-        <span v-else-if="props.card.trend==='down'">▼</span>
-        <span v-else>▪</span>
-        {{ props.card.delta }}%
-      </span>
-    </div>
-    <p class="mt-1 text-xl sm:text-2xl font-semibold text-blue-900 dark:text-white">{{ props.card.value }}</p>
-
-    <!-- sparkline -->
-    <svg v-if="props.card.series && props.card.series.length" viewBox="0 0 100 28" class="mt-2 w-full h-7">
-      <defs>
-        <linearGradient id="sgrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="currentColor" stop-opacity="0.35"></stop>
-          <stop offset="100%" stop-color="currentColor" stop-opacity="0.05"></stop>
-        </linearGradient>
-      </defs>
-      <path :d="sparkPath(props.card.series)" fill="url(#sgrad)"></path>
-      <path :d="sparkLine(props.card.series)" fill="none" stroke="currentColor" stroke-width="1.5"></path>
-    </svg>
-  </div>
-  `,
   methods: {
-    sparkPath(arr: number[]) {
-      const { line, min, max } = this.buildLine(arr)
-      // close to bottom for area
-      return `${line} L100 28 L0 28 Z`
-    },
-    sparkLine(arr: number[]) {
-      return this.buildLine(arr).line
-    },
     buildLine(arr: number[]) {
       const min = Math.min(...arr), max = Math.max(...arr)
       const rng = Math.max(1, max - min)
@@ -410,9 +381,43 @@ export default defineComponent({
         const y = 4 + (1 - (v-min)/rng) * 20
         d += (i ? 'L' : 'M') + x.toFixed(2) + ' ' + y.toFixed(2) + ' '
       })
-      return { line: d.trim(), min, max }
+      return d.trim()
     }
-  }
+  },
+  computed: {
+    badgeCls(): string {
+      const t = (this.card?.trend || 'flat') as 'up'|'down'|'flat'
+      return t==='up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+           : t==='down' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+           : 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
+    }
+  },
+  template: `
+  <div class="bg-white dark:bg-[#0b0b10] rounded-xl shadow p-4 border border-gray-200 dark:border-white/10">
+    <div class="flex items-start justify-between">
+      <h2 class="text-xs sm:text-sm text-gray-600 dark:text-white/70">{{ card.label }}</h2>
+      <span v-if="card.delta !== undefined"
+            :class="['px-1.5 py-0.5 rounded text-[10px] font-semibold', badgeCls]">
+        <span v-if="card.trend==='up'">▲</span>
+        <span v-else-if="card.trend==='down'">▼</span>
+        <span v-else>▪</span>
+        {{ card.delta }}%
+      </span>
+    </div>
+    <p class="mt-1 text-xl sm:text-2xl font-semibold text-blue-900 dark:text-white">{{ card.value }}</p>
+
+    <svg v-if="card.series && card.series.length" viewBox="0 0 100 28" class="mt-2 w-full h-7">
+      <defs>
+        <linearGradient id="sgrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="currentColor" stop-opacity="0.35"></stop>
+          <stop offset="100%" stop-color="currentColor" stop-opacity="0.05"></stop>
+        </linearGradient>
+      </defs>
+      <path :d="buildLine(card.series) + ' L100 28 L0 28 Z'" fill="url(#sgrad)"></path>
+      <path :d="buildLine(card.series)" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+    </svg>
+  </div>
+  `
 })
 </script>
 
