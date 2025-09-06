@@ -11,7 +11,7 @@
     <!-- Bottom Drawer (mobile) / Centered (md+) -->
     <section
       ref="sheetEl"
-      class="w-full md:max-w-lg md:rounded-t-2xl md:shadow-2xl bg-[#0f172a] border-t md:border md:rounded-2xl border-cyan-800 text-white animate-slideUpSafe relative"
+      class="w-full md:max-w-lg md:rounded-2xl md:shadow-2xl bg-[#0f172a] border-t md:border border-cyan-800 text-white animate-slideUpSafe relative"
       :style="{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }"
       @touchstart.passive="onTouchStart"
       @touchmove.passive="onTouchMove"
@@ -98,7 +98,7 @@
                 class="w-full h-14 md:h-16 object-cover rounded-lg"
                 loading="lazy"
                 decoding="async"
-                @error="onImgError($event)"
+                @error="onImgError"
               />
               <span
                 v-if="isFav(g.id)"
@@ -172,150 +172,163 @@
       </footer>
 
       <!-- Close (desktop) -->
-      <button class="hidden md:block absolute top-3 right-3 text-cyan-300/80 hover:text-cyan-200" @click="handleClose" aria-label="Close">
+      <button
+        class="hidden md:block absolute top-3 right-3 text-cyan-300/80 hover:text-cyan-200"
+        @click="handleClose"
+        aria-label="Close"
+      >
         <i class="i-tabler-x text-xl"></i>
       </button>
     </section>
   </div>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, defineComponent, h, type Ref } from 'vue'
 
 /* Props & Emits */
-const props = defineProps({
-  show: { type: Boolean, default: false },
-  startBalance: { type: Number, default: 1200 }
+type SendPayload = { gift: Gift; qty: number; total: number }
+const props = withDefaults(defineProps<{ show: boolean; startBalance?: number }>(), {
+  show: false,
+  startBalance: 1200
 })
-const emit = defineEmits(['close','send'])
+const emit = defineEmits<{
+  (e:'close'): void
+  (e:'send', payload: SendPayload): void
+}>()
+
+/* Types */
+type Category = 'Popular' | 'Boosts' | 'Stickers' | 'Party' | 'Love' | 'VIP'
+type Gift = { id: string; name: string; price: number; img: string; category: Category }
 
 /* IDs & Refs */
 const headingId = `hdr-${Math.random().toString(36).slice(2,8)}`
-const sheetEl = ref(null)
+const sheetEl: Ref<HTMLElement|null> = ref(null)
 
 /* Network state */
 const online = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
-function onOnline(){ online.value = true }
-function onOffline(){ online.value = false }
+const onOnline = () => (online.value = true)
+const onOffline = () => (online.value = false)
 
 /* Balance & selection */
 const balance = ref(props.startBalance)
-const selectedGift = ref(null)
+const selectedGift = ref<Gift|null>(null)
 const qty = ref(1)
 const total = computed(()=> selectedGift.value ? selectedGift.value.price * qty.value : 0)
 const canSend = computed(()=> !!selectedGift.value && qty.value>0 && balance.value>=total.value)
 
 /* Search & category */
 const q = ref('')
-const category = ref('Popular')
-const categories = ['Popular','Boosts','Stickers','Party','Love','VIP']
+const category = ref<Category>('Popular')
+const categories: Category[] = ['Popular','Boosts','Stickers','Party','Love','VIP']
 
 /* Gifts (mock data) */
-const gifts = ref([])
+const gifts = ref<Gift[]>([])
 const loading = ref(true)
 
 /* Favorites (persist) */
 const FAV_KEY = 'giftdrawer:favs'
-const favs = ref(new Set())
+const favs = ref<Set<string>>(new Set())
 onMounted(()=>{
-  try{
-    const raw = JSON.parse(localStorage.getItem(FAV_KEY) || '[]')
-    favs.value = new Set(raw)
-  }catch{}
+  try{ favs.value = new Set<string>(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')) }catch{}
 })
-watch(favs, (v)=>{
-  try{ localStorage.setItem(FAV_KEY, JSON.stringify([...v])) }catch{}
-}, { deep: true })
-
-function isFav(id){ return favs.value.has(id) }
-function toggleFav(g){
+function persistFavs(){ try{ localStorage.setItem(FAV_KEY, JSON.stringify([...favs.value])) }catch{} }
+function isFav(id:string){ return favs.value.has(id) }
+function toggleFav(g: Gift){
   if (!g) return
-  if (favs.value.has(g.id)) favs.value.delete(g.id)
-  else favs.value.add(g.id)
+  const s = new Set(favs.value)
+  s.has(g.id) ? s.delete(g.id) : s.add(g.id)
+  favs.value = s
+  persistFavs()
   vibrate(8)
 }
 
 /* Filters */
-const visibleGifts = computed(()=>{
+const visibleGifts = computed(()=> {
   let list = gifts.value.filter(g => category.value==='Popular' ? true : g.category===category.value)
   if (q.value) {
     const s = q.value.toLowerCase()
     list = list.filter(g => g.name.toLowerCase().includes(s))
   }
-  // favorited first
+  // favorites first
   list.sort((a,b)=> Number(isFav(b.id)) - Number(isFav(a.id)))
   return list
 })
 
 /* Actions */
-function selectGift(g){
+function selectGift(g: Gift){
   selectedGift.value = g
   qty.value = 1
   vibrate(6)
 }
 function incQty(){ if(!selectedGift.value) return; qty.value = Math.min(qty.value+1, 999); vibrate(4) }
 function decQty(){ if(!selectedGift.value) return; qty.value = Math.max(1, qty.value-1); vibrate(4) }
-function quickQty(n){ if(!selectedGift.value) return; qty.value = n; vibrate(6) }
+function quickQty(n:number){ if(!selectedGift.value) return; qty.value = n; vibrate(6) }
 
 function send(){
   if (!canSend.value) { vibrate(6); return }
   balance.value -= total.value
-  // Emit payload (parent can actually process / call API)
-  emit('send', { gift: selectedGift.value, qty: qty.value, total: total.value })
-  // UX feedback
-  try { /* integrate real toast here */ } catch {}
+  emit('send', { gift: selectedGift.value as Gift, qty: qty.value, total: total.value })
   vibrate(12)
-  // Reset selection
   qty.value = 1
 }
 
-function addCoins(){
-  balance.value += 500
-  vibrate(8)
-}
+function addCoins(){ balance.value += 500; vibrate(8) }
 
 /* Helpers */
-function setCategory(c){ category.value = c; vibrate(4) }
-function pretty(n){ return n.toLocaleString?.() ?? String(n) }
-function onImgError(e){ e.target.src = '/gifts/placeholder.png' }
+function setCategory(c: Category){ category.value = c; vibrate(4) }
+function pretty(n:number){ return n.toLocaleString?.() ?? String(n) }
+function onImgError(e: Event){ (e.target as HTMLImageElement).src = '/gifts/placeholder.png' }
 function handleClose(){ emit('close') }
-function vibrate(ms){ if (navigator.vibrate) try{ navigator.vibrate(ms) }catch{} }
+function vibrate(ms:number){ if (typeof navigator !== 'undefined' && 'vibrate' in navigator) try{ navigator.vibrate(ms) }catch{} }
 
 /* Swipe-to-close (drag down) */
 const swipe = reactive({ startY:0, dy:0 })
-function onTouchStart(e){ swipe.startY = e.touches[0].clientY; swipe.dy = 0 }
-function onTouchMove(e){
+function onTouchStart(e: TouchEvent){ swipe.startY = e.touches[0].clientY; swipe.dy = 0 }
+function onTouchMove(e: TouchEvent){
   swipe.dy = e.touches[0].clientY - swipe.startY
-  if (swipe.dy > 0) sheetEl.value.style.transform = `translateY(${Math.min(swipe.dy, 120)}px)`
+  if (swipe.dy > 0 && sheetEl.value) sheetEl.value.style.transform = `translateY(${Math.min(swipe.dy, 120)}px)`
 }
 function onTouchEnd(){
   if (swipe.dy > 80) { vibrate(8); handleClose() }
-  sheetEl.value.style.transform = ''
+  if (sheetEl.value) sheetEl.value.style.transform = ''
   swipe.dy = 0
 }
 
 /* ESC to close */
-function onKey(e){ if (e.key === 'Escape') handleClose() }
+const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
 
 /* Seed mock data (replace with API) */
 async function seed(){
   loading.value = true
   await new Promise(r=> setTimeout(r, 500))
-  const base = [
-    { id:'g1', name:'Confetti',     price:20,  img:'/gifts/confetti.png',    category:'Party'   },
-    { id:'g2', name:'Fireworks',    price:80,  img:'/gifts/fireworks.png',   category:'Party'   },
-    { id:'g3', name:'Heart',        price:25,  img:'/gifts/heart.png',       category:'Love'    },
-    { id:'g4', name:'Rocket Boost', price:120, img:'/gifts/boost.png',       category:'Boosts'  },
-    { id:'g5', name:'VIP Crown',    price:300, img:'/gifts/crown.png',       category:'VIP'     },
-    { id:'g6', name:'Star Shower',  price:60,  img:'/gifts/stars.png',       category:'Stickers'},
-    { id:'g7', name:'Neon Wave',    price:45,  img:'/gifts/neon.png',        category:'Stickers'},
-    { id:'g8', name:'Rose',         price:15,  img:'/gifts/rose.png',        category:'Love'    },
-    { id:'g9', name:'Golden Ticket',price:200, img:'/gifts/ticket.png',      category:'VIP'     },
-    { id:'g10',name:'Turbo Boost',  price:150, img:'/gifts/turbo.png',       category:'Boosts'  },
+  const base: Gift[] = [
+    { id:'g1',  name:'Confetti',     price:20,  img:'/gifts/confetti.png',    category:'Party'    },
+    { id:'g2',  name:'Fireworks',    price:80,  img:'/gifts/fireworks.png',   category:'Party'    },
+    { id:'g3',  name:'Heart',        price:25,  img:'/gifts/heart.png',       category:'Love'     },
+    { id:'g4',  name:'Rocket Boost', price:120, img:'/gifts/boost.png',       category:'Boosts'   },
+    { id:'g5',  name:'VIP Crown',    price:300, img:'/gifts/crown.png',       category:'VIP'      },
+    { id:'g6',  name:'Star Shower',  price:60,  img:'/gifts/stars.png',       category:'Stickers' },
+    { id:'g7',  name:'Neon Wave',    price:45,  img:'/gifts/neon.png',        category:'Stickers' },
+    { id:'g8',  name:'Rose',         price:15,  img:'/gifts/rose.png',        category:'Love'     },
+    { id:'g9',  name:'Golden Ticket',price:200, img:'/gifts/ticket.png',      category:'VIP'      },
+    { id:'g10', name:'Turbo Boost',  price:150, img:'/gifts/turbo.png',       category:'Boosts'   },
   ]
   gifts.value = base
   loading.value = false
 }
+
+/* Local subcomponent: SkeletonGift */
+const SkeletonGift = defineComponent({
+  name: 'SkeletonGift',
+  setup(){
+    return () => h('div', { class: 'skel' }, [
+      h('div', { class:'w-full h-14 rounded-lg skel-bar' }),
+      h('div', { class:'h-2 w-2/3 rounded mt-1.5 skel-bar' }),
+      h('div', { class:'h-2 w-1/3 rounded mt-1 skel-bar' }),
+    ])
+  }
+})
 
 /* Lifecycle */
 onMounted(async ()=>{
@@ -341,14 +354,10 @@ onBeforeUnmount(()=>{
 .stepper > button{ @apply w-8 h-8 grid place-items-center hover:bg-white/10; }
 
 /* Gift card */
-.gift-card{
-  @apply bg-white/5 border border-white/10 rounded-xl p-1.5 text-left hover:bg-white/10 transition;
-}
+.gift-card{ @apply bg-white/5 border border-white/10 rounded-xl p-1.5 text-left hover:bg-white/10 transition; }
 
 /* Skeleton */
-.skel{
-  @apply bg-white/5 border border-white/10 rounded-xl p-1.5;
-}
+.skel{ @apply bg-white/5 border border-white/10 rounded-xl p-1.5; }
 .skel-bar{
   background: linear-gradient(110deg, rgba(255,255,255,.10) 8%, rgba(255,255,255,.04) 18%, rgba(255,255,255,.10) 33%);
   background-size: 200% 100%; animation: shimmer 1.2s linear infinite;
@@ -365,18 +374,3 @@ onBeforeUnmount(()=>{
 .no-scrollbar::-webkit-scrollbar{ display:none }
 .no-scrollbar{ -ms-overflow-style:none; scrollbar-width:none }
 </style>
-
-<script lang="ts">
-import { defineComponent, h } from 'vue'
-export default {}
-export const SkeletonGift = defineComponent({
-  name: 'SkeletonGift',
-  setup(){
-    return () => h('div', { class: 'skel' }, [
-      h('div', { class:'w-full h-14 rounded-lg skel-bar' }),
-      h('div', { class:'h-2 w-2/3 rounded mt-1.5 skel-bar' }),
-      h('div', { class:'h-2 w-1/3 rounded mt-1 skel-bar' }),
-    ])
-  }
-})
-</script>
