@@ -1,3 +1,4 @@
+<!-- src/components/UserDashboardView.vue -->
 <template>
   <section class="p-4 sm:p-6">
     <!-- Header -->
@@ -11,8 +12,13 @@
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <button class="btn-secondary" @click="refresh" :title="loading ? 'Refreshing…' : 'Refresh'" aria-label="Refresh">
-          <svg class="w-4 h-4" :class="loading && 'animate-spin'" viewBox="0 0 20 20" fill="currentColor">
+        <button
+          class="btn-secondary"
+          @click="refresh"
+          :title="loading ? 'Refreshing…' : 'Refresh'"
+          aria-label="Refresh"
+        >
+          <svg class="w-4 h-4" :class="loading && 'animate-spin'" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path d="M3.3 10a6.7 6.7 0 1 1 2 4.74l1.4-1.4A4.7 4.7 0 1 0 5.3 10H3.3zM10 16.7c-1.8 0-3.45-.73-4.64-1.92l-1.41 1.41A8.7 8.7 0 1 0 10 1.3v2a6.7 6.7 0 1 1 0 13.4z"/>
           </svg>
         </button>
@@ -34,12 +40,13 @@
         @click="range = r.key"
         class="px-3 h-9 rounded-full text-sm whitespace-nowrap"
         :class="range===r.key ? 'bg-blue-700 text-white' : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white'"
+        :aria-pressed="String(range===r.key)"
       >{{ r.label }}</button>
     </div>
 
     <!-- KPI Cards: mobile rail + md grid -->
     <div class="md:grid md:grid-cols-3 gap-4 md:gap-6 mb-6">
-      <div class="flex md:hidden gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-1 px-1 pb-1" role="listbox">
+      <div class="flex md:hidden gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-1 px-1 pb-1" role="listbox" aria-label="KPI cards">
         <KpiCard v-for="c in kpis" :key="'m-'+c.label" class="snap-start min-w-[220px]" :card="c" />
       </div>
       <KpiCard v-for="c in kpis" :key="'d-'+c.label" class="hidden md:block" :card="c" />
@@ -49,26 +56,26 @@
     <div class="bg-white dark:bg-[#0b0b10] p-4 sm:p-6 rounded-xl shadow border border-gray-200 dark:border-white/10">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-base sm:text-lg font-semibold text-blue-900 dark:text-white">System Logs</h2>
-        <span class="text-xs text-gray-600 dark:text-white/70">{{ filtered.length }} items</span>
+        <span class="text-xs text-gray-600 dark:text-white/70" aria-live="polite">{{ filtered.length }} items</span>
       </div>
 
       <!-- Log filters (mobile-first) -->
       <div class="flex gap-2 flex-wrap sm:flex-nowrap mb-3">
         <div class="relative flex-1 min-w-[56%]">
           <input v-model="q" type="search" inputmode="search" placeholder="Search logs (msg, id, actor)…"
-                 class="w-full rounded-xl bg-gray-100 dark:bg-white/10 px-10 py-2 text-sm outline-none focus:ring-2 ring-blue-600/60" />
-          <svg class="w-4 h-4 absolute left-3 top-2.5 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+                 class="w-full rounded-xl bg-gray-100 dark:bg-white/10 px-10 py-2 text-sm outline-none focus:ring-2 ring-blue-600/60" aria-label="Search logs"/>
+          <svg class="w-4 h-4 absolute left-3 top-2.5 opacity-60" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" d="M13.78 12.72a6 6 0 1 0-1.06 1.06l3.25 3.25a.75.75 0 1 0 1.06-1.06l-3.25-3.25zM12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0z" clip-rule="evenodd"/>
           </svg>
         </div>
-        <select v-model="sev" class="chip-select">
+        <select v-model="sev" class="chip-select" aria-label="Severity filter">
           <option value="">All severity</option>
           <option value="info">Info</option>
           <option value="warn">Warn</option>
           <option value="error">Error</option>
         </select>
-        <input v-model="from" type="date" class="chip-select" :max="to || undefined" />
-        <input v-model="to" type="date" class="chip-select" :min="from || undefined" />
+        <input v-model="from" type="date" class="chip-select" :max="to || undefined" aria-label="From date"/>
+        <input v-model="to" type="date" class="chip-select" :min="from || undefined" aria-label="To date"/>
       </div>
 
       <!-- Loading skeleton -->
@@ -107,7 +114,7 @@
       <div v-if="filtered.length" class="flex items-center justify-between mt-3 text-sm">
         <div class="flex items-center gap-2">
           <span class="text-gray-600 dark:text-white/70">Rows:</span>
-          <select v-model.number="perPage" class="chip-select">
+          <select v-model.number="perPage" class="chip-select" aria-label="Rows per page">
             <option :value="10">10</option>
             <option :value="25">25</option>
             <option :value="50">50</option>
@@ -122,7 +129,7 @@
     </div>
 
     <!-- Details Bottom Sheet -->
-    <div v-if="sheetOpen" class="fixed inset-0 z-50">
+    <div v-if="sheetOpen" class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Log details">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeSheet"></div>
       <div class="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white dark:bg-[#0b0b10] shadow-2xl">
         <div class="mx-auto w-full max-w-2xl p-4">
@@ -132,7 +139,7 @@
           </div>
           <div class="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-white/80 mb-2">
             <div><span class="muted">Time:</span> {{ fmtDateTime(active!.ts) }}</div>
-            <div><span class="muted">Severity:</span> <SeverityPill :severity="active!.severity" /></div>
+            <div class="flex items-center gap-2"><span class="muted">Severity:</span> <SeverityPill :severity="active!.severity" /></div>
             <div><span class="muted">Actor:</span> {{ active!.actor }}</div>
             <div><span class="muted">IP:</span> {{ active!.ip }}</div>
           </div>
@@ -148,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch, defineComponent, h } from 'vue'
 
 type RangeKey = '7d'|'30d'|'90d'
 type KPI = { label: string; value: string|number; delta?: number; trend?: 'up'|'down'|'flat'; series?: number[] }
@@ -198,8 +205,7 @@ const active = ref<LogItem|null>(null)
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
-  // simulate load
-  await new Promise(r=>setTimeout(r, 400))
+  await new Promise(r=>setTimeout(r, 400)) // simulate load
   seedKpis(120)
   seedLogs(160)
   loading.value = false
@@ -243,7 +249,7 @@ const filtered = computed(() => {
   return logs.value.filter(l => {
     const t = new Date(l.ts).getTime()
     if (t < fromMs || t > toMs) return false
-    if (sev.value && l.severity !== sev.value) return false
+    if (sev.value && l.severity !== (sev.value as any)) return false
     if (!term) return true
     return [l.message, l.actor, l.id, l.ip].join(' ').toLowerCase().includes(term)
   })
@@ -325,9 +331,9 @@ function seedLogs(n:number){
     'User profile updated','Subscription renewed','Payment failed','High latency detected',
     'New signup','Role changed','Webhook received','Quota nearing limit'
   ]
-  const now = Date.now()
+  const base = Date.now()
   logs.value = Array.from({length:n}).map((_,i)=> {
-    const ts = new Date(now - i*36e5).toISOString() // each 1h back
+    const ts = new Date(base - i*36e5).toISOString() // each 1h back
     const sev = severities[Math.floor(Math.random()*severities.length)]
     const actor = actors[Math.floor(Math.random()*actors.length)]
     const message = msgs[Math.floor(Math.random()*msgs.length)]
@@ -351,77 +357,70 @@ function fakeLog(severity:LogItem['severity'], preset?:Partial<LogItem>){
     }
   } as LogItem
 }
-</script>
 
-<script lang="ts">
-/* Inline components for neatness */
-import { defineComponent } from 'vue'
-
-type KPI = { label: string; value: string|number; delta?: number; trend?: 'up'|'down'|'flat'; series?: number[] }
-
-export default {
-  components: {
-    KpiCard: defineComponent({
-      name:'KpiCard',
-      props:{ card: { type: Object as () => KPI, required: true } },
-      computed:{
-        badgeCls(): string {
-          const t = (this.card?.trend || 'flat') as 'up'|'down'|'flat'
-          return t==='up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-               : t==='down' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-               : 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
-        }
-      },
-      methods:{
-        path(arr:number[]){
-          if(!arr?.length) return ''
-          const min = Math.min(...arr), max = Math.max(...arr), rng = Math.max(1, max-min)
-          return arr.map((v,i)=>{
-            const x = (i/(arr.length-1))*100
-            const y = 4 + (1 - (v-min)/rng)*20
-            return (i?'L':'M')+x.toFixed(2)+' '+y.toFixed(2)
-          }).join(' ')
-        }
-      },
-      template: `
-      <div class="bg-white dark:bg-[#0b0b10] rounded-xl shadow p-4 border border-gray-200 dark:border-white/10">
-        <div class="flex items-start justify-between">
-          <h3 class="text-xs sm:text-sm text-gray-600 dark:text-white/70">{{ card.label }}</h3>
-          <span v-if="card.delta !== undefined" :class="['px-1.5 py-0.5 rounded text-[10px] font-semibold', badgeCls]">
-            <template v-if="card.trend==='up'">▲</template>
-            <template v-else-if="card.trend==='down'">▼</template>
-            <template v-else>▪</template>
-            {{ card.delta }}%
-          </span>
-        </div>
-        <p class="mt-1 text-xl sm:text-2xl font-semibold text-blue-900 dark:text-white">{{ card.value }}</p>
-        <svg v-if="card.series?.length" viewBox="0 0 100 28" class="mt-2 w-full h-7 text-blue-700 dark:text-blue-300">
-          <defs><linearGradient id="kgrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="currentColor" stop-opacity="0.35"/><stop offset="100%" stop-color="currentColor" stop-opacity="0.06"/>
-          </linearGradient></defs>
-          <path :d="path(card.series)" fill="url(#kgrad)"/>
-          <path :d="path(card.series)" fill="none" stroke="currentColor" stroke-width="1.4"/>
-        </svg>
-      </div>
-      `
-    }),
-    SeverityPill: defineComponent({
-      name:'SeverityPill',
-      props:{ severity: String },
-      computed:{
-        cls(): string {
-          switch(this.severity){
-            case 'info': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-            case 'warn': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-            case 'error':return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-            default:     return 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
-          }
-        }
-      },
-      template:`<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold select-none" :class="cls">{{ (severity||'—').toUpperCase() }}</span>`
-    })
+/* ---------- Inline components (render functions to avoid extra <script>) ---------- */
+const KpiCard = defineComponent({
+  name:'KpiCard',
+  props:{ card: { type: Object as () => KPI, required: true } },
+  setup(props){
+    const gradId = 'kgrad-' + Math.random().toString(36).slice(2,8)
+    function badgeCls(){
+      const t = (props.card?.trend || 'flat') as 'up'|'down'|'flat'
+      return t==='up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+           : t==='down' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+           : 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
+    }
+    function path(arr:number[] = []){
+      if(!arr.length) return ''
+      const min = Math.min(...arr), max = Math.max(...arr), rng = Math.max(1, max-min)
+      return arr.map((v,i)=>{
+        const x = (i/(arr.length-1))*100
+        const y = 4 + (1 - (v-min)/rng)*20
+        return (i?'L':'M')+x.toFixed(2)+' '+y.toFixed(2)
+      }).join(' ')
+    }
+    return () => h('div', { class:'bg-white dark:bg-[#0b0b10] rounded-xl shadow p-4 border border-gray-200 dark:border-white/10' }, [
+      h('div', { class:'flex items-start justify-between' }, [
+        h('h3', { class:'text-xs sm:text-sm text-gray-600 dark:text-white/70' }, props.card.label),
+        props.card.delta !== undefined
+          ? h('span', { class:['px-1.5 py-0.5 rounded text-[10px] font-semibold', badgeCls()] }, [
+              props.card.trend==='up' ? '▲ ' : props.card.trend==='down' ? '▼ ' : '▪ ',
+              String(props.card.delta)+'%'
+            ])
+          : null
+      ]),
+      h('p', { class:'mt-1 text-xl sm:text-2xl font-semibold text-blue-900 dark:text-white' }, String(props.card.value)),
+      props.card.series?.length
+        ? h('svg', { viewBox:'0 0 100 28', class:'mt-2 w-full h-7 text-blue-700 dark:text-blue-300', 'aria-hidden':'true' }, [
+            h('defs', null, [
+              h('linearGradient', { id:gradId, x1:'0', y1:'0', x2:'0', y2:'1' }, [
+                h('stop', { offset:'0%', 'stop-color':'currentColor', 'stop-opacity':'0.35' }),
+                h('stop', { offset:'100%', 'stop-color':'currentColor', 'stop-opacity':'0.06' })
+              ])
+            ]),
+            h('path', { d:path(props.card.series), fill:`url(#${gradId})` }),
+            h('path', { d:path(props.card.series), fill:'none', stroke:'currentColor', 'stroke-width':'1.4' })
+          ])
+        : null
+    ])
   }
-}
+})
+
+const SeverityPill = defineComponent({
+  name:'SeverityPill',
+  props:{ severity: { type:String, default:'' } },
+  setup(props){
+    function cls(){
+      switch(props.severity){
+        case 'info': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+        case 'warn': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+        case 'error':return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+        default:     return 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
+      }
+    }
+    return () => h('span', { class:['px-2 py-0.5 rounded-full text-[11px] font-semibold select-none', cls()], role:'status' }, (props.severity||'—').toUpperCase())
+  }
+})
 </script>
 
 <style scoped>
