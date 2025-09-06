@@ -1,3 +1,4 @@
+<!-- src/components/UserBillingView.vue -->
 <template>
   <section class="p-4 sm:p-6">
     <!-- Header -->
@@ -6,6 +7,7 @@
       <button
         class="px-3 py-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-black text-xs font-medium active:scale-95"
         @click="exportCsv"
+        aria-label="Export CSV"
       >
         Export CSV
       </button>
@@ -20,31 +22,32 @@
           inputmode="search"
           placeholder="Search plan, method, invoice…"
           class="w-full rounded-xl bg-gray-100 dark:bg-white/10 px-10 py-2 text-sm outline-none focus:ring-2 ring-blue-600/60"
+          aria-label="Search invoices"
         />
-        <svg class="w-4 h-4 absolute left-3 top-2.5 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+        <svg class="w-4 h-4 absolute left-3 top-2.5 opacity-60" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path fill-rule="evenodd" d="M13.78 12.72a6 6 0 1 0-1.06 1.06l3.25 3.25a.75.75 0 1 0 1.06-1.06l-3.25-3.25zM12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0z" clip-rule="evenodd"/>
         </svg>
       </div>
 
-      <select v-model="method" class="chip-select">
+      <select v-model="method" class="chip-select" aria-label="Payment method filter">
         <option value="">All methods</option>
         <option v-for="m in methods" :key="m" :value="m">{{ m }}</option>
       </select>
 
-      <select v-model="status" class="chip-select">
+      <select v-model="status" class="chip-select" aria-label="Status filter">
         <option value="">All status</option>
         <option value="paid">Paid</option>
         <option value="refunded">Refunded</option>
         <option value="failed">Failed</option>
       </select>
 
-      <input v-model="from" type="date" class="chip-select" :max="to || undefined" />
-      <input v-model="to" type="date" class="chip-select" :min="from || undefined" />
+      <input v-model="from" type="date" class="chip-select" :max="to || undefined" aria-label="From date"/>
+      <input v-model="to" type="date" class="chip-select" :min="from || undefined" aria-label="To date"/>
     </div>
 
     <!-- Summary -->
     <div class="flex flex-wrap items-center gap-3 mb-3 text-xs sm:text-sm text-gray-600 dark:text-white/70">
-      <span><strong>{{ visibleCount }}</strong> invoices shown</span>
+      <span aria-live="polite"><strong>{{ visibleCount }}</strong> invoices shown</span>
       <span>•</span>
       <span>Total: <strong>{{ fmtCurrency(totalVisible) }}</strong></span>
       <span class="ml-auto hidden sm:inline">Updated: {{ lastUpdated }}</span>
@@ -92,11 +95,11 @@
       <table class="min-w-full text-sm">
         <thead class="bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/70 uppercase text-left">
           <tr>
-            <Th head="Date"    k="date"    :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
-            <Th head="Plan"    k="plan"    :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
-            <Th head="Amount"  k="amount"  :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
-            <Th head="Method"  k="method"  :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
-            <Th head="Status"  k="status"  :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
+            <Th head="Date"    :k="'date'"    :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
+            <Th head="Plan"    :k="'plan'"    :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
+            <Th head="Amount"  :k="'amount'"  :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
+            <Th head="Method"  :k="'method'"  :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
+            <Th head="Status"  :k="'status'"  :sortKey="sortKey" :sortDir="sortDir" @sort="setSort" />
             <th class="px-6 py-3">Invoice</th>
           </tr>
         </thead>
@@ -108,9 +111,7 @@
             <td class="px-6 py-4">{{ b.method }}</td>
             <td class="px-6 py-4"><StatusPill :status="b.status" /></td>
             <td class="px-6 py-4">
-              <button class="text-blue-700 dark:text-blue-300 hover:underline" @click="downloadInvoice(b)">
-                Download
-              </button>
+              <button class="text-blue-700 dark:text-blue-300 hover:underline" @click="downloadInvoice(b)">Download</button>
             </td>
           </tr>
         </tbody>
@@ -121,7 +122,7 @@
     <div v-if="!loading && allFiltered.length" class="flex items-center justify-between mt-4 text-sm">
       <div class="flex items-center gap-2">
         <span class="text-gray-600 dark:text-white/70">Rows:</span>
-        <select v-model.number="perPage" class="chip-select">
+        <select v-model.number="perPage" class="chip-select" aria-label="Rows per page">
           <option :value="10">10</option>
           <option :value="25">25</option>
           <option :value="50">50</option>
@@ -135,7 +136,7 @@
     </div>
 
     <!-- Details Bottom Sheet -->
-    <div v-if="sheetOpen" class="fixed inset-0 z-50">
+    <div v-if="sheetOpen" class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Invoice details">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeSheet"></div>
       <div class="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white dark:bg-[#0b0b10] shadow-2xl">
         <div class="mx-auto w-full max-w-2xl p-4">
@@ -148,7 +149,10 @@
             <div><span class="text-gray-500 dark:text-white/60">Plan:</span> {{ active!.plan }}</div>
             <div><span class="text-gray-500 dark:text-white/60">Amount:</span> {{ fmtCurrency(active!.amount) }}</div>
             <div><span class="text-gray-500 dark:text-white/60">Method:</span> {{ active!.method }}</div>
-            <div><span class="text-gray-500 dark:text-white/60">Status:</span> <StatusPill :status="active!.status" /></div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-500 dark:text-white/60">Status:</span>
+              <StatusPill :status="active!.status" />
+            </div>
             <div><span class="text-gray-500 dark:text-white/60">Period:</span> {{ active!.period || '—' }}</div>
           </div>
 
@@ -163,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, defineComponent, h } from 'vue'
 
 type Bill = {
   id: number | string
@@ -194,7 +198,7 @@ const perPage = ref(10)
 const sheetOpen = ref(false)
 const active = ref<Bill | null>(null)
 
-const methods = ['M-PESA', 'PayPal', 'Card']
+const methods = ['M-PESA', 'PayPal', 'Card'] as const
 
 // Demo dataset (replace with API later)
 const all = ref<Bill[]>([
@@ -205,8 +209,7 @@ const all = ref<Bill[]>([
 ])
 
 onMounted(async () => {
-  // Simulate initial load
-  await new Promise(r => setTimeout(r, 400))
+  await new Promise(r => setTimeout(r, 400)) // Simulate initial load
   loading.value = false
   lastUpdated.value = new Date().toLocaleString()
 })
@@ -215,24 +218,29 @@ onMounted(async () => {
 const allFiltered = computed(() => {
   const term = q.value.trim().toLowerCase()
   const fromMs = from.value ? new Date(from.value).getTime() : -Infinity
-  const toMs = to.value ? new Date(to.value).getTime() : Infinity
+  const toMs = to.value ? (new Date(to.value).getTime() + 86_400_000 - 1) : Infinity // inclusive end-of-day
 
-  return all.value.filter(b => {
-    const d = new Date(b.date).getTime()
-    if (d < fromMs || d > toMs) return false
-    if (method.value && b.method !== method.value) return false
-    if (status.value && b.status !== status.value) return false
-    if (!term) return true
-    return [
-      b.plan, b.method, String(b.invoiceNo ?? ''), b.status
-    ].join(' ').toLowerCase().includes(term)
-  }).sort((a, b) => {
-    const dir = sortDir.value === 'asc' ? 1 : -1
-    let va: any = a[sortKey.value], vb: any = b[sortKey.value]
-    if (sortKey.value === 'date') { va = +new Date(va); vb = +new Date(vb) }
-    if (sortKey.value === 'amount') { va = Number(va); vb = Number(vb) }
-    return va > vb ? dir : va < vb ? -dir : 0
-  })
+  const collator = new Intl.Collator(undefined, { sensitivity: 'accent', numeric: false })
+
+  return all.value
+    .filter(b => {
+      const d = new Date(b.date + 'T00:00:00').getTime()
+      if (d < fromMs || d > toMs) return false
+      if (method.value && b.method !== method.value) return false
+      if (status.value && b.status !== status.value) return false
+      if (!term) return true
+      return [
+        b.plan, b.method, String(b.invoiceNo ?? ''), b.status
+      ].join(' ').toLowerCase().includes(term)
+    })
+    .sort((a, b) => {
+      const dir = sortDir.value === 'asc' ? 1 : -1
+      let va: any = a[sortKey.value], vb: any = b[sortKey.value]
+      if (sortKey.value === 'date') { va = +new Date(a.date); vb = +new Date(b.date) }
+      else if (sortKey.value === 'amount') { va = Number(a.amount); vb = Number(b.amount) }
+      else { return collator.compare(String(va), String(vb)) * dir || (String(a.id).localeCompare(String(b.id)) * dir) }
+      return va > vb ? dir : va < vb ? -dir : 0
+    })
 })
 
 watch([q, method, status, from, to, sortKey, sortDir, perPage], () => { page.value = 1 })
@@ -268,7 +276,7 @@ function exportCsv() {
   allFiltered.value.forEach(b => rows.push([
     String(b.invoiceNo ?? b.id), b.date, b.plan, String(b.amount), b.method, b.status, b.period || ''
   ]))
-  const csv = rows.map(r => r.join(',')).join('\n')
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -283,7 +291,7 @@ function downloadInvoice(b: Bill) {
     window.open(b.invoiceUrl, '_blank', 'noopener')
     return
   }
-  // Generate a simple, printable HTML invoice as a fallback
+  // printable fallback
   const html = `
   <!doctype html><html><head>
     <meta charset="utf-8"><title>Invoice ${b.invoiceNo ?? b.id}</title>
@@ -332,55 +340,50 @@ function closeSheet() { sheetOpen.value = false }
 async function copyText(t: string) {
   try { await navigator.clipboard.writeText(t) } catch {}
 }
-</script>
 
-<script lang="ts">
-/* Inline sub-components for tidy template */
-import { defineComponent } from 'vue'
-
-export default {
-  components: {
-    Th: defineComponent({
-      name: 'Th',
-      props: { head: String, k: String, sortKey: String, sortDir: String },
-      emits: ['sort'],
-      computed: {
-        isActive(): boolean { return this.k === this.sortKey },
-        aria(): string { return this.isActive ? (this.sortDir === 'asc' ? 'ascending' : 'descending') : 'none' }
+/* ---------- Inline sub-components (render functions) ---------- */
+const Th = defineComponent({
+  name: 'Th',
+  props: { head: String, k: String, sortKey: String, sortDir: String },
+  emits: ['sort'],
+  setup(props, { emit }) {
+    const isActive = () => props.k === props.sortKey
+    const aria = () => isActive() ? (props.sortDir === 'asc' ? 'ascending' : 'descending') : 'none'
+    return () => h('th',
+      {
+        class: 'px-6 py-3 cursor-pointer select-none',
+        'aria-sort': aria(),
+        onClick: () => emit('sort', props.k)
       },
-      template: `
-        <th
-          class="px-6 py-3 cursor-pointer select-none"
-          :aria-sort="aria"
-          @click="$emit('sort', k)"
-        >
-          <span class="inline-flex items-center gap-1">
-            {{ head }}
-            <svg v-if="isActive" class="w-3 h-3 opacity-70" viewBox="0 0 20 20" fill="currentColor">
-              <path v-if="sortDir==='asc'" d="M10 5l5 6H5l5-6z"/>
-              <path v-else d="M10 15l-5-6h10l-5 6z"/>
-            </svg>
-          </span>
-        </th>
-      `
-    }),
-    StatusPill: defineComponent({
-      name: 'StatusPill',
-      props: { status: String },
-      computed: {
-        cls(): string {
-          switch (this.status) {
-            case 'paid':     return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-            case 'refunded': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-            case 'failed':   return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-            default:         return 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
-          }
-        }
-      },
-      template: `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold" :class="cls">{{ (status||'—').toUpperCase() }}</span>`
-    })
+      [
+        h('span', { class:'inline-flex items-center gap-1' }, [
+          props.head as any,
+          isActive()
+            ? h('svg', { class:'w-3 h-3 opacity-70', viewBox:'0 0 20 20', fill:'currentColor', 'aria-hidden':'true' }, [
+                h('path', { d: props.sortDir === 'asc' ? 'M10 5l5 6H5l5-6z' : 'M10 15l-5-6h10l-5 6z' })
+              ])
+            : null
+        ])
+      ]
+    )
   }
-}
+})
+
+const StatusPill = defineComponent({
+  name: 'StatusPill',
+  props: { status: String },
+  setup(props){
+    const cls = () => {
+      switch (props.status) {
+        case 'paid':     return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+        case 'refunded': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+        case 'failed':   return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+        default:         return 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-white/70'
+      }
+    }
+    return () => h('span', { class:['px-2 py-0.5 rounded-full text-[11px] font-semibold', cls()] }, (props.status || '—').toUpperCase())
+  }
+})
 </script>
 
 <style scoped>
