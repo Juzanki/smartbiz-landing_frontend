@@ -1,178 +1,147 @@
-// vite.config.mjs (or keep as vite.config.js since "type":"module")
+// vite.config.js   (unaweza tumia .ts/.mjs pia)
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
 import UnoCSS from 'unocss/vite'
-import path from 'node:path'
+import { fileURLToPath, URL } from 'node:url'
 import process from 'node:process'
 
-// ---------- Small helpers ----------
-/** Trim trailing slashes: "http://127.0.0.1:8000/" -> "http://127.0.0.1:8000" */
+/* ---------- Helpers ---------- */
 const trimSlash = (u) => (typeof u === 'string' ? u.replace(/\/+$/, '') : '')
-/** True if looks like absolute http(s) url */
-const isHttpUrl = (u) => /^https?:\/\//i.test(u || '')
+const isHttpUrl  = (u) => /^https?:\/\//i.test(u || '')
+const toBool     = (v, d=false) => (v==='true'||v===true) ? true : (v==='false'||v===false) ? false : d
 
-export default defineConfig(({ mode, command }) => {
-  // Load all envs (no VITE_ prefix filter so we can read fallbacks too)
+/** Gawa vendors kwenye chunks thabiti (Rollup manualChunks) */
+function vendorChunks(id) {
+  if (!id.includes('node_modules')) return
+  const tail = id.split('node_modules/')[1]
+  const scope = tail.startsWith('@') ? tail.split('/').slice(0,2).join('/') : tail.split('/')[0]
+  if (/^vue($|\/)|vue-router/.test(scope))                    return 'vue'
+  if (/apexcharts|chart\.js/.test(scope))                     return 'charts'
+  if (/@?unocss|@vueuse|nanoid|axios|vue-i18n|pinia/.test(scope)) return 'utils'
+  return 'vendor'
+}
+
+/* ---------- Config (async kwa DevTools ya hiari) ---------- */
+export default defineConfig(async ({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
-
-  // ---------- Base & API ----------
-  const RAW_API =
-    env.VITE_API_URL ||
-    env.API_URL ||
-    env.BACKEND_URL ||
-    'http://localhost:8000'
-
-  const API_TARGET = trimSlash(RAW_API)
-  const BASE = trimSlash(env.VITE_BASE || '/')
-
+  const IS_PROD  = mode === 'production'
   const IS_SERVE = command === 'serve'
-  const IS_PROD = mode === 'production'
 
-  // Guard: if someone sets VITE_BASE to a full URL, force it to path
-  const normalizedBase = isHttpUrl(BASE) ? '/' : (BASE || '/')
+  // API & base
+  const RAW_API    = env.VITE_API_URL || env.API_URL || env.BACKEND_URL || 'http://localhost:8000'
+  const API_TARGET = trimSlash(RAW_API)
+  const rawBase    = trimSlash(env.VITE_BASE || '/')
+  const base       = isHttpUrl(rawBase) ? '/' : (rawBase || '/')
 
-  // ---------- Friendly console banner ----------
-  console.log('\n🔧 SmartBiz Vite config')
-  console.log('  MODE      :', mode)
-  console.log('  BASE      :', normalizedBase)
-  console.log('  API       :', API_TARGET)
-  console.log('  DEV?      :', IS_SERVE, '\n')
+  // Public CORS
+  const PUBLIC_ORIGINS = [
+    env.RAILWAY_PUBLIC_URL,
+    env.NETLIFY_PUBLIC_URL,
+    env.VITE_PUBLIC_ORIGIN,
+    env.VERCEL_URL && `https://${env.VERCEL_URL}`,
+  ].filter(Boolean).map(trimSlash)
+
+  const plugins = [
+    vue({ reactivityTransform: false }),
+    vueJsx(),           // JSX/TSX kwa Vue (SFCs: tumia <script setup lang="tsx">)
+    UnoCSS(),
+  ]
+
+  // DevTools (hiari)
+  if (toBool(env.VITE_DEVTOOLS, false)) {
+    try {
+      const { default: devtools } = await import('vite-plugin-vue-devtools')
+      plugins.push(devtools())
+    } catch {
+      console.warn('[vite] vite-plugin-vue-devtools haipo; ruka. (weka VITE_DEVTOOLS=false au install package)')
+    }
+  }
 
   return {
-    // App base path (supports hosting under a subfolder)
-    base: normalizedBase,
+    base,
+    plugins,
 
-    // ---------- Plugins ----------
-    plugins: [
-      vue({
-        // Reactivity transform is deprecated in Vue 3.5+; keep off
-        reactivityTransform: false,
-        // Enable defineModel/props destructure if needed later:
-        // script: { defineModel: true, propsDestructure: true },
-      }),
-      UnoCSS(),
-      // If you use Vue DevTools, uncomment next line (already in your devDeps)
-      // (await import('vite-plugin-vue-devtools')).default(),
-    ],
-
-    // ---------- Resolve / Aliases ----------
     resolve: {
       alias: {
-        '@': path.resolve(process.cwd(), 'src'),
-        '@components': path.resolve(process.cwd(), 'src/components'),
-        '@views': path.resolve(process.cwd(), 'src/views'),
-        '@assets': path.resolve(process.cwd(), 'src/assets'),
-        '@utils': path.resolve(process.cwd(), 'src/utils'),
+        '@'          : fileURLToPath(new URL('./src', import.meta.url)),
+        '@components': fileURLToPath(new URL('./src/components', import.meta.url)),
+        '@views'     : fileURLToPath(new URL('./src/views', import.meta.url)),
+        '@assets'    : fileURLToPath(new URL('./src/assets', import.meta.url)),
+        '@utils'     : fileURLToPath(new URL('./src/utils', import.meta.url)),
       },
-      // Prevent duplicate Vue instances if some deps bundle their own
       dedupe: ['vue'],
     },
 
-    // Only expose these env prefixes to client code via import.meta.env
     envPrefix: ['VITE_', 'SB_'],
-
-    // ---------- Global constants ----------
     define: {
-      __APP_ENV__: JSON.stringify(env.VITE_ENVIRONMENT || mode),
-      __APP_NAME__: JSON.stringify(env.VITE_APP_NAME || 'SmartBiz Assistance'),
-      __API_URL__: JSON.stringify(API_TARGET),
+      __APP_ENV__    : JSON.stringify(env.VITE_ENVIRONMENT || mode),
+      __APP_NAME__   : JSON.stringify(env.VITE_APP_NAME || 'SmartBiz Assistance'),
+      __API_URL__    : JSON.stringify(API_TARGET),
+      __DEV__        : JSON.stringify(!IS_PROD),
+      __BUILD_TIME__ : JSON.stringify(new Date().toISOString()),
+      'process.env.NODE_ENV': JSON.stringify(mode),
     },
 
-    // ---------- Dev Server (fast + mobile friendly) ----------
     server: {
-      host: '0.0.0.0',           // test on real devices over LAN
+      host: '0.0.0.0',
       port: 5173,
       strictPort: true,
       open: false,
-      // Clean overlay; keep errors in terminal (useful on mobile demos)
       hmr: { overlay: false },
-      // CORS: allow from known public hosts if provided
-      cors: {
-        origin: [
-          env.RAILWAY_PUBLIC_URL,
-          env.NETLIFY_PUBLIC_URL,
-          env.VERCEL_URL && `https://${env.VERCEL_URL}`,
-          env.VITE_PUBLIC_ORIGIN,
-        ].filter(Boolean).map(trimSlash),
-        credentials: true,
-      },
-      // Proxy API & WS without CORS pain in dev
+      cors: { origin: PUBLIC_ORIGINS, credentials: true },
       proxy: {
-        // Example: frontend calls fetch('/api/...') -> backend
-        '/api': {
-          target: API_TARGET,
-          changeOrigin: true,
-          secure: false,
-          // If your backend does NOT have /api prefix, enable rewrite:
-          // rewrite: (p) => p.replace(/^\/api/, ''),
-        },
-        // Example Socket.IO / WS (uncomment if you use it)
+        '/api': { target: API_TARGET, changeOrigin: true, secure: false },
         // '/socket.io': { target: API_TARGET, ws: true, changeOrigin: true },
       },
-      // Windows/VMs sometimes miss file change events—enable polling if needed
-      watch: {
-        usePolling: false, // set true if HMR seems unreliable
-        interval: 100,
-      },
+      watch: { usePolling: false, interval: 100 },
     },
 
-    // ---------- Preview (vite preview) ----------
-    preview: {
-      port: 4173,
-      strictPort: true,
-      host: '0.0.0.0',
-    },
+    preview: { host: '0.0.0.0', port: 4173, strictPort: true },
 
-    // ---------- Dependency pre-bundle (faster HMR) ----------
+    /* ---------- Dep Optimizer (salama kwa Windows + Vue JSX/TSX) ---------- */
     optimizeDeps: {
-      include: ['vue', 'vue-router', 'axios', '@vueuse/core'],
-      // If a heavy lib causes slow pre-bundling, exclude it:
-      // exclude: ['apexcharts'],
+      include: [
+        'vue', 'vue-router', 'axios', '@vueuse/core', 'vue-i18n',
+        'vue-toastification', 'pinia', 'socket.io-client', 'hls.js', 'vue3-draggable-resizable'
+      ],
+      // Ikiwa unafanya import ya hiari (dynamic) ya motion, isiachwe iprebundle:
+      exclude: ['@vueuse/motion'],
       entries: ['./index.html'],
+      force: true,
       esbuildOptions: {
-        // Helps old Android WebViews if you ever test them
-        target: 'es2019',
+        target: 'es2020',
+        // MUHIMU: tumia 'preserve' ili Vite JSX iende kwa plugin-vue-jsx (bila React runtime)
+        jsx: 'preserve',
+        loader: { '.tsx': 'tsx', '.ts': 'ts', '.jsx': 'jsx' },
+        tsconfigRaw: { compilerOptions: { jsx: 'preserve', useDefineForClassFields: false } },
       },
     },
 
-    // ---------- Build (modern mobile tuned) ----------
+    /* ---------- Build ---------- */
     build: {
-      target: ['es2019', 'chrome90', 'safari14'],
+      target: 'es2022',          // inaruhusu top-level await
       cssTarget: 'chrome90',
       sourcemap: false,
       brotliSize: false,
-      assetsInlineLimit: 4096,        // inline tiny assets for fewer requests
+      assetsInlineLimit: 4096,
       cssCodeSplit: true,
       chunkSizeWarningLimit: 1100,
-
+      minify: 'esbuild',
       rollupOptions: {
         output: {
-          entryFileNames: 'assets/[name]-[hash].js',
-          chunkFileNames: 'assets/[name]-[hash].js',
-          assetFileNames: 'assets/[name]-[hash][extname]',
-          // Stable vendor chunking for cache hits
-          manualChunks: {
-            vue: ['vue', 'vue-router'],
-            vendor: ['axios', '@vueuse/core'],
-          },
+          entryFileNames : 'assets/[name]-[hash].js',
+          chunkFileNames : 'assets/[name]-[hash].js',
+          assetFileNames : 'assets/[name]-[hash][extname]',
+          manualChunks   : vendorChunks,
         },
       },
-
-      // esbuild is super fast; use terser only if you need special minification
-      minify: 'esbuild',
-      // commonjsOptions: { ... } // if you have legacy CJS libs later
+      commonjsOptions: { transformMixedEsModules: true },
     },
 
-    // ---------- Esbuild passes ----------
-    esbuild: {
-      // Trim noisy logs in prod
-      drop: IS_PROD ? ['console', 'debugger'] : [],
-    },
-
-    // ---------- Web Workers (ready for future use) ----------
+    esbuild: { drop: IS_PROD ? ['console','debugger'] : [] },
     worker: { format: 'es' },
-
-    // Deterministic JSON order across machines/CI
     json: { stringify: true },
+    css: { devSourcemap: false },
   }
 })

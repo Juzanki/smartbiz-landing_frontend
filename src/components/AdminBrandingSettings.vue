@@ -12,6 +12,7 @@
         class="h-9 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm"
         @click="resetToDefaults"
         title="Reset to defaults"
+        type="button"
       >
         Reset
       </button>
@@ -20,9 +21,7 @@
     <!-- Content -->
     <div class="mx-auto w-full max-w-3xl px-4 py-5 space-y-6">
       <!-- Live Brand Preview -->
-      <section
-        class="rounded-2xl overflow-hidden border border-white/10 bg-white/5"
-      >
+      <section class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
         <div
           class="p-5 sm:p-6"
           :style="{
@@ -34,6 +33,7 @@
             <div
               class="h-12 w-12 rounded-xl grid place-items-center text-xl font-bold text-zinc-900 shadow"
               :style="{ background: settings.primaryColor }"
+              aria-label="Brand logo"
             >
               <img
                 v-if="settings.logoUrl"
@@ -44,8 +44,12 @@
               <span v-else>{{ initials }}</span>
             </div>
             <div class="min-w-0">
-              <div class="text-lg font-semibold">{{ settings.businessName || 'Your Business' }}</div>
-              <div class="text-xs text-zinc-300">{{ settings.tagline || 'Tagline appears here' }}</div>
+              <div class="text-lg font-semibold">
+                {{ settings.businessName || 'Your Business' }}
+              </div>
+              <div class="text-xs text-zinc-300">
+                {{ settings.tagline || 'Tagline appears here' }}
+              </div>
             </div>
           </div>
 
@@ -59,41 +63,56 @@
           </div>
         </div>
 
-        <div class="px-5 sm:px-6 py-3 bg-black/30 border-t border-white/10 text-[12px] text-zinc-300 flex items-center justify-between">
-          <span class="truncate">Language: <b class="text-white">{{ settings.language.toUpperCase() }}</b> •
-            Currency: <b class="text-white">{{ settings.currency }}</b> • TZ: <b class="text-white">{{ settings.timezone }}</b></span>
+        <div
+          class="px-5 sm:px-6 py-3 bg-black/30 border-t border-white/10 text-[12px] text-zinc-300 flex items-center justify-between"
+        >
+          <span class="truncate">
+            Language:
+            <b class="text-white">{{ settings.language.toUpperCase() }}</b> •
+            Currency: <b class="text-white">{{ settings.currency }}</b> • TZ:
+            <b class="text-white">{{ settings.timezone }}</b>
+          </span>
           <span v-if="autoSavedAt" class="shrink-0 text-zinc-400">💾 Saved</span>
         </div>
       </section>
 
       <!-- Form -->
-      <form @submit.prevent="onSave" class="space-y-5">
+      <form @submit.prevent="onSave" class="space-y-5" novalidate>
         <!-- Business -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="col-span-1 sm:col-span-2">
-            <Label>Business Name</Label>
-            <Input v-model.trim="settings.businessName" placeholder="e.g., SmartBiz Media" required />
+            <Label for="bizName">Business Name</Label>
+            <Input
+              id="bizName"
+              v-model.trim="settings.businessName"
+              placeholder="e.g., SmartBiz Media"
+              required
+              aria-required="true"
+            />
+            <p v-if="!settings.businessName" class="mt-1 text-[11px] text-rose-300">
+              Business name is required.
+            </p>
           </div>
 
           <div class="col-span-1 sm:col-span-2">
-            <Label>Tagline</Label>
-            <Input v-model.trim="settings.tagline" placeholder="e.g., Create. Grow. Monetize." />
+            <Label for="tagline">Tagline</Label>
+            <Input id="tagline" v-model.trim="settings.tagline" placeholder="e.g., Create. Grow. Monetize." />
           </div>
 
           <div>
-            <Label>Primary Color</Label>
-            <ColorRow
-              v-model="settings.primaryColor"
-              :fallback="'#06b6d4'"
-            />
+            <Label for="primaryColor">Primary Color</Label>
+            <ColorRow id="primaryColor" v-model="settings.primaryColor" :fallback="'#06b6d4'" />
+            <p v-if="!isHex(settings.primaryColor)" class="mt-1 text-[11px] text-rose-300">
+              Use a valid hex color, e.g. <code>#06b6d4</code>.
+            </p>
           </div>
 
           <div>
-            <Label>Secondary Color</Label>
-            <ColorRow
-              v-model="settings.secondaryColor"
-              :fallback="'#64748b'"
-            />
+            <Label for="secondaryColor">Secondary Color</Label>
+            <ColorRow id="secondaryColor" v-model="settings.secondaryColor" :fallback="'#64748b'" />
+            <p v-if="!isHex(settings.secondaryColor)" class="mt-1 text-[11px] text-rose-300">
+              Use a valid hex color, e.g. <code>#64748b</code>.
+            </p>
           </div>
         </div>
 
@@ -131,7 +150,7 @@
                 v-if="settings.logoUrl"
                 type="button"
                 class="rounded-xl px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm"
-                @click="settings.logoUrl=''"
+                @click="settings.logoUrl = ''"
               >
                 Remove
               </button>
@@ -143,32 +162,39 @@
         <!-- Locale & money -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <Label>Language</Label>
-            <Select v-model="settings.language" :options="languages" />
+            <Label for="lang">Language</Label>
+            <Select id="lang" v-model="settings.language" :options="languages" />
           </div>
           <div>
-            <Label>Timezone</Label>
-            <Select v-model="settings.timezone" :options="timezones" />
+            <Label for="tz">Timezone</Label>
+            <Select id="tz" v-model="settings.timezone" :options="timezones" />
           </div>
           <div>
-            <Label>Currency</Label>
-            <Select v-model="settings.currency" :options="currencies" />
+            <Label for="cur">Currency</Label>
+            <Select id="cur" v-model="settings.currency" :options="currencies" />
           </div>
         </div>
 
         <!-- Custom domain -->
         <div class="rounded-2xl border border-white/10 p-4 bg-white/5 space-y-2">
           <div class="flex items-center justify-between">
-            <Label>Enable Custom Domain</Label>
-            <Toggle v-model="settings.enableCustomDomain" />
+            <Label for="enableDomain">Enable Custom Domain</Label>
+            <Toggle id="enableDomain" v-model="settings.enableCustomDomain" />
           </div>
           <Input
             v-model.trim="settings.customDomain"
             :disabled="!settings.enableCustomDomain"
             placeholder="e.g., live.yourbrand.com"
+            aria-describedby="domainHelp"
           />
-          <p class="text-[11px] text-zinc-400">
+          <p id="domainHelp" class="text-[11px] text-zinc-400">
             You’ll receive DNS instructions after saving. Make sure your domain is active.
+          </p>
+          <p
+            v-if="settings.enableCustomDomain && !validDomain"
+            class="text-[11px] text-rose-300"
+          >
+            Enter a valid domain (letters, digits, hyphens, and dots).
           </p>
         </div>
 
@@ -200,7 +226,7 @@
             role="status"
             aria-live="polite"
           >
-            ✅ Settings saved successfully!
+            ✅ {{ successMsg }}
           </div>
         </transition>
       </form>
@@ -211,98 +237,121 @@
   </section>
 </template>
 
-<script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+<script setup lang="tsx">
+import { ref, reactive, computed, watch, onMounted, nextTick, defineExpose } from 'vue'
 
-/** ---------- Local UI primitives (mobile-first) ---------- **/
-const Label = (props, { slots }) => (
-  <label class="block mb-1 text-xs font-semibold text-zinc-300">{ slots.default?.() }</label>
+/* ===================== Local UI primitives (TSX) ===================== */
+const Label = (props: any, { slots }: any) => (
+  <label class="block mb-1 text-xs font-semibold text-zinc-300">{slots?.default?.()}</label>
 )
+
 const Input = {
-  props: { modelValue: String, placeholder: String, required: Boolean, disabled: Boolean },
+  props: {
+    modelValue: String,
+    placeholder: String,
+    required: Boolean,
+    disabled: Boolean,
+    id: String,
+    'aria-describedby': String,
+  },
   emits: ['update:modelValue'],
-  setup(p, { emit }) {
+  setup(p: any, { emit }: any) {
     return () => (
       <input
+        id={p.id}
         class="w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm
-               placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 disabled:opacity-50"
+               placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/60
+               disabled:opacity-50"
         value={p.modelValue}
         placeholder={p.placeholder}
         required={p.required}
         disabled={p.disabled}
-        onInput={e => emit('update:modelValue', e.target.value)}
+        aria-describedby={p['aria-describedby']}
+        onInput={(e: any) => emit('update:modelValue', (e.target as HTMLInputElement).value)}
       />
     )
-  }
+  },
 }
+
 const Select = {
-  props: { modelValue: String, options: Array },
+  props: { modelValue: String, options: Array as () => Array<{ value: string; label: string }>, id: String },
   emits: ['update:modelValue'],
-  setup(p, { emit }) {
+  setup(p: any, { emit }: any) {
     return () => (
       <select
+        id={p.id}
         class="w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
         value={p.modelValue}
-        onChange={e => emit('update:modelValue', e.target.value)}
+        onChange={(e: any) => emit('update:modelValue', (e.target as HTMLSelectElement).value)}
       >
-        { (p.options || []).map(o => <option value={o.value}>{o.label}</option>) }
+        {(p.options || []).map((o: any) => (
+          <option value={o.value}>{o.label}</option>
+        ))}
       </select>
     )
-  }
+  },
 }
+
 const Toggle = {
-  props: { modelValue: Boolean },
+  props: { modelValue: Boolean, id: String },
   emits: ['update:modelValue'],
-  setup(p, { emit }) {
+  setup(p: any, { emit }: any) {
     const on = () => emit('update:modelValue', !p.modelValue)
     return () => (
       <button
+        id={p.id}
         type="button"
         class={[
-          "h-7 w-12 rounded-full border transition relative",
-          p.modelValue ? "bg-emerald-500/90 border-emerald-300" : "bg-white/10 border-white/15"
+          'h-7 w-12 rounded-full border transition relative',
+          p.modelValue ? 'bg-emerald-500/90 border-emerald-300' : 'bg-white/10 border-white/15',
         ]}
         onClick={on}
         role="switch"
         aria-checked={String(p.modelValue)}
+        aria-label="Toggle custom domain"
       >
         <span
           class={[
-            "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition",
-            p.modelValue ? "right-0.5" : "left-0.5"
+            'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition',
+            p.modelValue ? 'right-0.5' : 'left-0.5',
           ]}
         />
       </button>
     )
-  }
+  },
 }
+
 const ColorRow = {
-  props: { modelValue: String, fallback: String },
+  props: { modelValue: String, fallback: String, id: String },
   emits: ['update:modelValue'],
-  setup(p, { emit }) {
+  setup(p: any, { emit }: any) {
     const val = computed({
       get: () => p.modelValue || p.fallback,
-      set: (v) => emit('update:modelValue', v)
+      set: (v: string) => emit('update:modelValue', v),
     })
     return () => (
       <div class="flex items-center gap-2">
         <input
+          id={p.id}
           type="color"
           class="h-10 w-12 rounded-lg border border-white/15 bg-transparent"
           value={val.value}
-          onInput={e => val.value = e.target.value}
+          onInput={(e: any) => (val.value = (e.target as HTMLInputElement).value)}
+          aria-label="Pick color"
         />
         <input
           class="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-mono"
           value={val.value}
-          onInput={e => val.value = e.target.value}
+          onInput={(e: any) => (val.value = (e.target as HTMLInputElement).value)}
+          aria-label="Color hex code"
+          placeholder="#06b6d4"
         />
       </div>
     )
-  }
+  },
 }
 
-/** ---------- State & Logic ---------- **/
+/* =========================== State & Logic =========================== */
 const LS_KEY = 'admin_settings'
 
 const defaults = {
@@ -315,50 +364,70 @@ const defaults = {
   timezone: 'UTC',
   currency: 'USD',
   enableCustomDomain: false,
-  customDomain: ''
+  customDomain: '',
 }
 
 const settings = reactive({ ...defaults })
 const success = ref(false)
+const successMsg = ref('Settings saved successfully!')
 const saving = ref(false)
 const dirty = ref(false)
 const autoSavedAt = ref('')
-const fileRef = ref(null)
+const fileRef = ref<HTMLInputElement | null>(null)
 
-/* Option lists (trimmed for mobile; extend as needed) */
+/* Option lists (trim for mobile; extend as needed) */
 const languages = [
   { value: 'en', label: 'English' },
   { value: 'sw', label: 'Swahili' },
-  { value: 'fr', label: 'French' }
+  { value: 'fr', label: 'French' },
 ]
 const timezones = [
   { value: 'UTC', label: 'UTC' },
   { value: 'Africa/Nairobi', label: 'Africa/Nairobi' },
   { value: 'Africa/Dar_es_Salaam', label: 'Africa/Dar_es_Salaam' },
   { value: 'Europe/London', label: 'Europe/London' },
-  { value: 'America/New_York', label: 'America/New_York' }
+  { value: 'America/New_York', label: 'America/New_York' },
 ]
 const currencies = [
   { value: 'USD', label: 'USD $' },
   { value: 'TZS', label: 'TZS TSh' },
   { value: 'KES', label: 'KES KSh' },
-  { value: 'EUR', label: 'EUR €' }
+  { value: 'EUR', label: 'EUR €' },
 ]
 
 /* Derived */
-const initials = computed(() => (settings.businessName || 'B').split(' ').map(s => s[0]).join('').slice(0,2).toUpperCase())
-const isValid = computed(() => !!settings.businessName && isHex(settings.primaryColor) && isHex(settings.secondaryColor))
+const initials = computed(() =>
+  (settings.businessName || 'B')
+    .split(' ')
+    .map((s) => s[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase(),
+)
+
+const validDomain = computed(() =>
+  !settings.enableCustomDomain || isDomain(settings.customDomain),
+)
+
+const isValid = computed(
+  () =>
+    !!settings.businessName &&
+    isHex(settings.primaryColor) &&
+    isHex(settings.secondaryColor) &&
+    validDomain.value,
+)
 
 /* Load existing */
-onMounted(() => {
+onMounted(async () => {
   try {
     const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null')
     if (saved && typeof saved === 'object') Object.assign(settings, defaults, saved)
   } catch {}
+  await nextTick()
 })
 
 /* Autosave (debounced) */
-let t = null
+let t: any = null
 watch(
   settings,
   () => {
@@ -368,61 +437,111 @@ watch(
       persist()
       autoSavedAt.value = new Date().toLocaleTimeString()
       dirty.value = false
-    }, 800)
+    }, 700)
   },
-  { deep: true }
+  { deep: true },
 )
 
 /* Actions */
-function onSave(){ saveAndClose(false) }
-function saveAndClose(closeAfter){
+function onSave() {
+  saveAndClose(false)
+}
+function saveAndClose(_closeAfter: boolean) {
   if (!isValid.value) return
   saving.value = true
   setTimeout(() => {
     persist()
     saving.value = false
     dirty.value = false
-    pingSuccess()
-  }, 500)
+    pingSuccess('Settings saved successfully!')
+  }, 450)
 }
-function persist(){
+function persist() {
   localStorage.setItem(LS_KEY, JSON.stringify(settings))
 }
-function resetToDefaults(){
+function resetToDefaults() {
   Object.assign(settings, { ...defaults })
+  persist()
   pingSuccess('Reset to defaults')
 }
-function pingSuccess(msg='Settings saved successfully!'){
+function pingSuccess(msg = 'Settings saved successfully!') {
+  successMsg.value = msg
   success.value = true
   setTimeout(() => (success.value = false), 2000)
 }
 
 /* Utils */
-function isHex(v){ return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v || '') }
-function onPickFile(e){
-  const f = e.target.files?.[0]
+function isHex(v?: string) {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v || '')
+}
+function isDomain(v?: string) {
+  if (!v) return false
+  // basic domain: sub.example.com (no protocol/path)
+  return /^(?!-)([a-z0-9-]{1,63}\.)+[a-z]{2,}$/i.test(v.trim())
+}
+function onPickFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const f = input?.files?.[0]
   if (!f) return
   const reader = new FileReader()
-  reader.onload = () => { settings.logoUrl = String(reader.result || '') }
+  reader.onload = () => {
+    settings.logoUrl = String(reader.result || '')
+  }
   reader.readAsDataURL(f)
 }
+
+/* Expose tiny API for parent pages if needed */
+defineExpose({
+  save: onSave,
+  reset: resetToDefaults,
+  getSettings: () => JSON.parse(JSON.stringify(settings)),
+})
 </script>
 
 <style scoped>
 .btn {
-  @apply min-h-[44px] px-4 py-2 rounded-xl border text-sm transition;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
 }
 .btn.primary {
-  @apply bg-cyan-600 text-white border-cyan-600 hover:bg-cyan-700;
+  background: #0891b2; /* cyan-700-ish */
+  color: #fff;
+  border-color: #0891b2;
+}
+.btn.primary:disabled {
+  opacity: 0.6;
+}
+.btn.primary:not(:disabled):hover {
+  background: #0e7490;
 }
 .btn.ghost {
-  @apply bg-white/10 text-white border-white/15 hover:bg-white/15;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.btn.ghost:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Toast transition */
-.fade-pop-enter-active,.fade-pop-leave-active{ transition: opacity .18s ease, transform .18s ease }
-.fade-pop-enter-from,.fade-pop-leave-to{ opacity:0; transform: translateY(6px) }
+.fade-pop-enter-active,
+.fade-pop-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.fade-pop-enter-from,
+.fade-pop-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
 
 /* Reduce iOS tap highlight */
-:host, button, input, select { -webkit-tap-highlight-color: transparent; }
+:host,
+button,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
 </style>
