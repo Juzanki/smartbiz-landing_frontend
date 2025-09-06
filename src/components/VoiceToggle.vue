@@ -1,10 +1,11 @@
+<!-- src/components/VoiceToggle.vue -->
 <template>
   <section class="min-h-screen p-5 flex flex-col items-center justify-center bg-white dark:bg-[#121212]">
     <!-- Status banners -->
-    <div v-if="!online" class="w-full max-w-sm mb-3 rounded-xl bg-amber-50 text-amber-900 px-3 py-2 text-sm">
+    <div v-if="!online" class="w-full max-w-sm mb-3 rounded-xl bg-amber-50 text-amber-900 px-3 py-2 text-sm" role="status" aria-live="polite">
       You’re offline — voice will pause.
     </div>
-    <div v-if="perm==='denied'" class="w-full max-w-sm mb-3 rounded-xl bg-rose-50 text-rose-900 px-3 py-2 text-sm">
+    <div v-if="perm==='denied'" class="w-full max-w-sm mb-3 rounded-xl bg-rose-50 text-rose-900 px-3 py-2 text-sm" role="alert">
       Mic permission denied. Allow microphone in browser settings.
     </div>
 
@@ -19,12 +20,12 @@
       :class="isOn ? 'bg-blue-700 text-white' : 'bg-gray-900 text-white'"
       :style="ringStyle"
       :aria-pressed="isOn"
+      aria-describedby="status-hint"
       :disabled="perm==='denied' || busy"
       @pointerdown="onPress"
       @pointerup="onRelease"
       @pointercancel="onRelease"
-      @keydown.space.prevent="toggle()"
-      @keydown.enter.prevent="toggle()"
+      @keydown="onKey"
     >
       <div class="text-3xl leading-none">{{ isOn ? '🎙️' : '🔇' }}</div>
       <div class="mt-1 text-xs opacity-90">
@@ -39,6 +40,8 @@
         {{ fmtDuration(duration) }}
       </div>
     </button>
+
+    <p id="status-hint" class="sr-only">Press the big round button to start or stop microphone.</p>
 
     <!-- Helper controls -->
     <div class="mt-4 flex items-center gap-2">
@@ -56,9 +59,8 @@
         <span>Status: <strong>{{ statusLabel }}</strong></span>
         <span v-if="peak>0">Peak: <strong>{{ peak }}</strong></span>
       </div>
-      <!-- simple meter -->
       <div class="h-2 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
-        <div class="h-full transition-all" :style="{ width: Math.round(level*100)+'%' }" class="bg-blue-600"></div>
+        <div class="h-full transition-all bg-blue-600" :style="{ width: Math.round(level*100)+'%' }"></div>
       </div>
       <p class="mt-2 text-[11px] text-gray-500 dark:text-white/60">
         Tip: double-tap the mic to {{ isOn ? 'mute' : 'unmute' }} quickly.
@@ -86,7 +88,7 @@ let gain: GainNode | null = null // sidetone
 
 /* Visuals */
 const level = ref(0)           // 0..1
-const peak = ref(0)            // 0..100
+const peak  = ref(0)           // 0..100
 let raf: number | null = null
 
 /* Duration */
@@ -105,28 +107,32 @@ const statusLabel = computed(() => {
 })
 const ringStyle = computed(() => {
   const pct = Math.round(level.value * 100)
-  return {
-    background: `conic-gradient(rgba(255,255,255,.25) ${pct}%, transparent 0)`
-  } as any
+  return { background: `conic-gradient(rgba(255,255,255,.25) ${pct}%, transparent 0)` } as any
 })
 
 /* Lifecycle */
 onMounted(() => {
   document.addEventListener('visibilitychange', onVis)
-  window.addEventListener?.('online', () => online.value = true)
-  window.addEventListener?.('offline', () => online.value = false)
+  window.addEventListener?.('online',  () => (online.value = true))
+  window.addEventListener?.('offline', () => (online.value = false))
 })
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVis)
   stopAll()
 })
 
-/* Core controls */
-function toggleMode(){ mode.value = mode.value==='toggle' ? 'push' : 'toggle'; vibrate([12]) }
-function toggleSidetone(){
-  sidetone.value = !sidetone.value
-  if (gain) gain.gain.value = sidetone.value ? 0.12 : 0
+/* Keyboard (single handler — fixes duplicate attribute error) */
+function onKey(e: KeyboardEvent){
+  const k = e.key
+  if (k === 'Enter' || k === ' ' || k === 'Spacebar') {
+    e.preventDefault()
+    toggle()
+  }
 }
+
+/* Controls */
+function toggleMode(){ mode.value = mode.value==='toggle' ? 'push' : 'toggle'; vibrate([12]) }
+function toggleSidetone(){ sidetone.value = !sidetone.value; if (gain) gain.gain.value = sidetone.value ? 0.12 : 0 }
 function onPress(){
   // double-tap quick toggle in toggle mode
   const t = Date.now()
@@ -139,20 +145,16 @@ function onPress(){
     start()
   }
 }
-function onRelease(){
-  if (mode.value==='push') stop()
-}
+function onRelease(){ if (mode.value==='push') stop() }
 function toggle(){ isOn.value ? stop() : start() }
 
 async function start(){
   if (busy.value || isOn.value) return
   busy.value = true
   try {
-    // create/resume audio context
     if (!ac) ac = new (window.AudioContext || (window as any).webkitAudioContext)()
     if (ac.state === 'suspended') await ac.resume()
 
-    // get mic
     perm.value = 'prompt'
     stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48000 },
@@ -160,18 +162,15 @@ async function start(){
     })
     perm.value = 'granted'
 
-    // nodes
     srcNode = ac.createMediaStreamSource(stream)
     analyser = ac.createAnalyser()
     analyser.fftSize = 1024
     gain = ac.createGain()
     gain.gain.value = sidetone.value ? 0.12 : 0
 
-    // connections: analyser for level + optional sidetone to speakers
     srcNode.connect(analyser)
     srcNode.connect(gain).connect(ac.destination)
 
-    // draw loop
     const data = new Uint8Array(analyser.frequencyBinCount)
     const draw = () => {
       if (!analyser) return
@@ -179,14 +178,14 @@ async function start(){
       let sum = 0
       for (let i=0;i<data.length;i++){ const v = (data[i]-128)/128; sum += v*v }
       level.value = Math.min(1, Math.sqrt(sum/data.length)*1.8)
-      peak.value = Math.max(peak.value, Math.round(level.value*100))
+      peak.value  = Math.max(peak.value, Math.round(level.value*100))
       raf = requestAnimationFrame(draw)
     }
     draw()
 
-    // duration
     duration.value = 0
-    durTimer = window.setInterval(()=> duration.value++, 1000) as unknown as number
+    // @ts-ignore
+    durTimer = window.setInterval(() => (duration.value++), 1000)
 
     isOn.value = true
     vibrate([12])
@@ -215,7 +214,6 @@ async function stopAll(){
 
 function onVis(){
   if (document.hidden && isOn.value) {
-    // soft pause to save battery
     try { (ac as any)?.suspend?.() } catch {}
   } else {
     try { (ac as any)?.resume?.() } catch {}
@@ -233,13 +231,8 @@ function vibrate(pattern: number[]){ try{ navigator.vibrate?.(pattern) }catch{} 
 
 <style scoped>
 /* Entrance animation (scoped to section only) */
-.section-anim {
-  animation: fadeSlide .6s ease;
-}
-@keyframes fadeSlide {
-  0% { opacity: 0; transform: translateY(30px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
+.section-anim { animation: fadeSlide .6s ease; }
+@keyframes fadeSlide { 0%{ opacity:0; transform: translateY(30px) } 100%{ opacity:1; transform:none } }
 
 /* Big, thumb-friendly mic */
 .mic-btn{
@@ -265,4 +258,7 @@ function vibrate(pattern: number[]){ try{ navigator.vibrate?.(pattern) }catch{} 
 @supports(padding:max(0px)) {
   section { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
 }
+
+/* Screen reader helper */
+.sr-only{ position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0 }
 </style>
