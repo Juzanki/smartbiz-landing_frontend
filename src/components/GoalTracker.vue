@@ -132,7 +132,7 @@
             <div class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400" :style="{ width: g.progress + '%' }"></div>
           </div>
 
-          <!-- Footer: due + quick +1 -->
+          <!-- Footer -->
           <div class="mt-3 flex items-center gap-2 text-[12px]">
             <span class="text-white/60">
               {{ g.completed ? 'Completed' : (g.due ? ('Due ' + relative(g.due)) : 'No due date') }}
@@ -159,7 +159,7 @@
       @click="openSheet()"
     >＋</button>
 
-    <!-- Bottom Sheet: Add/Edit -->
+    <!-- Bottom Sheet -->
     <div v-if="sheet.open" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" @click.self="closeSheet" role="dialog" aria-modal="true">
       <div
         class="fixed left-1/2 -translate-x-1/2 bottom-0 w-full max-w-xl mx-auto bg-[#0f172a] border-t border-cyan-800 rounded-t-2xl p-4"
@@ -206,7 +206,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, defineComponent, h } from 'vue'
 
-/* ----- Local directive: click-outside ----- */
+/* Local directive: v-click-outside */
 const vClickOutside = {
   mounted(el: HTMLElement, binding: { value: (e: Event)=>void }) {
     const handler = (e: Event) => { if (!el.contains(e.target as Node)) binding.value(e) }
@@ -221,7 +221,7 @@ const vClickOutside = {
   }
 }
 
-/* ----- Inline Skeleton (no export in <script setup>) ----- */
+/* Inline Skeleton (NO export in <script setup>) */
 const SkeletonRow = defineComponent({
   name: 'SkeletonRow',
   setup(){
@@ -239,7 +239,7 @@ const SkeletonRow = defineComponent({
   }
 })
 
-/* ----- State ----- */
+/* State */
 const loading = ref(true)
 const moreLoading = ref(false)
 const saving = ref(false)
@@ -275,7 +275,7 @@ const pageSize = 10
 const sentinel = ref<HTMLElement|null>(null)
 let io: IntersectionObserver | null = null
 
-/* ----- Sheet & form ----- */
+/* Sheet & form */
 const sheet = reactive({ open:false })
 const editing = ref(false)
 const form = reactive<Goal>({
@@ -283,7 +283,7 @@ const form = reactive<Goal>({
   current: 0, target: 1, unit: '', due: '', favorite: false, completed: false,
 })
 
-/* ----- Persistence ----- */
+/* Persistence */
 const KEY = 'goals:v1'
 function loadPersisted(){
   try {
@@ -295,7 +295,7 @@ function loadPersisted(){
 function persist(){ try { localStorage.setItem(KEY, JSON.stringify(all.value)) } catch {} }
 watch(all, persist, { deep:true })
 
-/* ----- Derived stats ----- */
+/* Stats */
 const stats = computed(()=>{
   const active = all.value.filter(g=> !g.completed).length
   const completed = all.value.filter(g=> g.completed).length
@@ -305,7 +305,7 @@ const stats = computed(()=>{
 const prettyCount = computed(()=> (all.value.length).toLocaleString?.() ?? String(all.value.length))
 const sortLabel = computed(()=> sortBy.value==='recent' ? 'Recent' : sortBy.value==='due' ? 'Due date' : 'Progress')
 
-/* ----- Computed pipeline ----- */
+/* Pipeline */
 const filteredBase = computed<Goal[]>(()=>{
   const derived = all.value.map(g => ({ ...g, progress: clamp(Math.round((g.current / Math.max(1,g.target))*100), 0, 100) }))
   let v = derived
@@ -327,7 +327,7 @@ const filteredBase = computed<Goal[]>(()=>{
 })
 const visible = computed(()=> list.value)
 
-/* ----- Actions ----- */
+/* Actions */
 function setFilter(f: typeof filter.value){ filter.value = f; vibrate(6); paginate(true) }
 function setSort(s: typeof sortBy.value){ sortBy.value = s; sortOpen.value = false; vibrate(6); paginate(true) }
 
@@ -380,7 +380,7 @@ let pressTimer: number | null = null
 function startPress(g: Goal){ if (pressTimer) clearTimeout(pressTimer); pressTimer = window.setTimeout(()=> { g.completed = true; g.updatedAt = Date.now(); vibrate(12) }, 500) as any }
 function endPress(){ if (pressTimer) { clearTimeout(pressTimer); pressTimer = null } }
 
-/* ----- Infinite scroll ----- */
+/* Infinite scroll */
 async function paginate(reset=false){
   if (reset){ list.value = []; page.value = 1 }
   const start = (page.value-1)*pageSize
@@ -402,7 +402,7 @@ function mountIO(){
 }
 function unmountIO(){ try{ io?.disconnect() }catch{} }
 
-/* ----- Utils ----- */
+/* Utils */
 function ring(p:number){ return `conic-gradient(#22d3ee ${p*3.6}deg, rgba(255,255,255,.08) 0)` }
 function clamp(n:number, a:number, b:number){ return Math.max(a, Math.min(b, n)) }
 function relative(d?:string){
@@ -417,7 +417,7 @@ function relative(d?:string){
 }
 function vibrate(ms:number){ try{ navigator.vibrate?.(ms) }catch{} }
 
-/* Keyboard: '/' to focus search */
+/* Keyboard helper: '/' focuses search */
 function onKey(e: KeyboardEvent){
   if (e.key === '/' && document.activeElement !== searchRef.value) {
     e.preventDefault()
@@ -425,15 +425,15 @@ function onKey(e: KeyboardEvent){
   }
 }
 
-/* ----- Seed & lifecycle ----- */
+/* Seed & lifecycle */
 function seed(){
   const now = Date.now()
   all.value = [
-    { id:'g_1', title:'Read 30 pages', category:'Learning', priority:'Medium', current:10, target:30, unit:'pages', due: new Date(now+3*864e5).toISOString().slice(0,10), favorite:true,  completed:false, updatedAt:now-3600e3 },
-    { id:'g_2', title:'Run 20 km',     category:'Fitness',  priority:'High',   current:12, target:20, unit:'km',    due: new Date(now+6*864e5).toISOString().slice(0,10), favorite:false, completed:false, updatedAt:now-5400e3 },
-    { id:'g_3', title:'Ship v1 MVP',   category:'Work',     priority:'High',   current:1,  target:4,  unit:'milestones', due: new Date(now+12*864e5).toISOString().slice(0,10), favorite:false, completed:false, updatedAt:now-9200e3 },
-    { id:'g_4', title:'Drink water',   category:'Health',   priority:'Low',    current:7,  target:8,  unit:'glasses', due:'', favorite:false, completed:false, updatedAt:now-1800e3 },
-    { id:'g_5', title:'Meditate',      category:'Mind',     priority:'Medium', current:30, target:30, unit:'mins',   due:'', favorite:true,  completed:true,  updatedAt:now-7200e3 },
+    { id:'g_1', title:'Read 30 pages', category:'Learning', priority:'Medium', current:10, target:30, unit:'pages',     due: new Date(now+3*864e5).toISOString().slice(0,10), favorite:true,  completed:false, updatedAt:now-3600e3 },
+    { id:'g_2', title:'Run 20 km',     category:'Fitness',  priority:'High',   current:12, target:20, unit:'km',        due: new Date(now+6*864e5).toISOString().slice(0,10), favorite:false, completed:false, updatedAt:now-5400e3 },
+    { id:'g_3', title:'Ship v1 MVP',   category:'Work',     priority:'High',   current:1,  target:4,  unit:'milestones',due: new Date(now+12*864e5).toISOString().slice(0,10), favorite:false, completed:false, updatedAt:now-9200e3 },
+    { id:'g_4', title:'Drink water',   category:'Health',   priority:'Low',    current:7,  target:8,  unit:'glasses',   due:'',                                           favorite:false, completed:false, updatedAt:now-1800e3 },
+    { id:'g_5', title:'Meditate',      category:'Mind',     priority:'Medium', current:30, target:30, unit:'mins',      due:'',                                           favorite:true,  completed:true,  updatedAt:now-7200e3 },
   ]
 }
 onMounted(()=>{
