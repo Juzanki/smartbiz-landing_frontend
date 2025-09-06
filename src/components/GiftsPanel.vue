@@ -1,8 +1,8 @@
+<!-- src/components/GiftsPanel.vue -->
 <template>
   <!-- ===== Overlay mode ===== -->
-  <transition name="overlay-fade">
+  <transition name="overlay-fade" v-if="show && !inline">
     <div
-      v-if="show && !inline"
       class="overlay fixed inset-0 z-[80] bg-black/60 md:bg-black/40 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
@@ -11,7 +11,6 @@
     >
       <transition name="sheet-slide">
         <section
-          v-show="show"
           ref="sheetEl"
           class="sheet fixed left-1/2 -translate-x-1/2 bottom-0 w-full md:max-w-md md:mx-auto
                  md:rounded-2xl md:my-8 bg-gradient-to-b from-[#0f172a] to-[#0b1222]
@@ -169,7 +168,7 @@
 
   <!-- ===== Inline mode ===== -->
   <section
-    v-else-if="show && inline"
+    v-else
     ref="sheetEl"
     class="sheet w-full md:max-w-md md:mx-auto rounded-t-2xl md:rounded-2xl
            bg-gradient-to-b from-[#0f172a] to-[#0b1222] text-white
@@ -178,7 +177,7 @@
     @keydown.esc.prevent.stop="close"
     @keydown.tab.prevent="trapFocus"
   >
-    <!-- Tuna-reuse sehemu hiyo hiyo ya juu (ili kuepuka DRY, imebakia hapa kwa uwazi) -->
+    <!-- Tunatumia mwili ule ule kama juu -->
     <div class="px-4">
       <header class="pt-3 pb-2 flex items-center justify-between">
         <h2 :id="headingId" class="text-lg font-bold text-pink-300">🎁 Choose Your Gift</h2>
@@ -293,16 +292,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, toRefs } from 'vue'
 
 /* ---------- Props / Emits ---------- */
-const props = withDefaults(defineProps<{
+const _props = withDefaults(defineProps<{
   show: boolean
   inline?: boolean
   items: any[]
   balance?: number
   loading?: boolean
 }>(), { inline: false, items: () => [], balance: 5000, loading: false })
+
+// toa refs za majina tunayoyatumia kwenye template
+const { show, inline, balance, loading } = toRefs(_props)
 
 const emit = defineEmits<{
   (e:'close'): void
@@ -335,7 +337,7 @@ watch(favSet, v => { try { localStorage.setItem('gift:favs', JSON.stringify([...
 
 /* ---------- Data & Categories ---------- */
 const all = ref<any[]>([])
-watch(() => props.items, (val)=> { all.value = Array.isArray(val) ? val : [] }, { immediate:true })
+watch(() => _props.items, (val)=> { all.value = Array.isArray(val) ? val : [] }, { immediate:true })
 const categories = computed<string[]>(() => {
   const set = new Set(all.value.map(g => (g.category || g.class || '').trim()).filter(Boolean))
   return Array.from(set).sort()
@@ -371,7 +373,7 @@ function mountIO(){
   if (!('IntersectionObserver' in window)) return
   io = new IntersectionObserver(entries=>{
     entries.forEach(e=>{
-      if (e.isIntersecting && !props.loading && !moreLoading.value) {
+      if (e.isIntersecting && !loading.value && !moreLoading.value) {
         moreLoading.value = true
         setTimeout(()=>{ paginate(); moreLoading.value = false }, 220)
       }
@@ -396,7 +398,7 @@ function inc(){ qty.value = Math.min(99, qty.value + 1); vibrate(4) }
 function dec(){ qty.value = Math.max(1, qty.value - 1); vibrate(4) }
 
 function sendNow(){
-  if (!selectedGift.value || totalCost.value > (props.balance||0) || sending.value) return
+  if (!selectedGift.value || totalCost.value > (balance.value||0) || sending.value) return
   sending.value = true
   vibrate(12)
   setTimeout(() => {
@@ -430,20 +432,20 @@ function onSwipeMove(ev: TouchEvent){
   if (!swipe.value.active) return
   const t = ev.touches?.[0]; if (!t) return
   swipe.value.dy = Math.max(0, t.clientY - swipe.value.y0)
-  if (sheetEl.value && !props.inline) sheetEl.value.style.transform = `translate(-50%, ${Math.min(160, swipe.value.dy)}px)`
+  if (sheetEl.value && !inline.value) sheetEl.value.style.transform = `translate(-50%, ${Math.min(160, swipe.value.dy)}px)`
 }
 function onSwipeEnd(){
   if (!swipe.value.active) return
   const shouldClose = swipe.value.dy > 90
   swipe.value.active = false
-  if (sheetEl.value && !props.inline) sheetEl.value.style.transform = ''
+  if (sheetEl.value && !inline.value) sheetEl.value.style.transform = ''
   if (shouldClose) close()
 }
 
 /* ---------- Lifecycle ---------- */
-function onGlobalKey(e: KeyboardEvent){ if (e.key === 'Escape' && props.show) close() }
-watch(() => props.show, async v => {
-  if (!props.inline) document.body.style.overflow = v ? 'hidden' : ''
+function onGlobalKey(e: KeyboardEvent){ if (e.key === 'Escape' && show.value) close() }
+watch(show, async v => {
+  if (!inline.value) document.body.style.overflow = v ? 'hidden' : ''
   if (v) {
     await nextTick()
     paginate(true)
@@ -457,10 +459,10 @@ onMounted(() => window.addEventListener('keydown', onGlobalKey))
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGlobalKey)
   unmountIO()
-  if (!props.inline) document.body.style.overflow = ''
+  if (!inline.value) document.body.style.overflow = ''
 })
 
-/* ---------- Utils / styles for skeleton ---------- */
+/* ---------- Utils / skeleton styles ---------- */
 function vibrate(ms:number){ try{ navigator.vibrate?.(ms) }catch{} }
 function formatCoins(value:number){
   const v = Number(value || 0)
