@@ -1,18 +1,16 @@
-<!-- GiftQueueHost.vue -->
+<!-- src/components/Live/GiftQueueHost.vue -->
 <template>
-  <!-- Fixed, mobile-first layer (safe-area + pointer-events-none so it doesn't block taps) -->
-  <div
-    class="fixed inset-x-0 bottom-0 z-[60] pointer-events-none pb-[max(env(safe-area-inset-bottom),0.5rem)]"
-  >
-    <!-- Main animation mount -->
+  <!-- Fixed layer; non-blocking taps -->
+  <div class="fixed inset-x-0 bottom-0 z-[60] pointer-events-none pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+    <!-- Main animation -->
     <LiveGiftAnimations
       v-if="currentGift"
       :gift="currentGift"
       :combo-count="comboCount"
-      @animation-end="handleAnimationEnd"
+      @animation-end="onAnimEnd"
     />
 
-    <!-- 🔥 Combo / Streak badge (motivational) -->
+    <!-- Combo badge -->
     <transition name="combo-pop">
       <div
         v-if="showComboBadge && comboCount > 1"
@@ -25,179 +23,109 @@
       </div>
     </transition>
 
-    <!-- 📣 Screen-reader only announcements -->
+    <!-- SR announcements -->
     <div class="sr-only" aria-live="polite">
       <span v-if="currentGift">Gift playing. {{ currentGift?.name || 'Gift' }}. Combo {{ comboCount }}.</span>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import LiveGiftAnimations from './LiveGiftAnimations.vue'
+import LiveGiftAnimations from '@/components/Live/LiveGiftAnimations.vue' // ✅ alias path
 
-/**
- * Mobile-first, motivational gift queue host:
- * - Caps queue size to avoid overload on small devices
- * - Combo detection with a short window (default 3s)
- * - Haptics (Vibration API) on combos
- * - Pauses when tab is hidden; resumes when visible
- * - Respects prefers-reduced-motion
- * - Exposes enqueue/clear for parent usage
- */
+type Gift = {
+  id?: string | number
+  name?: string
+  variant?: string
+  icon?: string
+  image?: string
+  message?: string
+}
 
-// ====== Config (feel free to tweak from parent via methods) ======
+/* Config */
 const settings = ref({
   comboWindowMs: 3000,
-  maxQueue: 30,         // hard cap to keep memory & battery happy
+  maxQueue: 30,
   showComboBadge: true,
-  haptics: true,        // mobile buzz on combos
+  haptics: true,
 })
 
-// ====== State ======
-const giftQueue = ref([])
-const currentGift = ref(null)
-const lastGiftKey = ref(null)     // stable key, not just id (handles variants)
+/* State */
+const giftQueue = ref<Gift[]>([])
+const currentGift = ref<Gift | null>(null)
+const lastGiftKey = ref<string | null>(null)
 const comboCount = ref(1)
-
 const showComboBadge = ref(true)
-let comboTimer = null
-let visibilityHandlerBound = false
 
-// ====== Helpers ======
-const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+let comboTimer: number | null = null
+let visBound = false
+const reduced = typeof window !== 'undefined'
+  ? window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+  : false
 
-function stableKey(g) {
-  // Make combos smarter (same gift id + variant merges)
-  return g?.id != null ? `${g.id}:${g.variant ?? 'base'}` : `${g?.name ?? 'gift'}`
-}
+/* Helpers */
+const keyOf = (g?: Gift | null) =>
+  g?.id != null ? `${g.id}:${g.variant ?? 'base'}` : (g?.name ?? 'gift')
 
-function buzz(ms = 20) {
+const buzz = (ms = 20) => {
   if (!settings.value.haptics) return
-  if (navigator?.vibrate) {
-    try { navigator.vibrate(ms) } catch {}
-  }
+  try { navigator?.vibrate?.(ms) } catch {}
 }
 
-// ====== Public API: enqueue & clear ======
-function enqueueGift(gift) {
-  if (!gift) return
-
-  // Cap queue (drop oldest quietly)
-  if (giftQueue.value.length >= settings.value.maxQueue) {
-    giftQueue.value.shift()
-  }
-  giftQueue.value.push(gift)
-
-  // Auto-start if idle and tab visible
-  if (!currentGift.value && !document.hidden) {
-    showNextGift()
-  }
+/* Public API */
+function enqueueGift(g: Gift) {
+  if (!g) return
+  if (giftQueue.value.length >= settings.value.maxQueue) giftQueue.value.shift()
+  giftQueue.value.push(g)
+  if (!currentGift.value && !document.hidden) next()
 }
-
 function clearQueue() {
   giftQueue.value = []
   currentGift.value = null
   lastGiftKey.value = null
   comboCount.value = 1
-  clearTimeoutSafe()
+  clearComboTimer()
 }
 
-// ====== Core flow ======
-function showNextGift() {
-  if (giftQueue.value.length === 0) return
-  if (document.hidden) return // wait until visible to keep UX tight
-
-  const nextGift = giftQueue.value.shift()
-  const key = stableKey(nextGift)
-
-  // Combo calc
-  if (key === lastGiftKey.value) {
-    comboCount.value += 1
-    if (!reducedMotion) buzz(25) // subtle haptic on combo
-  } else {
-    comboCount.value = 1
-    lastGiftKey.value = key
-  }
-
-  currentGift.value = nextGift
-
-  // Reset combo window
+/* Core */
+function next() {
+  if (!giftQueue.value.length || document.hidden) return
+  const g = giftQueue.value.shift()!
+  const k = keyOf(g)
+  if (k === lastGiftKey.value) { comboCount.value += 1; if (!reduced) buzz(25) }
+  else { comboCount.value = 1; lastGiftKey.value = k }
+  currentGift.value = g
   resetComboWindow()
 }
-
-function handleAnimationEnd() {
+function onAnimEnd() {
   currentGift.value = null
-  // If there’s still a queue, continue
-  if (giftQueue.value.length > 0) {
-    // Small rAF delay helps layout on low-end phones
-    requestAnimationFrame(() => showNextGift())
-  }
+  if (giftQueue.value.length) requestAnimationFrame(next)
 }
 
-// ====== Combo window logic ======
+/* Combo window */
 function resetComboWindow() {
-  clearTimeoutSafe()
-  comboTimer = setTimeout(() => {
-    comboCount.value = 1
-    lastGiftKey.value = null
-  }, settings.value.comboWindowMs)
+  clearComboTimer()
+  comboTimer = window.setTimeout(() => { comboCount.value = 1; lastGiftKey.value = null }, settings.value.comboWindowMs)
 }
+function clearComboTimer() { if (comboTimer) { clearTimeout(comboTimer); comboTimer = null } }
 
-function clearTimeoutSafe() {
-  if (comboTimer) {
-    clearTimeout(comboTimer)
-    comboTimer = null
-  }
-}
+/* Visibility */
+function onVis() { if (!document.hidden && !currentGift.value) next() }
+onMounted(() => { if (!visBound) { document.addEventListener('visibilitychange', onVis); visBound = true } })
+onBeforeUnmount(() => { clearComboTimer(); if (visBound) { document.removeEventListener('visibilitychange', onVis); visBound = false } })
 
-// ====== Visibility handling (pause when hidden, resume when visible) ======
-function onVisibilityChange() {
-  if (document.hidden) return
-  // When we come back, if nothing is playing, kick off the next gift
-  if (!currentGift.value) showNextGift()
-}
-
-onMounted(() => {
-  if (!visibilityHandlerBound) {
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    visibilityHandlerBound = true
-  }
-})
-
-onBeforeUnmount(() => {
-  clearTimeoutSafe()
-  if (visibilityHandlerBound) {
-    document.removeEventListener('visibilitychange', onVisibilityChange)
-    visibilityHandlerBound = false
-  }
-})
-
-// ====== Expose to parent ======
-function setOptions(partial) {
-  settings.value = { ...settings.value, ...partial }
-}
+/* Expose to parent */
+function setOptions(p: Partial<typeof settings.value>) { settings.value = { ...settings.value, ...p } }
 defineExpose({
-  enqueueGift,
-  clearQueue,
-  setOptions,
-  // Optional: surface a few state bits (read-only usage recommended)
+  enqueueGift, clearQueue, setOptions,
   get length() { return giftQueue.value.length },
   get playing() { return !!currentGift.value },
   get combo() { return comboCount.value },
-  get showComboBadge() { return showComboBadge.value },
 })
 </script>
 
 <style scoped>
-/* Subtle, mobile-friendly pop animation for combo badge */
-.combo-pop-enter-active,
-.combo-pop-leave-active {
-  transition: transform 160ms ease, opacity 160ms ease;
-}
-.combo-pop-enter-from,
-.combo-pop-leave-to {
-  transform: scale(0.9);
-  opacity: 0;
-}
+.combo-pop-enter-active, .combo-pop-leave-active { transition: transform 160ms ease, opacity 160ms ease }
+.combo-pop-enter-from,  .combo-pop-leave-to     { transform: scale(.9); opacity: 0 }
 </style>
