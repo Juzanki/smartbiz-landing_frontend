@@ -1,6 +1,11 @@
+<!-- src/components/RequestAnalyticsPanel.vue (Join Requests Panel) -->
 <template>
   <!-- Overlay (mobile only) -->
-  <div v-if="visible" class="fixed inset-0 z-50 md:inset-auto md:pointer-events-none bg-black/40 md:bg-transparent" @click.self="close" />
+  <div
+    v-if="visible"
+    class="fixed inset-0 z-50 md:inset-auto md:pointer-events-none bg-black/40 md:bg-transparent"
+    @click.self="close"
+  />
 
   <!-- Panel: bottom-sheet on mobile, floating card on md+ -->
   <div
@@ -31,12 +36,16 @@
       <!-- Search + filters -->
       <div class="mt-2 flex items-center gap-2">
         <div class="relative flex-1">
-          <input v-model.trim="q" type="search" placeholder="Search name…"
-                 class="input w-full pl-8 h-9" />
+          <input v-model.trim="q" type="search" placeholder="Search name…" class="input w-full pl-8 h-9" />
           <span class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
         </div>
         <div class="flex gap-1 overflow-x-auto no-scrollbar">
-          <button v-for="f in filters" :key="f" class="chip h-8" :class="activeFilter===f && 'chip-active'" @click="activeFilter=f">{{ f }}</button>
+          <button
+            v-for="f in filters" :key="f"
+            class="chip h-8"
+            :class="activeFilter===f && 'chip-active'"
+            @click="activeFilter=f"
+          >{{ f }}</button>
         </div>
       </div>
 
@@ -60,8 +69,11 @@
       </div>
 
       <ul v-else class="space-y-3">
-        <li v-for="req in displayed" :key="req.timestamp"
-            class="bg-gray-100/80 dark:bg-white/5 p-3 rounded-lg shadow border border-black/5 dark:border-white/10 flex items-center justify-between gap-3">
+        <li
+          v-for="req in displayed"
+          :key="req.id || req.timestamp"
+          class="bg-gray-100/80 dark:bg-white/5 p-3 rounded-lg shadow border border-black/5 dark:border-white/10 flex items-center justify-between gap-3"
+        >
           <!-- Left -->
           <div class="flex items-center gap-3 min-w-0">
             <img :src="req.avatar || fallbackAvatar" class="h-10 w-10 rounded-full object-cover ring-2 ring-white/60" alt="" />
@@ -83,10 +95,8 @@
             </label>
 
             <template v-else>
-              <button @click="emitApprove(req)"
-                      class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full shadow">🎤 Add</button>
-              <button @click="emitReject(req)"
-                      class="text-xs bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-1 rounded-full">✖</button>
+              <button @click="emitApprove(req)" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full shadow">🎤 Add</button>
+              <button @click="emitReject(req)" class="text-xs bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-1 rounded-full">✖</button>
             </template>
           </div>
         </li>
@@ -109,7 +119,11 @@
 
     <!-- Toast -->
     <transition name="fade">
-      <div v-if="toast" class="fixed left-1/2 -translate-x-1/2 bottom-20 md:bottom-6 z-[70] px-3 py-2 rounded-xl text-sm text-white bg-emerald-600 shadow">
+      <div
+        v-if="toast"
+        class="fixed left-1/2 -translate-x-1/2 bottom-20 md:bottom-6 z-[70] px-3 py-2 rounded-xl text-sm text-white bg-emerald-600 shadow"
+        aria-live="polite"
+      >
         {{ toast }}
       </div>
     </transition>
@@ -117,19 +131,19 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, defineComponent } from 'vue'
 
 /** Props */
 const props = defineProps({
   modelValue: { type: Boolean, default: true },  // control visibility
-  requests:   { type: Array, required: true },   // [{ id?, name, avatar?, timestamp, isVip? }]
+  requests:   { type: Array,   required: true }, // [{ id?, name, avatar?, timestamp, isVip? }]
   loading:    { type: Boolean, default: false }
 })
 const emit = defineEmits(['update:modelValue','approve','reject','approve-all','close'])
 
 /** State */
 const visible = ref(!!props.modelValue)
-watch(() => props.modelValue, v => visible.value = v)
+watch(() => props.modelValue, v => (visible.value = v))
 watch(visible, v => emit('update:modelValue', v))
 
 const q = ref('')
@@ -154,27 +168,30 @@ const filtered = computed(() => {
   const base = (props.requests || []).slice().sort((a,b) => (b.timestamp||0) - (a.timestamp||0))
   return base.filter(r => {
     const matchesQ = !term || String(r.name||'').toLowerCase().includes(term)
-    const matchesF = activeFilter.value === 'All'
-      ? true
-      : activeFilter.value === 'VIP' ? !!r.isVip
-      : activeFilter.value === 'New' ? (Date.now() - (r.timestamp||0) < 5*60*1000) // last 5 min
-      : true
+    const matchesF =
+      activeFilter.value === 'All'
+        ? true
+        : activeFilter.value === 'VIP'
+          ? !!r.isVip
+          : activeFilter.value === 'New'
+            ? Date.now() - (r.timestamp||0) < 5*60*1000 // last 5 min
+            : true
     return matchesQ && matchesF
   })
 })
 
 const displayed = computed(() => filtered.value.slice(0, page.value * pageSize))
 const hasMore = computed(() => displayed.value.length < filtered.value.length)
-const allChecked = computed(() => displayed.value.length && displayed.value.every(r => checkedIds.value.has(r.id || r.timestamp)))
+const allChecked = computed(
+  () => displayed.value.length && displayed.value.every(r => checkedIds.value.has(r.id || r.timestamp))
+)
 
-/** Watch for auto VIP */
+/** Auto-approve VIP (fresh) */
 watch(() => props.requests, (list) => {
   if (!autoVip.value || !Array.isArray(list)) return
-  const fresh = list.filter(r => r.isVip && Date.now() - (r.timestamp||0) < 10*1000) // new within 10s
-  if (fresh.length) {
-    fresh.forEach(r => emitApprove(r, true))
-  }
-}, { deep:true })
+  const fresh = list.filter(r => r.isVip && Date.now() - (r.timestamp||0) < 10_000)
+  if (fresh.length) fresh.forEach(r => emitApprove(r, true))
+}, { deep: true })
 
 /** Methods */
 function timeAgo(ts){
@@ -200,18 +217,16 @@ function toggleAll(){
 function toggleCheck(req){
   const id = req.id || req.timestamp
   const set = new Set(checkedIds.value)
-  if (set.has(id)) set.delete(id); else set.add(id)
+  set.has(id) ? set.delete(id) : set.add(id)
   checkedIds.value = set
 }
 function onScroll(e){
   const el = e.target
-  if (el.scrollTop + el.clientHeight + 120 >= el.scrollHeight && hasMore.value) {
-    loadMore()
-  }
+  if (el.scrollTop + el.clientHeight + 120 >= el.scrollHeight && hasMore.value) loadMore()
 }
 function loadMore(){ page.value += 1 }
 
-function showToast(msg){ toast.value = msg; setTimeout(() => toast.value='', 1800); try { navigator.vibrate?.(8) } catch {} }
+function showToast(msg){ toast.value = msg; setTimeout(() => (toast.value=''), 1800); try { navigator.vibrate?.(8) } catch {} }
 
 function emitApprove(req, silent=false){
   emit('approve', req)
@@ -233,23 +248,25 @@ function approveSelected(){
 }
 function close(){ visible.value = false; emit('close') }
 
-/** Lifecycle */
-onMounted(() => nextTick(() => listEl.value?.focus?.()))
-onBeforeUnmount(() => {})
-
-/** Keyboard shortcuts */
-if (typeof window !== 'undefined') {
-  window.addEventListener('keydown', (e) => {
+/** Lifecycle & shortcuts */
+let keyHandler
+onMounted(() => {
+  nextTick(() => listEl.value?.focus?.())
+  keyHandler = (e) => {
     if (!visible.value) return
     if (e.key === 'Escape') close()
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') { e.preventDefault(); toggleAll() }
-  })
-}
-</script>
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault(); toggleAll()
+    }
+  }
+  window.addEventListener('keydown', keyHandler)
+})
+onBeforeUnmount(() => {
+  if (keyHandler) window.removeEventListener('keydown', keyHandler)
+})
 
-<script setup>
-/* Local skeleton item */
-const SkeletonItem = {
+/** Local Skeleton (inside same <script setup>) */
+const SkeletonItem = defineComponent({
   name: 'SkeletonItem',
   template: `
     <div class="bg-gray-100/80 dark:bg-white/5 p-3 rounded-lg border border-black/5 dark:border-white/10 flex items-center justify-between gap-3 overflow-hidden">
@@ -263,7 +280,7 @@ const SkeletonItem = {
       <div class="skeleton h-7 w-16 rounded-full"></div>
     </div>
   `
-}
+})
 </script>
 
 <style scoped>
