@@ -1,8 +1,10 @@
 <!-- src/components/VoiceToggle.vue -->
 <template>
   <section
-    class="section-anim min-h-screen p-5 flex flex-col items-center justify-center bg-white dark:bg-[#121212]"
-    :class="{ 'reduce-motion': reduceMotion }"
+    :class="[
+      'section-anim min-h-screen p-5 flex flex-col items-center justify-center bg-white dark:bg-[#121212]',
+      { 'reduce-motion': reduceMotion }
+    ]"
   >
     <!-- Status banners -->
     <div v-if="!online" class="w-full max-w-sm mb-3 rounded-xl bg-amber-50 text-amber-900 px-3 py-2 text-sm" role="status" aria-live="polite">
@@ -19,8 +21,10 @@
     <!-- Mic button -->
     <button
       ref="btn"
-      class="mic-btn focus:outline-none focus:ring-4 focus:ring-blue-300/40 dark:focus:ring-blue-600/30"
-      :class="isOn ? 'on' : 'off'"
+      :class="[
+        'mic-btn focus:outline-none focus:ring-4 focus:ring-blue-300/40 dark:focus:ring-blue-600/30',
+        isOn ? 'on' : 'off'
+      ]"
       :style="ringStyle"
       :aria-pressed="isOn"
       :aria-describedby="'status-hint'"
@@ -112,8 +116,8 @@ const viz = ref<HTMLCanvasElement|null>(null)
 let vizCtx: CanvasRenderingContext2D|null = null
 
 /* VAD (auto-stop on silence) */
-const SILENCE_DB = 0.04        // ~ threshold (0..1 RMS)
-const SILENCE_MS = 12000       // stop after this much continuous silence
+const SILENCE_DB = 0.04
+const SILENCE_MS = 12000
 let silenceSince = 0
 
 /* Duration */
@@ -132,12 +136,10 @@ const statusLabel = computed(() => {
   return isOn.value ? 'Streaming' : 'Idle'
 })
 
-/* Ring style */
+/* Ring style (only :style used; no static style to avoid duplicates) */
 const ringStyle = computed(() => {
   const pct = Math.round(level.value * 100)
-  return {
-    '--ring-pct': pct + '%',
-  } as any
+  return { '--ring-pct': pct + '%' } as any
 })
 
 /* Lifecycle */
@@ -146,22 +148,17 @@ onMounted(async () => {
   window.addEventListener?.('online', () => online.value = true)
   window.addEventListener?.('offline', () => online.value = false)
 
-  // Try to read permission state if supported
   try {
-    // Safari iOS doesn’t support this; it’s fine to fail silently
     // @ts-ignore
     const q = await navigator.permissions?.query?.({ name: 'microphone' })
     if (q && 'state' in q) {
       // @ts-ignore
       perm.value = q.state === 'granted' ? 'granted' : q.state === 'denied' ? 'denied' : 'idle'
-      q.onchange = () => {
-        // @ts-ignore
-        perm.value = q.state === 'granted' ? 'granted' : q.state === 'denied' ? 'denied' : 'idle'
-      }
+      // @ts-ignore
+      q.onchange = () => perm.value = q.state === 'granted' ? 'granted' : q.state === 'denied' ? 'denied' : 'idle'
     }
   } catch {}
 
-  // Prepare visualizer
   if (viz.value) vizCtx = viz.value.getContext('2d')
 })
 
@@ -171,10 +168,7 @@ onBeforeUnmount(() => {
 })
 
 watch(mode, v => writeLS('voicetoggle:mode', v))
-watch(isOn, v => {
-  // focus button for accessibility feedback
-  v && btn.value?.focus()
-})
+watch(isOn, v => { if (v) btn.value?.focus() })
 
 /* Controls */
 function toggleMode(){ mode.value = mode.value==='toggle' ? 'push' : 'toggle'; vibrate([12]); toastNow(mode.value==='push'?'Push-to-Talk':'Toggle mode') }
@@ -183,9 +177,7 @@ function toggleSidetone(){
   if (gain) gain.gain.value = sidetone.value ? 0.12 : 0
   toastNow(sidetone.value ? 'Sidetone ON' : 'Sidetone OFF')
 }
-
 function onPress(){
-  // double-tap quick toggle in toggle mode
   const t = Date.now()
   const last = (btn.value as any)?._lastTap ?? 0
   ;(btn.value as any)._lastTap = t
@@ -196,9 +188,7 @@ function onPress(){
     start()
   }
 }
-function onRelease(){
-  if (mode.value==='push') stop()
-}
+function onRelease(){ if (mode.value==='push') stop() }
 function toggle(){ isOn.value ? stop() : start() }
 
 /* Start mic */
@@ -211,26 +201,20 @@ async function start(){
 
     perm.value = 'prompt'
     stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true, noiseSuppression: true, autoGainControl: true,
-        channelCount: 1, sampleRate: 48000
-      },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48000 },
       video: false
     })
     perm.value = 'granted'
 
-    // Nodes
     srcNode = ac.createMediaStreamSource(stream)
     analyser = ac.createAnalyser()
     analyser.fftSize = 1024
     gain = ac.createGain()
     gain.gain.value = sidetone.value ? 0.12 : 0
 
-    // Graph
     srcNode.connect(analyser)
     srcNode.connect(gain).connect(ac.destination)
 
-    // Draw loop + VAD
     const data = new Uint8Array(analyser.frequencyBinCount)
     const draw = () => {
       if (!analyser) return
@@ -240,31 +224,20 @@ async function start(){
       const rms = Math.sqrt(sum/data.length)
       level.value = Math.min(1, rms*1.8)
 
-      // peak hold with decay
       const p = Math.round(level.value*100)
       peakHold.value = Math.max(0, Math.max(peakHold.value - 1, p))
 
-      // VAD silence window
       const now = performance.now()
       if (rms < SILENCE_DB) {
         if (!silenceSince) silenceSince = now
-        else if (now - silenceSince > SILENCE_MS) {
-          // auto stop to save battery
-          stop()
-          toastNow('Stopped (silence)')
-          silenceSince = 0
-          return
-        }
-      } else {
-        silenceSince = 0
-      }
+        else if (now - silenceSince > SILENCE_MS) { stop(); toastNow('Stopped (silence)'); silenceSince = 0; return }
+      } else { silenceSince = 0 }
 
       drawViz(rms)
       raf = requestAnimationFrame(draw)
     }
     draw()
 
-    // duration
     duration.value = 0
     durTimer = window.setInterval(()=> duration.value++, 1000) as unknown as number
 
@@ -287,7 +260,7 @@ async function stop(){
   vibrate([8])
 }
 
-/* Tear down graph + timers */
+/* Tear down */
 async function stopAll(){
   if (durTimer){ clearInterval(durTimer); durTimer = null }
   if (raf){ cancelAnimationFrame(raf); raf = null }
@@ -302,51 +275,41 @@ async function stopAll(){
 /* Background handling */
 function onVis(){
   if (!ac) return
-  if (document.hidden && isOn.value) {
-    try { ac.suspend() } catch {}
-  } else if (isOn.value) {
-    try { ac.resume() } catch {}
-  }
+  if (document.hidden && isOn.value) { try { ac.suspend() } catch {} }
+  else if (isOn.value) { try { ac.resume() } catch {} }
 }
 
-/* Visualizer (simple bars) */
+/* Visualizer */
 function drawViz(rms: number, clear=false){
-  if (!viz.value || !vizCtx) return
-  const canvas = viz.value
+  if (!viz.value) return
+  if (!vizCtx) vizCtx = viz.value.getContext('2d')
+  const canvas = viz.value, ctx = vizCtx!
   const dpr = Math.max(1, window.devicePixelRatio || 1)
   const w = canvas.clientWidth, h = canvas.clientHeight
-  if (canvas.width !== w*dpr) { canvas.width = w*dpr; canvas.height = h*dpr; vizCtx.scale(dpr,dpr) }
-  const ctx = vizCtx
+  if (canvas.width !== w*dpr) { canvas.width = w*dpr; canvas.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0) }
   ctx.clearRect(0,0,w,h)
   if (clear) return
-  const bars = 24
-  const pad = 6
+  const bars = 24, pad = 6
   const barW = (w - pad*(bars+1)) / bars
   for (let i=0;i<bars;i++){
-    const f = Math.sin((i/bars)*Math.PI) // center heavier
+    const f = Math.sin((i/bars)*Math.PI)
     const bh = Math.max(2, (rms* (0.5 + f)) * (h-6))
     const x = pad + i*(barW+pad)
     const y = h - bh - 3
-    ctx.fillStyle = 'rgba(59,130,246,0.85)' // blue-600
+    ctx.fillStyle = 'rgba(59,130,246,0.85)'
     ctx.fillRect(x,y,barW,bh)
   }
 }
 
 /* Helpers */
-function fmtDuration(s: number){
-  const m = Math.floor(s/60).toString().padStart(2,'0')
-  const ss = (s%60).toString().padStart(2,'0')
-  return `${m}:${ss}`
-}
+function fmtDuration(s: number){ const m = Math.floor(s/60).toString().padStart(2,'0'); const ss = (s%60).toString().padStart(2,'0'); return `${m}:${ss}` }
 function vibrate(pattern: number[]){ try{ navigator.vibrate?.(pattern) }catch{} }
 function toastNow(msg:string){ toast.value = msg; setTimeout(()=> toast.value='', 1600) }
-
 function writeLS<T=unknown>(k:string, v:T){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch{} }
 function readLS<T=unknown>(k:string, def:T){ try{ const v = JSON.parse(localStorage.getItem(k) || 'null'); return (v ?? def) as T }catch{ return def } }
 </script>
 
 <style scoped>
-/* Entrance animation */
 .section-anim { animation: fadeSlide .5s ease both; }
 @keyframes fadeSlide { 0% { opacity:0; transform: translateY(20px) } 100% { opacity:1; transform:none } }
 
@@ -370,7 +333,7 @@ function readLS<T=unknown>(k:string, def:T){ try{ const v = JSON.parse(localStor
 .mic-btn:active { transform: scale(.97); }
 .mic-btn:disabled { opacity:.6; cursor:not-allowed }
 
-/* Reactive conic ring via CSS var */
+/* Conic ring via CSS var only (no static style to avoid duplicates) */
 .mic-btn::before{
   content:'';
   position:absolute; inset:-8px;
@@ -383,11 +346,7 @@ function readLS<T=unknown>(k:string, def:T){ try{ const v = JSON.parse(localStor
 }
 
 /* Soft glow when ON */
-.ring-glow{
-  position:absolute; inset:-16px; border-radius:inherit;
-  box-shadow: 0 0 120px 40px rgba(37,99,235,.28);
-  opacity:0; transition: opacity .25s ease;
-}
+.ring-glow{ position:absolute; inset:-16px; border-radius:inherit; box-shadow: 0 0 120px 40px rgba(37,99,235,.28); opacity:0; transition: opacity .25s ease; }
 .mic-btn.on .ring-glow{ opacity:1 }
 
 /* Small chips */
@@ -395,10 +354,10 @@ function readLS<T=unknown>(k:string, def:T){ try{ const v = JSON.parse(localStor
   @apply px-3 h-9 rounded-full text-sm bg-gray-100 dark:bg-white/10 dark:text-white hover:bg-gray-200 dark:hover:bg-white/15;
 }
 
-/* Canvas fits parent size */
+/* Canvas fits parent */
 canvas{ display:block; }
 
-/* Safe-area padding for phones with notches */
+/* Safe-area */
 @supports(padding:max(0px)) { section { padding-bottom: max(1rem, env(safe-area-inset-bottom)); } }
 
 /* Reduced motion */
