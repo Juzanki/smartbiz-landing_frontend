@@ -28,7 +28,7 @@
           </div>
         </div>
 
-        <!-- LIKE counter now uses likeCounter (live updates) -->
+        <!-- live likes counter -->
         <div class="ml-1 flex items-center gap-1 px-2 py-1 bg-white/10 rounded-full text-pink-300 text-[11px] font-bold shrink-0">
           💖 <span>{{ compact(likeCounter) }}</span>
         </div>
@@ -107,7 +107,7 @@
                placeholder="Type a message…"
                class="fixed bottom-3 left-3 z-50 max-w-md w-[92vw]" />
 
-    <!-- Hearts (animation name fixed to floatUp) -->
+    <!-- Hearts -->
     <transition-group name="float" tag="div" class="absolute inset-0 pointer-events-none z-50">
       <div v-for="like in floatingLikes" :key="like.id" class="absolute text-2xl"
            :style="{ left: like.x+'px', top: like.y+'px', animation: 'floatUp 1.1s ease-out forwards' }">💖</div>
@@ -188,19 +188,19 @@ import { ref, computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 
 const Noop = { name:'Noop', render(){ return null } }
 const SafeAsync = (loader) => defineAsyncComponent({ loader, timeout: 2000, suspensible: false, onError:() => {} })
 
-/* ---- EXACT casing + RELATIVE paths (Linux friendly) ---- */
+/* ---- EXACT casing + RELATIVE paths ---- */
 const FaceFilterLayer    = SafeAsync(() => import('./effects/FaceFilterLayer.vue').catch(()=>Noop))
 const FloatingParticles  = SafeAsync(() => import('./effects/FloatingParticles.vue').catch(()=>Noop))
 const StageLighting      = SafeAsync(() => import('./effects/StageLighting.vue').catch(()=>Noop))
 
-/* Gift animation is in src/components/Live/LiveGiftAnimation.vue */
+/* Live widgets */
 const LiveGiftAnimation  = SafeAsync(() => import('./Live/LiveGiftAnimation.vue').catch(()=>Noop))
 const GiftFly            = SafeAsync(() => import('./Live/GiftFly.vue').catch(()=>Noop))
 const LiveMessageFeed    = SafeAsync(() => import('./Live/LiveMessageFeed.vue').catch(()=>Noop))
 const ChatInput          = SafeAsync(() => import('./Live/ChatInput.vue').catch(()=>Noop))
 const FaceFilterSelector = SafeAsync(() => import('./Live/FaceFilterSelector.vue').catch(()=>Noop))
 
-/* ✅ FIX: AddGoal is under components/Goals (case-sensitive) */
+/* ✅ FIX: correct AddGoal path (case-sensitive) */
 const AddGoal            = SafeAsync(() => import('./Goals/AddGoal.vue').catch(()=>Noop))
 
 /* ---- Props ---- */
