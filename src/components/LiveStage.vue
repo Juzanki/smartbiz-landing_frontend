@@ -28,8 +28,9 @@
           </div>
         </div>
 
+        <!-- LIKE counter now uses likeCounter (live updates) -->
         <div class="ml-1 flex items-center gap-1 px-2 py-1 bg-white/10 rounded-full text-pink-300 text-[11px] font-bold shrink-0">
-          💖 <span>{{ compact(likeCount) }}</span>
+          💖 <span>{{ compact(likeCounter) }}</span>
         </div>
 
         <button class="ml-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-200 rounded-full text-[10px] shrink-0" @click.stop="emit('open-ranking')">🔥 Daily Ranking</button>
@@ -106,10 +107,10 @@
                placeholder="Type a message…"
                class="fixed bottom-3 left-3 z-50 max-w-md w-[92vw]" />
 
-    <!-- Hearts -->
+    <!-- Hearts (animation name fixed to floatUp) -->
     <transition-group name="float" tag="div" class="absolute inset-0 pointer-events-none z-50">
       <div v-for="like in floatingLikes" :key="like.id" class="absolute text-2xl"
-           :style="{ left: like.x+'px', top: like.y+'px', animation: 'float-up 1.1s ease-out forwards' }">💖</div>
+           :style="{ left: like.x+'px', top: like.y+'px', animation: 'floatUp 1.1s ease-out forwards' }">💖</div>
     </transition-group>
 
     <!-- AI tips -->
@@ -132,7 +133,7 @@
     <!-- Like bubble -->
     <div class="absolute bottom-40 right-3 z-50 flex flex-col items-center gap-1">
       <button @click.stop="tapLikeAnywhere" class="w-12 h-12 bg-pink-600 rounded-full grid place-items-center hover:bg-pink-700 shadow-lg active:scale-95">💗</button>
-      <span class="text-[13px] font-semibold text-pink-300">{{ compact(likeCount) }}</span>
+      <span class="text-[13px] font-semibold text-pink-300">{{ compact(likeCounter) }}</span>
     </div>
 
     <!-- Bottom dock -->
@@ -198,7 +199,9 @@ const GiftFly            = SafeAsync(() => import('./Live/GiftFly.vue').catch(()
 const LiveMessageFeed    = SafeAsync(() => import('./Live/LiveMessageFeed.vue').catch(()=>Noop))
 const ChatInput          = SafeAsync(() => import('./Live/ChatInput.vue').catch(()=>Noop))
 const FaceFilterSelector = SafeAsync(() => import('./Live/FaceFilterSelector.vue').catch(()=>Noop))
-const AddGoal            = SafeAsync(() => import('./Live/AddGoal.vue').catch(()=>Noop))
+
+/* ✅ FIX: AddGoal is under components/Goals (case-sensitive) */
+const AddGoal            = SafeAsync(() => import('./Goals/AddGoal.vue').catch(()=>Noop))
 
 /* ---- Props ---- */
 const props = defineProps({
@@ -236,6 +239,8 @@ const dataSaver = ref(false)
 const micMuted = ref(false)
 const videoEl = ref(null)
 let wakeLock = null
+const showAddGoal = ref(false)
+const currentGoal = ref('')
 
 /* ---- Net status ---- */
 const net = ref({ downlink: null, effectiveType: null })
@@ -296,7 +301,13 @@ function onSelectFilter(f){ selectedFilter.value = f; showFaceFilterSelector.val
 /* ---- Utils ---- */
 function vibrate(ms=12){ try { navigator.vibrate?.(ms) } catch(_){} }
 function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min }
-function compact(n){ if (n >= 1e9) return (n/1e9).toFixed(1)+'B'; if (n >= 1e6) return (n/1e6).toFixed(1)+'M'; if (n >= 1e3) return (n/1e3).toFixed(1)+'K'; return String(n) }
+function compact(n){
+  const num = Number(n ?? 0)
+  if (num >= 1e9) return (num/1e9).toFixed(1)+'B'
+  if (num >= 1e6) return (num/1e6).toFixed(1)+'M'
+  if (num >= 1e3) return (num/1e3).toFixed(1)+'K'
+  return String(num)
+}
 
 /* ---- System niceties ---- */
 async function enableWakeLock(){ try { wakeLock = await navigator.wakeLock?.request?.('screen') } catch {} }
