@@ -31,10 +31,15 @@ function resolveViewLoader (path) {
   if (viewModules[path]) return viewModules[path]
 
   // Case-insensitive & tolerant (ruhusu kuandika bila "../views/")
-  const want = String(path).replace(/^\.\//, '').replace(/^..\/views\//, '').toLowerCase()
-  const key = Object.keys(viewModules).find(k =>
-    k.toLowerCase().endsWith(want) || k.toLowerCase() === `../views/${want}`
-  )
+  const want = String(path)
+    .replace(/^\.\//, '')
+    .replace(/^(\.\.\/)?views\//, '')
+    .toLowerCase()
+
+  const key = Object.keys(viewModules).find(k => {
+    const low = k.toLowerCase()
+    return low.endsWith(want) || low === `../views/${want}`
+  })
   return key ? viewModules[key] : null
 }
 
@@ -46,13 +51,13 @@ const ChunkError = defineComponent({
       h('h2', { style: 'margin:0 0 .25rem' }, 'Failed to load page'),
       h('p', { style: 'opacity:.8' }, [
         'Please refresh the app. ',
-        this.hint ? h('code', this.hint) : null
-      ])
+        this.hint ? h('code', this.hint) : null,
+      ]),
     ])
-  }
+  },
 })
 
-function sleep (ms) { return new Promise(r => setTimeout(r, ms)) }
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 // Detect transient chunk errors
 function isTransientChunkError (err) {
@@ -91,7 +96,7 @@ function lazyAny (pathsOrFns, { retries = 2, delay = 140, timeout = 20000 } = {}
   if (!loaders.length) {
     return defineAsyncComponent({
       loader: async () => ({ default: ChunkError }),
-      suspensible: false
+      suspensible: false,
     })
   }
 
@@ -102,13 +107,15 @@ function lazyAny (pathsOrFns, { retries = 2, delay = 140, timeout = 20000 } = {}
           try {
             return await load()
           } catch (err) {
-            if (attempt < retries && isTransientChunkError(err)) await sleep(delay)
-            else if (!attempt && isTransientChunkError(err)) await sleep(delay)
-            else break
+            if (isTransientChunkError(err) && attempt < retries) {
+              await sleep(delay)
+              continue
+            }
+            break
           }
         }
       }
-      // kama imefeli kabisa, jaribu recovery moja kwa moja (SW/cache) kisha toa fallback
+      // Kama imefeli kabisa, jaribu recovery (SW/cache) kisha toa fallback
       recoverFromChunkErrorOnce().catch(() => {})
       return { default: ChunkError }
     },
@@ -117,7 +124,7 @@ function lazyAny (pathsOrFns, { retries = 2, delay = 140, timeout = 20000 } = {}
     onError (error, retry, fail, attempts) {
       if (isTransientChunkError(error) && attempts <= retries) return setTimeout(retry, delay)
       return fail(error)
-    }
+    },
   })
 }
 
@@ -130,10 +137,18 @@ function prefetchView (path) {
    3) Auth helpers (token & role)
    ──────────────────────────────────────────────────────────── */
 function lsGet (k) { try { return localStorage.getItem(k) || '' } catch { return '' } }
+
+// ⚠️ SAFE regex escape (hii ndiyo iliyokuwa ikivuruga build na “Unexpected '^'”)
+// Tumia /[.*+?^${}()|[\]\\]/g na replacement '\\$&'
+const RE_META = /[.*+?^${}()|[\]\\]/g
+const reEscape = (s) => String(s).replace(RE_META, '\\$&')
+
 function readCookie (name) {
-  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\\]\\/+^])/g, '\\$1') + '=([^;]+)'))
+  const re = new RegExp(`(?:^|; )${reEscape(name)}=([^;]+)`)
+  const m = document.cookie.match(re)
   return m ? decodeURIComponent(m[1]) : ''
 }
+
 function getToken () {
   return lsGet('access_token') || readCookie('sb_access') || ''
 }
@@ -259,7 +274,7 @@ const routes = [
       if (role === 'admin') return next('/dashboard/admin')
       if (role === 'user')  return next('/dashboard/user')
       return next('/login')
-    }
+    },
   },
 
   // Dashboards
@@ -283,14 +298,14 @@ const routes = [
     name: 'LiveStreamHub',
     meta: { requiresAuth: true, title: 'Live Hub' },
     alias: ['/live/hub'],
-    beforeEnter: () => { prefetchView('../views/LiveRoom.vue') }
+    beforeEnter: () => { prefetchView('../views/LiveRoom.vue') },
   },
   { path: '/live', redirect: '/live-stream' },
   {
     path: '/live/new',
     name: 'LiveNew',
     meta: { requiresAuth: true, title: 'New Live' },
-    redirect: () => ({ name: 'live-room', params: { id: makeLiveId() } })
+    redirect: () => ({ name: 'live-room', params: { id: makeLiveId() } }),
   },
   {
     path: '/live/:id',
@@ -298,7 +313,7 @@ const routes = [
     name: 'live-room',
     props: true,
     meta: { requiresAuth: true, title: 'Live Room' },
-    alias: ['/live/room/:id', '/l/:id']
+    alias: ['/live/room/:id', '/l/:id'],
   },
   { path: '/live/host',     component: LiveHostView,       name: 'LiveHostView',       meta: { requiresAuth: true, title: 'Live Host' } },
   { path: '/live/lobby',    component: LiveLobby,          name: 'LiveLobby',          meta: { requiresAuth: true, title: 'Live Lobby' } },
@@ -313,14 +328,14 @@ const routes = [
     component: DroneTracker,
     name: 'DroneTracking',
     meta: { requiresAuth: true, title: 'Drones' },
-    alias: ['/drones/missions', '/drone-missions', '/drone/monitor']
+    alias: ['/drones/missions', '/drone-missions', '/drone/monitor'],
   },
   {
     path: '/loyalty_rewards',
     component: LoyaltyRewards,
     name: 'LoyaltyRewards',
     meta: { requiresAuth: true, title: 'Loyalty' },
-    alias: ['/loyalty']
+    alias: ['/loyalty'],
   },
 
   // Notifications, help, billing
@@ -334,7 +349,7 @@ const routes = [
     component: MyLogs,
     name: 'MyLogs',
     meta: { requiresAuth: true, title: 'Activity Log' },
-    alias: ['/my-logs', '/activity_logs']
+    alias: ['/my-logs', '/activity_logs'],
   },
 
   // Smart Assistant
@@ -343,7 +358,7 @@ const routes = [
     component: SmartAssistant,
     name: 'SmartAssistant',
     meta: { requiresAuth: true, title: 'Smart Assistant' },
-    alias: ['/assistant-assistant', '/smart-assistant', '/smart_assistance']
+    alias: ['/assistant-assistant', '/smart-assistant', '/smart_assistance'],
   },
 
   // Business & commerce
@@ -378,7 +393,7 @@ const routes = [
     name: 'BotIntegrations',
     props: true,
     meta: { requiresAuth: true, title: 'Bot Integrations' },
-    alias: ['/bots/integration', '/bot/integration']
+    alias: ['/bots/integration', '/bot/integration'],
   },
   { path: '/bots/market', component: BotsMarket, name: 'BotsMarket', meta: { requiresAuth: true, title: 'Bots Market' } },
   { path: '/bots/stats', component: BotsStats, name: 'BotsStats', meta: { requiresAuth: true, title: 'Bots Stats' } },
@@ -412,20 +427,20 @@ const routes = [
 
   // Errors (keep last)
   { path: '/unauthorized', component: Unauthorized, name: 'Unauthorized', meta: { title: 'Unauthorized' } },
-  { path: '/:pathMatch(.*)*', component: NotFound, name: 'NotFound', meta: { title: 'Not Found' } }
+  { path: '/:pathMatch(.*)*', component: NotFound, name: 'NotFound', meta: { title: 'Not Found' } },
 ]
 
 /* ────────────────────────────────────────────────────────────
    6) Router
    ──────────────────────────────────────────────────────────── */
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL ?? '/'),
+  history: createWebHistory(import.meta.env.BASE_URL || '/'),
   routes,
   scrollBehavior (to, from, saved) {
     if (saved) return saved
     if (to.hash) return { el: to.hash, top: 64 }
     return { top: 0 }
-  }
+  },
 })
 
 /* Safe push (epuka error ya redundant navigation) */
