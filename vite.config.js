@@ -1,5 +1,4 @@
-// vite.config.ts  (tumia .js/.mjs ukipenda)
-// — Netlify/Vite/Vue 3 tuned config —
+// vite.config.js — Netlify/Vite/Vue 3 tuned config (JS)
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
@@ -8,16 +7,18 @@ import { fileURLToPath, URL } from 'node:url'
 import process from 'node:process'
 
 /* --------------------- Helpers --------------------- */
-const trimSlash = (u?: string) => (typeof u === 'string' ? u.replace(/\/+$/g, '') : '')
-const isHttpUrl  = (u?: string) => /^https?:\/\//i.test(u || '')
-const toBool     = (v: unknown, d = false) =>
+const trimSlash = (u) => (typeof u === 'string' ? u.replace(/\/+$/g, '') : '')
+const isHttpUrl  = (u) => /^https?:\/\//i.test(u || '')
+const toBool     = (v, d = false) =>
   v === 'true' || v === true ? true : v === 'false' || v === false ? false : d
 
 /** Rollup manualChunks: tenga vendors kwenye mafaili thabiti */
-function vendorChunks(id: string) {
-  if (!id.includes('node_modules')) return
+function vendorChunks(id) {
+  if (!id || !id.includes('node_modules')) return
   const tail = id.split('node_modules/')[1] || ''
-  const scope = tail.startsWith('@') ? tail.split('/').slice(0, 2).join('/') : tail.split('/')[0]
+  const scope = tail.startsWith('@')
+    ? tail.split('/').slice(0, 2).join('/')
+    : tail.split('/')[0]
 
   if (/^vue($|\/)|vue-router/.test(scope)) return 'vue'
   if (/(apexcharts|chart\.js)/.test(scope)) return 'charts'
@@ -27,11 +28,11 @@ function vendorChunks(id: string) {
 
 /* --------------------- Config --------------------- */
 export default defineConfig(async ({ mode, command }) => {
-  const env = loadEnv(mode, process.cwd(), '')       // soma .env*, VITE_* n.k.
+  const env = loadEnv(mode, process.cwd(), '') // soma .env*, VITE_*
   const IS_PROD  = mode === 'production'
   const IS_SERVE = command === 'serve'
 
-  // Base ya app (Netlify iko kwenye root → tumia '/')
+  // Base ya app (Netlify iko root → tumia '/')
   const rawBase = trimSlash(env.VITE_BASE || '/')
   const base    = isHttpUrl(rawBase) ? '/' : (rawBase || '/')
 
@@ -45,11 +46,11 @@ export default defineConfig(async ({ mode, command }) => {
     env.NETLIFY_PUBLIC_URL,
     env.VITE_PUBLIC_ORIGIN,
     env.VERCEL_URL && `https://${env.VERCEL_URL}`,
-  ].filter(Boolean).map(trimSlash)
+  ].filter(Boolean).map((s) => trimSlash(String(s)))
 
   const plugins = [
     vue({ reactivityTransform: false }),
-    vueJsx(),            // <script setup lang="tsx"> pia inafanya
+    vueJsx(),   // <script setup lang="tsx">
     UnoCSS(),
   ]
 
@@ -72,7 +73,7 @@ export default defineConfig(async ({ mode, command }) => {
         '@'          : fileURLToPath(new URL('./src', import.meta.url)),
         '@components': fileURLToPath(new URL('./src/components', import.meta.url)),
         '@views'     : fileURLToPath(new URL('./src/views', import.meta.url)),
-        '@assets'    : fileURLToPath(new URL('./src/assets', import.meta.url)), // kwa `new URL('@assets/...', import.meta.url)`
+        '@assets'    : fileURLToPath(new URL('./src/assets', import.meta.url)), // new URL('@assets/..', import.meta.url)
         '@utils'     : fileURLToPath(new URL('./src/utils', import.meta.url)),
       },
       dedupe: ['vue', 'vue-router'],
@@ -94,7 +95,7 @@ export default defineConfig(async ({ mode, command }) => {
       strictPort: true,
       open: false,
       hmr: { overlay: false },
-      // kwa dev tu; Netlify itahudumia prod
+      // kwa dev tu; Netlify itahost prod
       cors: PUBLIC_ORIGINS.length ? { origin: PUBLIC_ORIGINS, credentials: true } : true,
       proxy: {
         '/api': { target: API_TARGET, changeOrigin: true, secure: false },
@@ -127,7 +128,7 @@ export default defineConfig(async ({ mode, command }) => {
       outDir: 'dist',
       target: 'es2022',           // inaruhusu top-level await
       cssTarget: 'chrome90',
-      sourcemap: true,            // washa ili kutambua issue za prod kirahisi
+      sourcemap: false,
       brotliSize: false,
       assetsInlineLimit: 4096,
       cssCodeSplit: true,
