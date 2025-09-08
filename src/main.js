@@ -1,4 +1,3 @@
-// src/main.js
 // ========================= Core ============================
 import { createApp, nextTick } from 'vue'
 import App from './App.vue'
@@ -8,7 +7,7 @@ import router from './router'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap'
 import './assets/main.css'
-// Keep this if UnoCSS is configured in Vite
+// Acha hii kama umewasha UnoCSS kwenye Vite
 import 'virtual:uno.css'
 
 // ========================= i18n ============================
@@ -56,16 +55,10 @@ const toastOptions = {
 // ================== ApexCharts (global) ====================
 import VueApexCharts from 'vue3-apexcharts'
 
-// ======== Global Chart.js lazy-loader (safe for CI) ========
+// ======== Global Chart.js lazy-loader (salama kwa CI) =====
 /**
- * Use from any component (Option A):
+ * Matumizi kutoka kokote:
  *   const Chart = await app.config.globalProperties.$ensureChartJs()
- *
- * Or with provide/inject (Option B):
- *   const ensureChartJs = inject('ensureChartJs')
- *   const Chart = await ensureChartJs()
- *
- * We import 'chart.js' (not 'chart.js/auto') to avoid resolver issues.
  */
 let __ChartJS = null
 async function ensureChartJs() {
@@ -74,6 +67,30 @@ async function ensureChartJs() {
   mod.Chart.register(...mod.registerables)
   __ChartJS = mod.Chart
   return __ChartJS
+}
+
+// =================== Boot Diagnostics ======================
+function showBootIssue(message, err) {
+  const el = document.getElementById('app')
+  if (el) {
+    el.innerHTML = `
+      <div style="
+        color:#f88;background:#111;padding:12px;border:1px solid #333;
+        border-radius:8px;max-width:860px;margin:24px auto;font:14px/1.45 system-ui;
+        white-space:pre-wrap;overflow:auto;
+      ">
+        <b>Startup issue:</b> ${message || 'App did not mount.'}
+        <div style="margin-top:8px;color:#ccc">${(err && (err.message || err)) || ''}</div>
+        <div style="margin-top:8px;color:#888">Open DevTools → Console to view full stack trace.</div>
+      </div>`
+  }
+  if (err) console.error('[BOOT ISSUE]', err)
+}
+
+// Wikamata makosa ya dunia nzima kabla ya mount
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) => showBootIssue('Window error', e.error || e.message))
+  window.addEventListener('unhandledrejection', (e) => showBootIssue('Unhandled promise rejection', e.reason || e))
 }
 
 // ================ Mobile 100vh fix =========================
@@ -109,27 +126,26 @@ const app = createApp(App)
 app.use(router)
 app.use(i18n)
 app.use(Toast, toastOptions)
-app.use(VueApexCharts) // <apexchart> is now globally available
+app.use(VueApexCharts) // <apexchart> globally
 
 // ---------- Handy directives ----------
 app.directive('autofocus', {
   mounted(el) { try { el.focus() } catch {} },
 })
 
-// Provide globals
+// Provide / globals
 app.provide('isMobile', isMobile)
 app.provide('ensureChartJs', ensureChartJs)
 app.config.globalProperties.$ensureChartJs = ensureChartJs
 
-// Make $toast available outside components (utilities/handlers)
+// Ruhusu utilities kupata $toast nje ya components
 nextTick(() => {
   try {
-    // In some setups $toast attaches after mount; ensure a fallback.
     window.$toast = app.config.globalProperties.$toast || useToast()
   } catch {}
 })
 
-// ======== Vue error handler (shows toast in prod) ==========
+// ======== Vue error handler (toast + console) =============
 app.config.performance = import.meta.env.DEV
 app.config.errorHandler = (err, _instance, info) => {
   if (import.meta.env.DEV) console.error('[AppError]', err, info)
@@ -138,18 +154,7 @@ app.config.errorHandler = (err, _instance, info) => {
   try { window.$toast?.error?.(msg) } catch {}
 }
 
-// ======= Window errors & promise rejections (global) =======
-if (typeof window !== 'undefined') {
-  window.addEventListener('error', (e) => {
-    if (import.meta.env.DEV) console.error('[WindowError]', e.error || e.message)
-  })
-  window.addEventListener('unhandledrejection', (e) => {
-    if (import.meta.env.DEV) console.error('[UnhandledRejection]', e.reason)
-    try { window.$toast?.error?.('Something went wrong') } catch {}
-  })
-}
-
-// ======= Update <title> + route-loading class ===============
+// ======= Route title + route-loading indicator =============
 router.beforeEach((to, _from, next) => {
   if (typeof document !== 'undefined') document.body.classList.add('route-loading')
   const base = 'SmartBiz'
@@ -168,7 +173,7 @@ router.afterEach(() => {
   }
 })
 
-// ========== Optional: register Service Worker (prod) ========
+// ===== Service Worker (optional, prod only) ================
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
   const swUrl = '/sw.js'
   fetch(swUrl, { method: 'HEAD' })
@@ -176,7 +181,23 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.m
     .catch(() => {})
 }
 
-// ================ Mount after router ready =================
-router.isReady().then(() => {
-  app.mount('#app')
-})
+// ================ Mount + Watchdog =========================
+;(async () => {
+  // Watchdog: kama haijamount ndani ya 6s, onyesha tahadhari (bila kusimamisha app)
+  const watchdog = setTimeout(() => {
+    if (!window.__APP_MOUNTED__) {
+      showBootIssue('App is taking longer than expected to start…')
+    }
+  }, 6000)
+
+  try {
+    // router.isReady() hurekebisha hydration timing kwenye SPA
+    await router.isReady()
+    app.mount('#app')
+    window.__APP_MOUNTED__ = true
+  } catch (err) {
+    showBootIssue('Failed to mount the application.', err)
+  } finally {
+    clearTimeout(watchdog)
+  }
+})()
