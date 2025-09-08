@@ -29,8 +29,12 @@ const viewModules = import.meta.glob('../views/**/*.vue')
 function resolveViewLoader (path) {
   if (!path) return null
   if (viewModules[path]) return viewModules[path]
-  const lower = String(path).toLowerCase()
-  const key = Object.keys(viewModules).find(k => k.toLowerCase() === lower)
+
+  // Case-insensitive & tolerant (ruhusu kuandika bila "../views/")
+  const want = String(path).replace(/^\.\//, '').replace(/^..\/views\//, '').toLowerCase()
+  const key = Object.keys(viewModules).find(k =>
+    k.toLowerCase().endsWith(want) || k.toLowerCase() === `../views/${want}`
+  )
   return key ? viewModules[key] : null
 }
 
@@ -47,6 +51,36 @@ const ChunkError = defineComponent({
     ])
   }
 })
+
+function sleep (ms) { return new Promise(r => setTimeout(r, ms)) }
+
+// Detect transient chunk errors
+function isTransientChunkError (err) {
+  const msg = String(err?.message || err || '')
+  return /Failed to fetch dynamically imported module|Loading chunk .* failed|Importing a module script failed|ChunkLoadError/i.test(msg)
+}
+
+// One-time recovery: clear SW + caches then hard-reload with cache-buster
+let __triedRecovery = false
+async function recoverFromChunkErrorOnce () {
+  if (__triedRecovery) return
+  __triedRecovery = true
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      regs.forEach(r => r.unregister())
+    }
+  } catch {}
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map(k => caches.delete(k)))
+    }
+  } catch {}
+  const u = new URL(location.href)
+  u.searchParams.set('v', Date.now().toString())
+  location.replace(u.toString())
+}
 
 function lazyAny (pathsOrFns, { retries = 2, delay = 140, timeout = 20000 } = {}) {
   const entries = Array.isArray(pathsOrFns) ? pathsOrFns : [pathsOrFns]
@@ -65,25 +99,29 @@ function lazyAny (pathsOrFns, { retries = 2, delay = 140, timeout = 20000 } = {}
     loader: async () => {
       for (const load of loaders) {
         for (let attempt = 0; attempt <= retries; attempt++) {
-          try { return await load() } catch {
-            if (attempt < retries) await new Promise(r => setTimeout(r, delay))
+          try {
+            return await load()
+          } catch (err) {
+            if (attempt < retries && isTransientChunkError(err)) await sleep(delay)
+            else if (!attempt && isTransientChunkError(err)) await sleep(delay)
+            else break
           }
         }
       }
+      // kama imefeli kabisa, jaribu recovery moja kwa moja (SW/cache) kisha toa fallback
+      recoverFromChunkErrorOnce().catch(() => {})
       return { default: ChunkError }
     },
     timeout,
     suspensible: false,
     onError (error, retry, fail, attempts) {
-      const msg = String(error?.message || error || '')
-      const transient = /Failed to fetch dynamically imported module|Loading chunk .* failed|Importing a module script failed/i
-      if (transient.test(msg) && attempts <= retries) setTimeout(retry, delay)
-      else fail(error)
+      if (isTransientChunkError(error) && attempts <= retries) return setTimeout(retry, delay)
+      return fail(error)
     }
   })
 }
 
-// Prefetch ya hiari
+// Prefetch ya hiari (tunaiita kwenye beforeEnter ya baadhi ya routes)
 function prefetchView (path) {
   try { const l = resolveViewLoader(path); if (l) l() } catch {}
 }
@@ -91,15 +129,16 @@ function prefetchView (path) {
 /* ────────────────────────────────────────────────────────────
    3) Auth helpers (token & role)
    ──────────────────────────────────────────────────────────── */
+function lsGet (k) { try { return localStorage.getItem(k) || '' } catch { return '' } }
 function readCookie (name) {
-  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]+)'))
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\\]\\/+^])/g, '\\$1') + '=([^;]+)'))
   return m ? decodeURIComponent(m[1]) : ''
 }
 function getToken () {
-  return localStorage.getItem('access_token') || readCookie('sb_access') || ''
+  return lsGet('access_token') || readCookie('sb_access') || ''
 }
 function getRole () {
-  return (localStorage.getItem('user_role') || '').toLowerCase().trim()
+  return (lsGet('user_role') || '').toLowerCase().trim()
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -389,7 +428,7 @@ const router = createRouter({
   }
 })
 
-/* Safe push */
+/* Safe push (epuka error ya redundant navigation) */
 const _push = router.push.bind(router)
 router.push = (to) => _push(to).catch(err => {
   const msg = String(err?.message || '')
@@ -397,11 +436,10 @@ router.push = (to) => _push(to).catch(err => {
   return Promise.reject(err)
 })
 
-/* Chunk error handler */
+/* Chunk error handler (global) */
 router.onError(err => {
-  const msg = String(err?.message || err || '')
-  if (/Failed to fetch dynamically imported module|Loading chunk .* failed|Importing a module script failed/i.test(msg)) {
-    window.location.reload()
+  if (isTransientChunkError(err)) {
+    recoverFromChunkErrorOnce().catch(() => {})
   }
 })
 
@@ -410,16 +448,16 @@ router.onError(err => {
    ──────────────────────────────────────────────────────────── */
 router.beforeEach(async (to, from, next) => {
   // i18n (lazy, non-blocking)
-  const lang = localStorage.getItem('user_lang') || 'en'
+  const lang = lsGet('user_lang') || 'en'
   loadI18n().then(inst => { try { if (inst?.global) inst.global.locale = lang } catch {} })
 
   // Title
-  document.title = to.meta?.title ? `${to.meta.title} • SmartBiz` : 'SmartBiz'
+  try { document.title = to.meta?.title ? `${to.meta.title} • SmartBiz` : 'SmartBiz' } catch {}
 
   // Auth/roles
   const token    = getToken()
   const role     = getRole()
-  const needs2FA = localStorage.getItem('needs_2fa') === 'true'
+  const needs2FA = lsGet('needs_2fa') === 'true'
 
   if (to.meta?.guestOnly && token) return next('/dashboard')
   if (to.meta?.requiresAuth && !token) return next({ name: 'Login', query: { redirect: to.fullPath } })
