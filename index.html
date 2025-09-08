@@ -14,7 +14,6 @@
     <base href="/" />
 
     <link rel="icon" href="/favicon.ico" />
-    <!-- (hiari) <link rel="preconnect" href="https://api.your-domain.com" /> -->
 
     <!-- Loader ndogo hadi app ijipakie -->
     <style>
@@ -42,9 +41,7 @@
       </noscript>
     </div>
 
-    <!-- Vite entry: Tumia .ts kama una src/main.ts; badilisha kuwa .js kama mradi wako ni JS safi -->
-    <script type="module" src="/src/main.ts"></script>
-    <!-- Kama unatumia JS badala ya TS, tumia hii:
-    <script type="module" src="/src/main.js"></script> -->
+    <!-- ✅ TUMIA main.js kwa kuwa main.ts haipo -->
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
