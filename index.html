@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>SmartBiz Assistance</title>
+    <meta name="description" content="SmartBiz Assistance — live streaming + AI host tools." />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="color-scheme" content="dark light" />
+    <!-- Zuia kurudisha HTML ya zamani toka cache wakati wa ku-debug -->
+    <meta http-equiv="Cache-Control" content="no-store" />
+
+    <!-- MUHIMU: tumia mizizi ya tovuti kwa assets/routes (SPA) -->
+    <base href="/" />
+
+    <link rel="icon" href="/favicon.ico" />
+
+    <!-- Loader hadi app ijipakie -->
+    <style>
+      html, body, #app { height: 100%; }
+      body {
+        margin: 0; background: #000; color: #fff;
+        font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,"Noto Sans",
+                     "Apple Color Emoji","Segoe UI Emoji";
+      }
+      #app { display: grid; place-items: center; }
+      .sb-loader { display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: .9; }
+      .sb-ring {
+        width: 44px; height: 44px; border: 3px solid #ffffff33;
+        border-top-color: #9fa8ff; border-radius: 50%;
+        animation: sb-spin 1s linear infinite;
+      }
+      @keyframes sb-spin { to { transform: rotate(360deg); } }
+
+      /* Dalili za hali (hiari) */
+      body.offline .sb-ring { border-top-color: #f59e0b; }     /* offline */
+      body.route-loading .sb-ring { border-top-color: #22d3ee; } /* kubadilisha route */
+    </style>
+  </head>
+
+  <body>
+    <div id="app">
+      <div class="sb-loader" role="status" aria-live="polite">
+        <div class="sb-ring" aria-hidden="true"></div>
+        <div>Loading SmartBiz...</div>
+      </div>
+      <noscript>
+        <p style="color:#eee;background:#111;padding:.75rem 1rem;border-radius:.75rem;border:1px solid #333;margin-top:1rem;">
+          JavaScript is required to run this app. Please enable JavaScript.
+        </p>
+      </noscript>
+    </div>
+
+    <!-- Guard ya mapema: ondoa .no-js, na toa ujumbe ukishindwa kumount -->
+    <script>
+      (function () {
+        try {
+          document.documentElement.classList.remove('no-js');
+          document.documentElement.classList.add('js');
+        } catch(_) {}
+
+        // Ikiwa app haijamount ndani ya sekunde 9, onyesha msaada wa kurefresh
+        setTimeout(function () {
+          if (!window.__APP_MOUNTED__) {
+            var el = document.getElementById('app');
+            if (!el) return;
+            el.innerHTML =
+              '<div style="text-align:center;max-width:560px;margin:0 auto;padding:24px;color:#eee">' +
+                '<div class="sb-ring" style="margin:0 auto 12px"></div>' +
+                '<div style="font-weight:700;margin-bottom:8px">Still loading...</div>' +
+                '<div style="opacity:.8;margin-bottom:12px">If this stays for long, try hard refresh (Ctrl/Cmd + F5).</div>' +
+                '<button onclick="location.reload(true)" ' +
+                  'style="background:#2563eb;border:none;color:#fff;padding:.6rem 1rem;border-radius:.6rem;cursor:pointer">Reload</button>' +
+              '</div>';
+
+            // (Hiari) kama kuna SW ya zamani inayozuia assets, iandaliwe kuondolewa
+            try {
+              if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.getRegistrations()
+                  .then(rs => rs.forEach(r => r.unregister()));
+              }
+            } catch (_) {}
+          }
+        }, 9000);
+      })();
+    </script>
+
+    <!-- Vite entry (JS) -->
+    <script type="module" src="/src/main.js"></script>
+    <!-- Kama ungekuwa na TypeScript:  <script type="module" src="/src/main.ts"></script> -->
+  </body>
+</html>
