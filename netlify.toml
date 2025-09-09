@@ -1,23 +1,36 @@
 # netlify.toml — Vite + Vue 3 (SPA) on Netlify
 
 [build]
-  command = "npm run build"
+  # Tumia ci kisha build (Netlify hutumia package-lock.json)
+  command = "npm ci && npm run build"
   publish = "dist"
 
-  # Tumia Node 20 (au ile unayotumia kwenye local)
-  [build.environment]
-    NODE_VERSION = "20"
+[build.environment]
+  NODE_VERSION = "20"
+
+# 🔒 ZIMA Netlify Asset Optimization / Post-processing (tunaamini Vite pekee)
+[build.processing]
+  skip_processing = true
+  # — au tumia granular kama unataka —
+  # [build.processing.css]
+  #   bundle = false
+  #   minify = false
+  # [build.processing.js]
+  #   bundle = false
+  #   minify = false
+  # [build.processing.images]
+  #   compress = false
 
 # ---------------- Redirects ----------------
 
-# 1) Ruhusu bundles/asset zipitishwe moja kwa moja (zisiangukie SPA fallback)
+# 1) Bundles/Assets zipite moja kwa moja (zisivunjwe na SPA fallback)
 [[redirects]]
   from = "/assets/*"
   to   = "/assets/:splat"
   status = 200
   force = true
 
-# 2) Faili za kawaida (favicon/robots/sitemap) zipite moja kwa moja
+# 2) Faili za kawaida zipite moja kwa moja
 [[redirects]]  # favicon
   from = "/favicon.ico"
   to   = "/favicon.ico"
@@ -33,7 +46,7 @@
   to   = "/sitemap.xml"
   status = 200
 
-# 3) SPA fallback kwa routes zote za app
+# 3) SPA fallback kwa routes zote za app (muhimu kwa Vue Router history mode)
 [[redirects]]
   from = "/*"
   to   = "/index.html"
@@ -50,7 +63,8 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    # CSP ya msamiati mpana (unaweza kuikaza kulingana na mahitaji ya API/CDN zako)
+    # ⚠️ CSP iliyoruhusu app yako kufanya kazi.
+    # Ikiwa utatumia vyanzo maalum (CDN/API), ongeza kwenye connect-src/img-src/font-src n.k.
     Content-Security-Policy = "default-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; media-src 'self' data: blob: https:; frame-ancestors 'self'; base-uri 'self'"
 
 # B) Usicache index.html (ili kupata deploy mpya mara moja)
@@ -59,13 +73,22 @@
   [headers.values]
     Cache-Control = "no-store, must-revalidate"
 
-# C) Cache kali kwa bundles zilizo na hash (salama)
+# C) Cache kali kwa bundles zilizo na hash (salama sana)
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+    # Fonts/CSS kutoka assets kuruhusu matumizi cross-origin (ikihitajika)
+    Access-Control-Allow-Origin = "*"
 
-# D) Cache fupi kwa manifest (hiari)
+# D) Service Worker (ikiwa unatumia /sw.js)
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Service-Worker-Allowed = "/"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# E) Web App Manifest (hiari)
 [[headers]]
   for = "/manifest.webmanifest"
   [headers.values]
