@@ -1,4 +1,4 @@
-// vite.config.js — Vue 3 + Vite + Netlify (JS only, stable + debug-friendly)
+// vite.config.js — Vue 3 + Vite + Netlify (JS only, robust + safe minify)
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
@@ -26,7 +26,7 @@ function vendorChunks(id) {
 
 /* -------------------------- Config ------------------------- */
 export default defineConfig(async ({ mode, command }) => {
-  const env      = loadEnv(mode, process.cwd(), '') // soma .env* (VITE_*)
+  const env      = loadEnv(mode, process.cwd(), '')
   const IS_PROD  = mode === 'production'
   const IS_SERVE = command === 'serve'
 
@@ -48,7 +48,7 @@ export default defineConfig(async ({ mode, command }) => {
 
   const plugins = [
     vue({ reactivityTransform: false }),
-    vueJsx(),     // weka JSX kama unaitumia
+    vueJsx(),
     UnoCSS(),
   ]
 
@@ -58,34 +58,41 @@ export default defineConfig(async ({ mode, command }) => {
       const { default: devtools } = await import('vite-plugin-vue-devtools')
       plugins.push(devtools())
     } catch {
-      console.warn('[vite] vite-plugin-vue-devtools haipo; ruka (weka VITE_DEVTOOLS=false au install).')
+      console.warn('[vite] vite-plugin-vue-devtools haipo; ruka.')
     }
   }
 
-  // ——— FIX KUU: epuka minify hatari ya esbuild → tumia terser bila mangle ———
-  // Unaweza kudhibiti kwa env:
-  //  - VITE_MINIFY=none     → minify:false
-  //  - VITE_MINIFY=terser   → minify:'terser' (default salama)
-  //  - VITE_MINIFY=esbuild  → (haishauriwi kwa sasa)
-  const MINIFY_ENV = String(env.VITE_MINIFY || 'terser').toLowerCase()
-  const MINIFY =
-    MINIFY_ENV === 'none'    ? false :
-    MINIFY_ENV === 'esbuild' ? 'esbuild' :
-    'terser' // default
+  // ——— Minify strategy: chagua kupitia env na jithibitishie terser ipo ———
+  //  VITE_MINIFY=terser | none | esbuild
+  const want = String(env.VITE_MINIFY || 'terser').toLowerCase()
+  let MINIFY = want
+  let terserOptions
 
-  const terserOptions =
-    MINIFY === 'terser'
-      ? {
-          // ⚠️ Usibadilishe majina; hili ndilo hutuliza “lexical declaration … before initialization”
-          mangle: false,
-          compress: {
-            passes: 2,
-            drop_console: false, // tutaondoa kwa esbuild.drop chini ikiwa prod
-            drop_debugger: true,
-          },
-          format: { comments: false },
-        }
-      : undefined
+  if (want === 'terser') {
+    let terserAvailable = false
+    try {
+      // Ikiwa terser haipo, import hii itatupa error (tutafall-back)
+      await import('terser')
+      terserAvailable = true
+    } catch {
+      console.warn('[vite] terser is not installed; falling back to no minify.')
+    }
+    if (terserAvailable) {
+      MINIFY = 'terser'
+      terserOptions = {
+        mangle: false,                 // epuka 'lexical declaration' errors
+        compress: { passes: 2, drop_debugger: true, drop_console: false },
+        format: { comments: false },
+      }
+    } else {
+      MINIFY = false
+    }
+  } else if (want === 'none') {
+    MINIFY = false
+  } else if (want !== 'esbuild') {
+    // kinga ya thamani zisizo halali
+    MINIFY = false
+  }
 
   return {
     base,
@@ -121,7 +128,6 @@ export default defineConfig(async ({ mode, command }) => {
       cors: PUBLIC_ORIGINS.length ? { origin: PUBLIC_ORIGINS, credentials: true } : true,
       proxy: {
         '/api': { target: API_TARGET, changeOrigin: true, secure: false },
-        // '/socket.io': { target: API_TARGET, ws: true, changeOrigin: true },
       },
       watch: { usePolling: false, interval: 100 },
     },
@@ -148,15 +154,14 @@ export default defineConfig(async ({ mode, command }) => {
     /* --------------------- Build --------------------- */
     build: {
       outDir: 'dist',
-      // Target ya chini kidogo hupunguza “edge-cases” za minifiers kwenye baadhi ya browsers
       target: 'es2019',
       cssTarget: 'chrome90',
-      sourcemap: true,            // weka true kwa sasa ili kupata stacktrace kamili
+      sourcemap: true,
       brotliSize: false,
       assetsInlineLimit: 4096,
       cssCodeSplit: true,
       chunkSizeWarningLimit: 1100,
-      minify: MINIFY,             // 'terser' (salama) | false | 'esbuild'
+      minify: MINIFY,          // 'terser' | 'esbuild' | false
       terserOptions,
       rollupOptions: {
         output: {
@@ -171,9 +176,7 @@ export default defineConfig(async ({ mode, command }) => {
       modulePreload: { polyfill: false },
     },
 
-    // Ondoa console/debugger kwenye prod (badala ya kuitegemea minifier)
     esbuild: { drop: IS_PROD ? ['console', 'debugger'] : [] },
-
     worker: { format: 'es' },
     json: { stringify: true },
     css: { devSourcemap: false },
