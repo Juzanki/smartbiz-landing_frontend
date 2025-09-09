@@ -1,21 +1,28 @@
-// ========================= Core ============================
-import { createApp, nextTick } from 'vue'
-import App from './App.vue'
-import router from './router'
+// =====================================================
+// SmartBiz Assistance — main.js (Vue 3 + Vite, JS only)
+// =====================================================
 
-// ========================= Styles ==========================
+// ---------------------- Core -------------------------
+import { createApp, nextTick, watch } from 'vue'
+import App from './App.vue'
+
+// Router tutaleta kwa dynamic import ndani ya boot()
+// ili makosa ya router yasiondoe mount nzima.
+
+// ---------------------- Styles -----------------------
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap'
 import './assets/main.css'
-// Acha hii kama umewasha UnoCSS kwenye Vite
-import 'virtual:uno.css'
+import 'virtual:uno.css' // acha ikiwa unatumia UnoCSS
 
-// ========================= i18n ============================
+// ---------------------- i18n -------------------------
 import { createI18n } from 'vue-i18n'
+// Tunapakia ujumbe “statically” (rahisi na salama)
 import en from './locales/en.json'
 import sw from './locales/sw.json'
 import fr from './locales/fr.json'
 
+// Chagua lugha: heshimu aliyohifadhi mtumiaji → browser → en
 function pickBrowserLang() {
   try {
     const saved = localStorage.getItem('user_lang')
@@ -27,6 +34,7 @@ function pickBrowserLang() {
   return 'en'
 }
 
+// Tayarisha i18n (legacy:false ili kutumia Composition API)
 const i18n = createI18n({
   legacy: false,
   locale: pickBrowserLang(),
@@ -34,7 +42,24 @@ const i18n = createI18n({
   messages: { en, sw, fr },
 })
 
-// ===================== Toasts (UX) =========================
+// weka <html lang=".."> na dir= ltr/rtl kulingana na lugha
+function applyLangDir(locale) {
+  try {
+    const rtlSet = new Set(['ar', 'he', 'fa', 'ur']) // ukiongeza lugha za RTL siku zijazo
+    const html = document.documentElement
+    html.setAttribute('lang', locale || 'en')
+    html.setAttribute('dir', rtlSet.has((locale || 'en').slice(0,2)) ? 'rtl' : 'ltr')
+  } catch {}
+}
+applyLangDir(i18n.global.locale.value)
+
+// Hifadhi mabadiliko ya lugha na uhuisha lang/dir
+watch(() => i18n.global.locale.value, (val) => {
+  try { localStorage.setItem('user_lang', val) } catch {}
+  applyLangDir(val)
+})
+
+// ---------------------- Toasts ------------------------
 import Toast, { useToast } from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
@@ -52,14 +77,10 @@ const toastOptions = {
   newestOnTop: true,
 }
 
-// ================== ApexCharts (global) ====================
-import VueApexCharts from 'vue3-apexcharts'
+// ---------------------- ApexCharts -------------------
+import VueApexCharts from 'vue3-apexcharts' // <apexchart> globally
 
-// ======== Global Chart.js lazy-loader (salama kwa CI) =====
-/**
- * Matumizi kutoka kokote:
- *   const Chart = await app.config.globalProperties.$ensureChartJs()
- */
+// -------- Chart.js lazy-loader (kwa components zako) --
 let __ChartJS = null
 async function ensureChartJs() {
   if (__ChartJS) return __ChartJS
@@ -69,7 +90,7 @@ async function ensureChartJs() {
   return __ChartJS
 }
 
-// =================== Boot Diagnostics ======================
+// ---------------- Boot Diagnostics / Guards -----------
 function showBootIssue(message, err) {
   const el = document.getElementById('app')
   if (el) {
@@ -87,13 +108,13 @@ function showBootIssue(message, err) {
   if (err) console.error('[BOOT ISSUE]', err)
 }
 
-// Wikamata makosa ya dunia nzima kabla ya mount
+// Kamatwa kwa makosa ya juu
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (e) => showBootIssue('Window error', e.error || e.message))
   window.addEventListener('unhandledrejection', (e) => showBootIssue('Unhandled promise rejection', e.reason || e))
 }
 
-// ================ Mobile 100vh fix =========================
+// ------------------ Mobile 100vh fix ------------------
 function setVH() {
   if (typeof window === 'undefined') return
   const vh = window.innerHeight * 0.01
@@ -105,7 +126,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('orientationchange', setVH, { passive: true })
 }
 
-// ======= Online/Offline user feedback (toasts + class) =====
+// -------- Online/Offline feedback (toasts + class) ----
 const netToast = {
   online() {
     if (typeof document !== 'undefined') document.body.classList.remove('offline')
@@ -121,31 +142,26 @@ if (typeof window !== 'undefined') {
   window.addEventListener('offline', netToast.offline)
 }
 
-// ========================= App =============================
+// -------------------- App Instance --------------------
 const app = createApp(App)
-app.use(router)
 app.use(i18n)
 app.use(Toast, toastOptions)
-app.use(VueApexCharts) // <apexchart> globally
+app.use(VueApexCharts)
 
-// ---------- Handy directives ----------
-app.directive('autofocus', {
-  mounted(el) { try { el.focus() } catch {} },
-})
+// handy directives
+app.directive('autofocus', { mounted(el){ try{ el.focus() }catch{} } })
 
-// Provide / globals
+// provides/globals
 app.provide('isMobile', isMobile)
 app.provide('ensureChartJs', ensureChartJs)
 app.config.globalProperties.$ensureChartJs = ensureChartJs
 
 // Ruhusu utilities kupata $toast nje ya components
 nextTick(() => {
-  try {
-    window.$toast = app.config.globalProperties.$toast || useToast()
-  } catch {}
+  try { window.$toast = app.config.globalProperties.$toast || useToast() } catch {}
 })
 
-// ======== Vue error handler (toast + console) =============
+// Errors za Vue (ongeza toast)
 app.config.performance = import.meta.env.DEV
 app.config.errorHandler = (err, _instance, info) => {
   if (import.meta.env.DEV) console.error('[AppError]', err, info)
@@ -154,36 +170,27 @@ app.config.errorHandler = (err, _instance, info) => {
   try { window.$toast?.error?.(msg) } catch {}
 }
 
-// ======= Route title + route-loading indicator =============
-router.beforeEach((to, _from, next) => {
-  if (typeof document !== 'undefined') document.body.classList.add('route-loading')
-  const base = 'SmartBiz'
-  const t = i18n?.global?.t?.bind(i18n.global) || ((k) => k)
-  const page = to.meta?.title ? t(to.meta.title) : ''
-  if (typeof document !== 'undefined') {
-    document.title = page ? `${page} • ${base}` : base
-  }
-  next()
-})
-router.afterEach(() => {
-  if (typeof window !== 'undefined') {
-    requestAnimationFrame(() => {
-      try { document.body.classList.remove('route-loading') } catch {}
-    })
-  }
-})
+// ---------- Route title + route-loading indicator ------
+let router = null
+function setRouteLoading(on) {
+  try {
+    if (!document?.body) return
+    if (on) document.body.classList.add('route-loading')
+    else document.body.classList.remove('route-loading')
+  } catch {}
+}
 
-// ===== Service Worker (optional, prod only) ================
+// ------------- Service Worker (optional, prod) ---------
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
   const swUrl = '/sw.js'
   fetch(swUrl, { method: 'HEAD' })
-    .then((r) => { if (r.ok) navigator.serviceWorker.register(swUrl).catch(() => {}) })
+    .then(r => { if (r.ok) navigator.serviceWorker.register(swUrl).catch(() => {}) })
     .catch(() => {})
 }
 
-// ================ Mount + Watchdog =========================
+// ---------------- Mount + Watchdog ---------------------
 ;(async () => {
-  // Watchdog: kama haijamount ndani ya 6s, onyesha tahadhari (bila kusimamisha app)
+  // Watchdog: toa ujumbe (bila kuzuia) kama inachelewa
   const watchdog = setTimeout(() => {
     if (!window.__APP_MOUNTED__) {
       showBootIssue('App is taking longer than expected to start…')
@@ -191,8 +198,30 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.m
   }, 6000)
 
   try {
-    // router.isReady() hurekebisha hydration timing kwenye SPA
-    await router.isReady()
+    // Leta router kwa dynamic import; ukianguka, bado tuna-mount app
+    try {
+      router = (await import('./router/index.js')).default
+      if (router) {
+        // route title & progress
+        router.beforeEach((to, _from, next) => {
+          setRouteLoading(true)
+          const base = 'SmartBiz'
+          const t = i18n?.global?.t?.bind(i18n.global) || ((k) => k)
+          const page = to.meta?.title ? t(to.meta.title) : ''
+          try { document.title = page ? `${page} • ${base}` : base } catch {}
+          next()
+        })
+        router.afterEach(() => setRouteLoading(false))
+        app.use(router)
+      }
+    } catch (e) {
+      console.warn('Router failed to load, starting without it:', e)
+    }
+
+    if (router?.isReady) {
+      await router.isReady().catch(e => console.warn('router.isReady error:', e))
+    }
+
     app.mount('#app')
     window.__APP_MOUNTED__ = true
   } catch (err) {
