@@ -1,4 +1,4 @@
-// vite.config.js — Netlify/Vite/Vue 3 tuned config (JS)
+// vite.config.js — Vue 3 + Vite + Netlify (JS only, stable + debug-friendly)
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
@@ -6,19 +6,17 @@ import UnoCSS from 'unocss/vite'
 import { fileURLToPath, URL } from 'node:url'
 import process from 'node:process'
 
-/* --------------------- Helpers --------------------- */
+/* ------------------------- Helpers ------------------------- */
 const trimSlash = (u) => (typeof u === 'string' ? u.replace(/\/+$/g, '') : '')
 const isHttpUrl  = (u) => /^https?:\/\//i.test(u || '')
 const toBool     = (v, d = false) =>
   v === 'true' || v === true ? true : v === 'false' || v === false ? false : d
 
-/** Rollup manualChunks: tenga vendors kwenye mafaili thabiti */
+/** Rollup manualChunks — tenga vendors kwenye mafaili thabiti */
 function vendorChunks(id) {
   if (!id || !id.includes('node_modules')) return
-  const tail = id.split('node_modules/')[1] || ''
-  const scope = tail.startsWith('@')
-    ? tail.split('/').slice(0, 2).join('/')
-    : tail.split('/')[0]
+  const tail  = id.split('node_modules/')[1] || ''
+  const scope = tail.startsWith('@') ? tail.split('/').slice(0, 2).join('/') : tail.split('/')[0]
 
   if (/^vue($|\/)|vue-router/.test(scope)) return 'vue'
   if (/(apexcharts|chart\.js)/.test(scope)) return 'charts'
@@ -26,9 +24,9 @@ function vendorChunks(id) {
   return 'vendor'
 }
 
-/* --------------------- Config --------------------- */
+/* -------------------------- Config ------------------------- */
 export default defineConfig(async ({ mode, command }) => {
-  const env = loadEnv(mode, process.cwd(), '') // soma .env*, VITE_*
+  const env      = loadEnv(mode, process.cwd(), '') // soma .env* (VITE_*)
   const IS_PROD  = mode === 'production'
   const IS_SERVE = command === 'serve'
 
@@ -50,11 +48,11 @@ export default defineConfig(async ({ mode, command }) => {
 
   const plugins = [
     vue({ reactivityTransform: false }),
-    vueJsx(),   // <script setup lang="tsx">
+    vueJsx(),     // weka JSX kama unaitumia
     UnoCSS(),
   ]
 
-  // DevTools (hiari) — weka VITE_DEVTOOLS=true au install package
+  // DevTools (hiari) — weka VITE_DEVTOOLS=true ukitaka
   if (toBool(env.VITE_DEVTOOLS, false)) {
     try {
       const { default: devtools } = await import('vite-plugin-vue-devtools')
@@ -63,6 +61,31 @@ export default defineConfig(async ({ mode, command }) => {
       console.warn('[vite] vite-plugin-vue-devtools haipo; ruka (weka VITE_DEVTOOLS=false au install).')
     }
   }
+
+  // ——— FIX KUU: epuka minify hatari ya esbuild → tumia terser bila mangle ———
+  // Unaweza kudhibiti kwa env:
+  //  - VITE_MINIFY=none     → minify:false
+  //  - VITE_MINIFY=terser   → minify:'terser' (default salama)
+  //  - VITE_MINIFY=esbuild  → (haishauriwi kwa sasa)
+  const MINIFY_ENV = String(env.VITE_MINIFY || 'terser').toLowerCase()
+  const MINIFY =
+    MINIFY_ENV === 'none'    ? false :
+    MINIFY_ENV === 'esbuild' ? 'esbuild' :
+    'terser' // default
+
+  const terserOptions =
+    MINIFY === 'terser'
+      ? {
+          // ⚠️ Usibadilishe majina; hili ndilo hutuliza “lexical declaration … before initialization”
+          mangle: false,
+          compress: {
+            passes: 2,
+            drop_console: false, // tutaondoa kwa esbuild.drop chini ikiwa prod
+            drop_debugger: true,
+          },
+          format: { comments: false },
+        }
+      : undefined
 
   return {
     base,
@@ -73,7 +96,7 @@ export default defineConfig(async ({ mode, command }) => {
         '@'          : fileURLToPath(new URL('./src', import.meta.url)),
         '@components': fileURLToPath(new URL('./src/components', import.meta.url)),
         '@views'     : fileURLToPath(new URL('./src/views', import.meta.url)),
-        '@assets'    : fileURLToPath(new URL('./src/assets', import.meta.url)), // new URL('@assets/..', import.meta.url)
+        '@assets'    : fileURLToPath(new URL('./src/assets', import.meta.url)),
         '@utils'     : fileURLToPath(new URL('./src/utils', import.meta.url)),
       },
       dedupe: ['vue', 'vue-router'],
@@ -81,11 +104,11 @@ export default defineConfig(async ({ mode, command }) => {
 
     envPrefix: ['VITE_', 'SB_'],
     define: {
-      __APP_ENV__    : JSON.stringify(env.VITE_ENVIRONMENT || mode),
-      __APP_NAME__   : JSON.stringify(env.VITE_APP_NAME || 'SmartBiz Assistance'),
-      __API_URL__    : JSON.stringify(API_TARGET),
-      __DEV__        : JSON.stringify(!IS_PROD),
-      __BUILD_TIME__ : JSON.stringify(new Date().toISOString()),
+      __APP_ENV__     : JSON.stringify(env.VITE_ENVIRONMENT || mode),
+      __APP_NAME__    : JSON.stringify(env.VITE_APP_NAME || 'SmartBiz Assistance'),
+      __API_URL__     : JSON.stringify(API_TARGET),
+      __DEV__         : JSON.stringify(!IS_PROD),
+      __BUILD_TIME__  : JSON.stringify(new Date().toISOString()),
       'process.env.NODE_ENV': JSON.stringify(mode),
     },
 
@@ -95,7 +118,6 @@ export default defineConfig(async ({ mode, command }) => {
       strictPort: true,
       open: false,
       hmr: { overlay: false },
-      // kwa dev tu; Netlify itahost prod
       cors: PUBLIC_ORIGINS.length ? { origin: PUBLIC_ORIGINS, credentials: true } : true,
       proxy: {
         '/api': { target: API_TARGET, changeOrigin: true, secure: false },
@@ -106,18 +128,18 @@ export default defineConfig(async ({ mode, command }) => {
 
     preview: { host: '0.0.0.0', port: 4173, strictPort: true },
 
-    /* ----- Dep Optimizer (salama kwa Windows + JSX/TSX) ----- */
+    /* ----------------- Dep Optimizer ----------------- */
     optimizeDeps: {
       include: [
         'vue', 'vue-router', 'axios', '@vueuse/core', 'vue-i18n',
-        'vue-toastification', 'pinia', 'socket.io-client', 'hls.js', 'vue3-draggable-resizable'
+        'vue-toastification', 'pinia', 'socket.io-client', 'hls.js', 'vue3-apexcharts'
       ],
       exclude: ['@vueuse/motion'],
       entries: ['./index.html'],
       force: true,
       esbuildOptions: {
         target: 'es2020',
-        jsx: 'preserve', // acha plugin-vue-jsx ishughulikie JSX
+        jsx: 'preserve',
         loader: { '.tsx': 'tsx', '.ts': 'ts', '.jsx': 'jsx' },
         tsconfigRaw: { compilerOptions: { jsx: 'preserve', useDefineForClassFields: false } },
       },
@@ -126,14 +148,16 @@ export default defineConfig(async ({ mode, command }) => {
     /* --------------------- Build --------------------- */
     build: {
       outDir: 'dist',
-      target: 'es2022',           // inaruhusu top-level await
+      // Target ya chini kidogo hupunguza “edge-cases” za minifiers kwenye baadhi ya browsers
+      target: 'es2019',
       cssTarget: 'chrome90',
-      sourcemap: false,
+      sourcemap: true,            // weka true kwa sasa ili kupata stacktrace kamili
       brotliSize: false,
       assetsInlineLimit: 4096,
       cssCodeSplit: true,
       chunkSizeWarningLimit: 1100,
-      minify: 'esbuild',
+      minify: MINIFY,             // 'terser' (salama) | false | 'esbuild'
+      terserOptions,
       rollupOptions: {
         output: {
           entryFileNames : 'assets/[name]-[hash].js',
@@ -144,9 +168,12 @@ export default defineConfig(async ({ mode, command }) => {
       },
       commonjsOptions: { transformMixedEsModules: true },
       emptyOutDir: true,
+      modulePreload: { polyfill: false },
     },
 
+    // Ondoa console/debugger kwenye prod (badala ya kuitegemea minifier)
     esbuild: { drop: IS_PROD ? ['console', 'debugger'] : [] },
+
     worker: { format: 'es' },
     json: { stringify: true },
     css: { devSourcemap: false },
