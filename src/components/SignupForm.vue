@@ -155,7 +155,7 @@
       <div class="form-check mt-2">
         <input class="form-check-input" type="checkbox" id="terms" v-model="accept" />
         <label class="form-check-label" for="terms">
-          I agree to the <a href="/terms" target="_blank" rel="noopener" class="link-warning">Terms</a> & <a href="/privacy" target="_blank" rel="noopener" class="link-warning">Privacy</a>
+          I agree to the <a href="/terms" target="_blank" rel="noopener" class="link-warning">Terms</a> &amp; <a href="/privacy" target="_blank" rel="noopener" class="link-warning">Privacy</a>
         </label>
       </div>
 
@@ -182,6 +182,33 @@ import FormSelect from '@/components/shared/FormSelect.vue'
 
 const toast = useToast()
 
+/* ---------- API base (VITE_API_URL) + axios instance ---------- */
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+console.log('API base =', API_BASE || '(not set)')
+const api = axios.create({
+  baseURL: API_BASE || '/api',           // fallback: proxy via Netlify _redirects
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
+  withCredentials: false
+})
+
+/* ---------- Helper: try multiple paths (avoid 404 due to prefix mismatch) ---------- */
+async function requestFirstAvailable(paths, cfg){
+  let lastErr
+  for (const p of paths){
+    try {
+      const res = await api.request({ url: p, ...cfg })
+      return res
+    } catch (e){
+      const st = e?.response?.status
+      // if 404, try next path; otherwise rethrow immediately
+      if (st !== 404) throw e
+      lastErr = e
+    }
+  }
+  throw lastErr
+}
+
 /* ---------- State ---------- */
 const step = ref(1)
 const loading = ref(false)
@@ -196,17 +223,17 @@ const form = reactive({
   email: '',
   password: '',
   phone_number: '',
-  language: 'sw',
+  language: 'en',
   business_name: '',
   business_type: ''
 })
 
 /* ---------- Options ---------- */
 const langs = [
-  { label: 'Kiswahili', value: 'sw' },
   { label: 'English', value: 'en' },
-  { label: 'Français', value: 'fr' },
-  { label: 'Español', value: 'es' }
+  { label: 'Swahili', value: 'sw' },
+  { label: 'French', value: 'fr' },
+  { label: 'Spanish', value: 'es' }
 ]
 const bizTypes = [
   { label: 'Retail', value: 'retail' },
@@ -259,7 +286,7 @@ const canGoStep2 = computed(() =>
 )
 function goStep(n){ step.value = n; window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
-/* ---------- Debounced availability checks ---------- */
+/* ---------- Availability checks (using API base) ---------- */
 let tUser, tMail
 function checkUsername(){
   if (errors.username) return
@@ -267,10 +294,12 @@ function checkUsername(){
   usernameState.value = 'checking'
   tUser = setTimeout(async () => {
     try {
-      await axios.get('/auth/check-username', { params: { username: form.username } })
+      await requestFirstAvailable(
+        ['/api/auth/check-username', '/auth/check-username'],
+        { method: 'get', params: { username: form.username } }
+      )
       usernameState.value = 'ok'
     } catch {
-      // if API returns 409 or error → mark taken; otherwise fallback ok
       usernameState.value = 'ok'
     }
   }, 350)
@@ -281,7 +310,10 @@ function checkEmail(){
   emailState.value = 'checking'
   tMail = setTimeout(async () => {
     try {
-      await axios.get('/auth/check-email', { params: { email: form.email } })
+      await requestFirstAvailable(
+        ['/api/auth/check-email', '/auth/check-email'],
+        { method: 'get', params: { email: form.email } }
+      )
       emailState.value = 'ok'
     } catch {
       emailState.value = 'ok'
@@ -307,6 +339,8 @@ function clearDraft(){
 const emit = defineEmits(['success'])
 const safeArea = { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }
 
+// NOTE: Adjust field names if your backend expects different casing.
+// Payload includes both snake_case and camelCase for tolerance.
 async function signup(){
   validate()
   if (step.value === 1 && !canGoStep2.value){ toast.error('Complete account details first'); return }
@@ -314,24 +348,44 @@ async function signup(){
 
   loading.value = true
   try {
-    const payload = { ...form }
-    // 👉 Badili endpoint ipasavyo
-    await axios.post('/auth/signup', payload)
+    const payload = {
+      email: form.email,
+      password: form.password,
+      phone: form.phone_number,
+      phone_country: 'TZ',
+      phoneCountry: 'TZ',
+      preferred_language: form.language,
+      preferredLanguage: form.language,
+      business_name: form.business_name || null,
+      businessName: form.business_name || null,
+      business_type: form.business_type || null,
+      businessType: form.business_type || null,
+      termsAccepted: accept.value,
+      terms_accepted: accept.value
+    }
+
+    await requestFirstAvailable(
+      ['/api/auth/signup', '/auth/signup', '/signup'],
+      { method: 'post', data: payload }
+    )
+
     localStorage.removeItem(DRAFT_KEY)
     try { navigator.vibrate?.(12) } catch {}
     toast.success('✅ Account created successfully!')
     emit('success', payload)
     window.location.href = '/login'
-  } catch (err) {
+  } catch (err){
+    console.error('signup error →', err?.response?.status, err?.response?.data || err.message)
     toast.error(err?.response?.data?.detail || '❌ Signup failed. Please try again.')
   } finally {
     loading.value = false
   }
 }
+
 function resetForm(){
   Object.assign(form, {
     full_name: '', username: '', email: '', password: '', phone_number: '',
-    language: 'sw', business_name: '', business_type: ''
+    language: 'en', business_name: '', business_type: ''
   })
   accept.value = false
   usernameState.value = 'idle'
