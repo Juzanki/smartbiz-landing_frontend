@@ -1,3 +1,4 @@
+<!-- src/views/Signup.vue -->
 <template>
   <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
     <div class="wrap">
@@ -212,14 +213,8 @@
           </div>
 
           <!-- SUBMIT -->
-          <button
-            class="btn btn-warning w-100 fw-bold py-2 rounded-3"
-            :disabled="loading || !canSubmit"
-          >
-            <span v-if="loading">
-              <span class="spinner-border spinner-border-sm me-2" />
-              Signing Up…
-            </span>
+          <button class="btn btn-warning w-100 fw-bold py-2 rounded-3" :disabled="loading || !canSubmit">
+            <span v-if="loading"><span class="spinner-border spinner-border-sm me-2" />Signing Up…</span>
             <span v-else>Sign Up</span>
           </button>
         </form>
@@ -234,6 +229,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import axios from "axios";
 import { reactive, ref, computed, watch } from "vue";
@@ -241,24 +237,41 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-/* ---------- API base & paths (na fallbacks) ---------- */
-const RAW_BASE =
-  (import.meta.env.VITE_API_BASE_URL || "").toString().trim().replace(/\/+$/, "");
+/* ───────────────────────── API base & axios instance ─────────────────────────
+   - VITE_API_BASE_URL  → e.g. https://smartbiz-backend-lp9u.onrender.com/api
+   - If empty on Netlify, we fallback to the Render URL.
+   - Dev: http://127.0.0.1:8000
+-------------------------------------------------------------------------------*/
+const ENV_BASE = (import.meta.env.VITE_API_BASE_URL || "").toString().trim().replace(/\/+$/, "");
+const FALLBACK_PROD = "https://smartbiz-backend-lp9u.onrender.com/api";
+const DEV_BASE = "http://127.0.0.1:8000";
 
 const API_BASE =
-  RAW_BASE ||
-  // dev default
-  (location.hostname === "localhost" || location.hostname === "127.0.0.1"
-    ? "http://127.0.0.1:8000"
-    : "/api");
+  ENV_BASE ||
+  (location.hostname === "localhost" || location.hostname === "127.0.0.1" ? DEV_BASE : FALLBACK_PROD);
 
-const SIGNUP_PATHS = [
-  import.meta.env.VITE_SIGNUP_PATH?.trim() || "/auth/signup",
-  "/auth/register",                    // fallback 1
-  "/api/auth/signup",                  // fallback 2 (reverse proxy)
-].filter(Boolean);
+/** ✅ axios instance that ALWAYS sends credentials (cookies) */
+const api = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true,
+  timeout: 15000,
+  headers: { "Content-Type": "application/json" },
+});
 
-/* ---------- form state ---------- */
+/** 🔐 Direct login URL you asked to include (ready-to-use) */
+const LOGIN_URL = "https://smartbiz-backend-lp9u.onrender.com/api/auth/login";
+
+/** Example helper showing EXACT call you requested.
+    Tumia hii kwenye component ya Login au hapa kwa test ya haraka tu: */
+async function quickLoginTest(email, password) {
+  return axios.post(
+    LOGIN_URL,
+    { email, password },
+    { withCredentials: true, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+/* ───────────────────────────── form state ───────────────────────────── */
 const form = reactive({
   full_name: "",
   username: "",
@@ -285,7 +298,7 @@ const error = ref("");
 const success = ref("");
 const agreed = ref(false);
 
-/* ---------- validations ---------- */
+/* ───────────────────────────── validations ───────────────────────────── */
 function isStrongPassword(pwd) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(pwd || "");
 }
@@ -319,9 +332,8 @@ const strength = computed(() => {
   return map[Math.max(0, Math.min(s - 1, 4))];
 });
 
-/* ---------- helpers ---------- */
+/* ───────────────────────────── helpers ───────────────────────────── */
 function normalizeLocalNumber(raw) {
-  // toa spacings / dashes / leading 0
   let digits = String(raw || "").replace(/[^\d]/g, "");
   if (digits.startsWith("0")) digits = digits.replace(/^0+/, "");
   return digits;
@@ -333,7 +345,6 @@ function toE164(countryLabel, localRaw) {
 }
 
 function extractError(e) {
-  // toa ujumbe mzuri kutoka kwa backends tofauti
   const r = e?.response;
   const data = r?.data;
 
@@ -345,9 +356,7 @@ function extractError(e) {
 
   if (data?.errors) {
     if (Array.isArray(data.errors)) return data.errors.join(" • ");
-    if (typeof data.errors === "object") {
-      return Object.values(data.errors).flat().join(" • ");
-    }
+    if (typeof data.errors === "object") return Object.values(data.errors).flat().join(" • ");
   }
 
   if (r?.status === 429) return "Too many attempts. Please wait a moment.";
@@ -357,43 +366,41 @@ function extractError(e) {
   return e?.message || "Something went wrong. Please try again.";
 }
 
-/* ---------- UX: clear alerts when editing; persist small prefs ---------- */
+/* UX: clear alerts when editing; persist small prefs */
 watch(
   () => ({ ...form, agreed: agreed.value }),
   () => { error.value = ""; success.value = ""; },
   { deep: true }
 );
-
 watch(() => form.email, v => localStorage.setItem("sb_last_email", v || ""));
 watch(() => form.country_code, v => localStorage.setItem("sb_country", v || ""));
-
 (() => {
-  // prefill from localStorage (nice on mobile)
   const lastEmail = localStorage.getItem("sb_last_email");
   const lastCc = localStorage.getItem("sb_country");
   if (lastEmail) form.email = lastEmail;
   if (lastCc) form.country_code = lastCc;
 })();
 
-/* ---------- signup flow with endpoint fallbacks ---------- */
-async function postJson(path, payload) {
-  const url = `${API_BASE}${path}`;
-  return axios.post(url, payload, {
-    headers: { "Content-Type": "application/json" },
-    withCredentials: true,
-    timeout: 15000,
-  });
-}
+/* ─────────────────────── signup flow with fallbacks ───────────────────────
+   Tuta jaribu njia hizi kwa mpangilio hadi ipatikane:
+   1) /auth/signup        (mpya)
+   2) /auth/register      (fallback)
+   3) /api/auth/signup    (fallback kwa reverse proxy setups)
+----------------------------------------------------------------------------*/
+const SIGNUP_PATHS = [
+  "/auth/signup",
+  "/auth/register",
+  "/api/auth/signup",
+];
 
 async function trySignup(payload) {
   let lastErr;
   for (const path of SIGNUP_PATHS) {
     try {
-      await postJson(path, payload);
+      await api.post(path, payload);
       return; // success
     } catch (e) {
       lastErr = e;
-      // 404/405/410 => jaribu path inayofuata
       const status = e?.response?.status;
       const retryable = status === 404 || status === 405 || status === 410;
       if (!retryable) break;
@@ -402,7 +409,7 @@ async function trySignup(payload) {
   throw lastErr;
 }
 
-/* ---------- submit ---------- */
+/* ───────────────────────────── submit ───────────────────────────── */
 async function onSignup() {
   if (!canSubmit.value || loading.value) return;
 
@@ -436,35 +443,31 @@ async function onSignup() {
   }
 }
 </script>
-<!-- GLOBAL: badilisha background ya ukurasa mzima -->
+
+<!-- GLOBAL: page background -->
 <style>
-html, body {
-  background: #0b1220; /* dark blue */
-}
+html, body { background: #0b1220; }
 </style>
 
-<!-- SCOPED: boresha component yako -->
+<!-- SCOPED styling -->
 <style scoped>
-/* 🌑 Dark Background Base (kwa container yako) */
-.bg-dark { background: #0b1220 !important; }        /* page bg (dark blue) */
-.card    { background: #0f1e34 !important; }        /* kidogo tofauti juu ya bg */
+.bg-dark { background: #0b1220 !important; }
+.card    { background: #0f1e34 !important; }
 
-/* 🧊 Card Styling */
 .card {
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 0 0 2px #ffd70033;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4), 0 0 0 2px #ffd70033;
   border: 2px solid #ffd700 !important;
   transition: box-shadow .3s ease, transform .2s ease;
 }
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 0 2px #ffd70066;
+  box-shadow: 0 10px 32px rgba(0,0,0,.5), 0 0 0 2px #ffd70066;
 }
 
-/* 📝 Inputs & Selects (dark blue shades) */
 input.form-control,
 select.form-select,
 .form-check-input {
-  background: #132441 !important;   /* darker bluish field */
+  background: #132441 !important;
   color: #fff !important;
   border: none !important;
   border-radius: .5rem;
@@ -475,14 +478,11 @@ select.form-select,
 input.form-control::placeholder { color: #b9c3d3 !important; opacity: .9; }
 select.form-select { color: #d4dbe6 !important; }
 
-/* ✨ Focus States */
-input:focus,
-select:focus {
+input:focus, select:focus {
   outline: none !important;
   box-shadow: 0 0 0 2px #ffd70099 !important;
 }
 
-/* 🟡 Divider Line */
 hr {
   border-top: 2px solid #ffd700 !important;
   opacity: .6;
@@ -490,7 +490,6 @@ hr {
   margin-bottom: 1.5rem;
 }
 
-/* 🌟 Primary Action Button */
 .btn-warning {
   background-color: #ffd700 !important;
   color: #0b1220 !important;
@@ -504,11 +503,9 @@ hr {
 .btn-warning:active,
 .btn-warning:focus { background: #ffec80 !important; outline: none !important; }
 
-/* 📌 Labels & Text */
 .text-warning { color: #ffd700 !important; }
-.form-label, .form-check-label { font-size: .85rem; color: #c7d0df; } /* bluish light */
+.form-label, .form-check-label { font-size: .85rem; color: #c7d0df; }
 
-/* 🧷 Checkbox Styling */
 .form-check-input {
   accent-color: #ffd700 !important;
   width: 1.15em; height: 1.15em; margin-top: .25em;
@@ -517,7 +514,6 @@ hr {
 }
 .form-check-label { cursor: pointer; }
 
-/* 📱 Responsive */
 @media (max-width: 480px) {
   h2 { font-size: 1.3rem !important; }
   .btn-warning { font-size: .95rem; padding: .6rem 1.1rem; }
