@@ -36,7 +36,7 @@
         <span v-if="apiStatus === 'checking'">Checking API availability…</span>
         <span v-else-if="apiStatus === 'down'">
           API unreachable. Ensure backend is running at
-          <code class="text-light">{{ API_BASE }}</code>.
+          <code class="text-light">{{ API_ROOT }}</code>.
         </span>
         <span v-else-if="apiStatus === 'cors'">
           CORS blocked. Allow origin
@@ -44,17 +44,10 @@
         </span>
       </div>
 
-      <form
-        @submit.prevent="handleLogin"
-        autocomplete="off"
-        novalidate
-        :aria-busy="loading"
-      >
+      <form @submit.prevent="handleLogin" autocomplete="off" novalidate :aria-busy="loading">
         <!-- Identifier -->
         <div class="mb-3 input-group group-dark rounded-3 overflow-hidden">
-          <span class="input-group-text border-0">
-            <i class="bi bi-person-fill" aria-hidden="true"></i>
-          </span>
+          <span class="input-group-text border-0"><i class="bi bi-person-fill" aria-hidden="true"></i></span>
           <input
             ref="idInput"
             v-model.trim="form.identifier"
@@ -76,9 +69,7 @@
 
         <!-- Password -->
         <div class="mb-1 input-group group-dark rounded-3 overflow-hidden">
-          <span class="input-group-text border-0">
-            <i class="bi bi-lock-fill" aria-hidden="true"></i>
-          </span>
+          <span class="input-group-text border-0"><i class="bi bi-lock-fill" aria-hidden="true"></i></span>
           <input
             :type="showPwd ? 'text' : 'password'"
             v-model="form.password"
@@ -126,16 +117,9 @@
           <span v-if="!online" class="badge bg-danger-subtle text-danger border border-danger">Offline</span>
         </div>
 
-        <button
-          type="submit"
-          class="btn btn-warning w-100 fw-bold mb-2 py-2 rounded-3"
-          :disabled="loading || !canSubmit"
-        >
+        <button type="submit" class="btn btn-warning w-100 fw-bold mb-2 py-2 rounded-3" :disabled="loading || !canSubmit">
           <span v-if="!loading">Login</span>
-          <span v-else>
-            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-            Logging in…
-          </span>
+          <span v-else><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Logging in…</span>
         </button>
       </form>
 
@@ -151,7 +135,7 @@
       <details v-if="debug" class="mt-3 small text-light-50">
         <summary class="text-warning">Debug</summary>
         <div class="mt-2">
-          <div>API_BASE: <code class="text-light">{{ API_BASE }}</code></div>
+          <div>API_ROOT: <code class="text-light">{{ API_ROOT }}</code></div>
           <div>Origin: <code class="text-light">{{ origin }}</code></div>
           <div>API status: <code class="text-light">{{ apiStatus }}</code></div>
           <div>Last error: <code class="text-light">{{ lastError || '-' }}</code></div>
@@ -172,31 +156,30 @@ import { useRouter } from 'vue-router'
 const toast = useToast()
 const router = useRouter()
 
-/* ───────────────────────── API base & axios ─────────────────────────
-   - VITE_API_BASE_URL  → e.g. https://smartbiz-backend-lp9u.onrender.com/api
-   - Dev fallback       → http://127.0.0.1:8000
-   - We always send credentials (cookies) for CORS sessions.
---------------------------------------------------------------------- */
-const ENV_BASE = (import.meta.env.VITE_API_BASE_URL || "").toString().trim().replace(/\/+$/, "")
-const FALLBACK_PROD = "https://smartbiz-backend-lp9u.onrender.com/api"
-const DEV_BASE = "http://127.0.0.1:8000"
-const API_BASE =
-  ENV_BASE ||
-  (location.hostname === "localhost" || location.hostname === "127.0.0.1" ? DEV_BASE : FALLBACK_PROD)
+/* ─────────── URL helpers ─────────── */
+function trimRightSlash(s) { return String(s || '').replace(/\/+$/, '') }
+function trimLeftSlash(s)  { return String(s || '').replace(/^\/+/, '') }
+function urlJoin(base, path) { return `${trimRightSlash(base)}/${trimLeftSlash(path)}` }
 
-/** ✅ axios instance that ALWAYS sends credentials (cookies) */
+/* ───────────────────────── API base & axios ─────────────────────────
+   UMESEMA: VITE_API_BASE_URL = https://smartbiz-backend-lp9u.onrender.com  (BILA /api)
+   Hapa tunatumia base hiyo, kisha routes zetu zote ni /api/... ✔
+--------------------------------------------------------------------- */
+const API_ROOT = trimRightSlash(import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000')
+
+/** axios instance that ALWAYS sends credentials (cookies) */
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_ROOT,
   withCredentials: true,
   timeout: 15000,
   headers: {
-    Accept: "application/json",
-    "X-Requested-With": "XMLHttpRequest",
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
 })
 
-/** 🔐 Direct absolute login URL (as ulivyoomba). Hutumika pia kama fallback. */
-const ABSOLUTE_LOGIN_URL = "https://smartbiz-backend-lp9u.onrender.com/api/auth/login"
+/** Absolute fallback uliyoomba (ikokweli yako inatumia /api prefix) */
+const ABSOLUTE_LOGIN_URL = 'https://smartbiz-backend-lp9u.onrender.com/api/auth/login'
 
 /* ───────────── State ───────────── */
 const loading  = ref(false)
@@ -225,15 +208,13 @@ onMounted(async () => {
   window.addEventListener('offline', _onOffline)
   document.addEventListener('visibilitychange', onVisChange)
 
-  // If already authenticated (JWT in storage), redirect
+  // Redirect if already authenticated (JWT)
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
-  if (token) {
-    await safePushByRole()
-    return
-  }
+  if (token) { await safePushByRole(); return }
 
   const lastId = localStorage.getItem('last_identifier')
   if (lastId) form.value.identifier = lastId
+
   await nextTick()
   idInput.value?.focus?.()
 
@@ -247,9 +228,7 @@ onBeforeUnmount(() => {
 })
 
 function onVisChange() {
-  if (document.visibilityState === 'visible' && apiStatus.value !== 'ok') {
-    checkApiHealth()
-  }
+  if (document.visibilityState === 'visible' && apiStatus.value !== 'ok') checkApiHealth()
 }
 
 /* ───────────── Interceptors ───────────── */
@@ -318,10 +297,9 @@ const onPwdKeyup = (e) => {
   try { capsOn.value = !!(e?.getModifierState && e.getModifierState('CapsLock')) }
   catch { capsOn.value = false }
 }
-
 function focusPwd() { pwdInput.value?.focus?.() }
 
-/* ───────────── Save auth (JWT) or fallback to cookie-session ───────────── */
+/* ───────────── Save auth (JWT) or cookie-session ───────────── */
 function saveAuthFromBody(data) {
   const token = data?.access_token || data?.token || data?.accessToken
   const user  = data?.user || {}
@@ -342,8 +320,12 @@ function saveAuthFromBody(data) {
 }
 
 async function saveAuthFromCookieSession() {
-  // Sub-paths accepted by your backend health/session
-  const candidates = ['/auth/session/verify', '/session/verify', '/auth/me', '/me']
+  const candidates = [
+    '/api/auth/session/verify',
+    '/api/session/verify',
+    '/api/auth/me',
+    '/api/me',
+  ]
   for (const p of candidates) {
     try {
       const r = await api.get(p, { timeout: 6000 })
@@ -377,7 +359,7 @@ async function safePushByRole() {
 async function checkApiHealth() {
   apiStatus.value = 'checking'
   try {
-    await api.get('/healthz', { timeout: 4000 })
+    await api.get('/api/healthz', { timeout: 4000 })
     apiStatus.value = 'ok'
   } catch (err) {
     const parsed = parseAxiosError(err)
@@ -402,7 +384,6 @@ const handleLogin = async () => {
   }
   if (!validate()) return
 
-  // Cancel any inflight request to avoid racing
   if (inflightSource) inflightSource.cancel('Cancelled due to a new attempt')
   inflightSource = axios.CancelToken.source()
 
@@ -414,12 +395,12 @@ const handleLogin = async () => {
   try {
     let data = null
 
-    // 1) JSON login (preferred)
+    // 1) JSON login (preferred) → /api/auth/login
     try {
       const payload = isEmail(identifier)
         ? { email: identifier, password }
         : { username: identifier, password }
-      const r1 = await api.post('/auth/login', payload, {
+      const r1 = await api.post('/api/auth/login', payload, {
         cancelToken: inflightSource.token,
         headers: { 'Content-Type': 'application/json' },
       })
@@ -429,7 +410,7 @@ const handleLogin = async () => {
       const { status, isCors, message } = parseAxiosError(e1)
       if (isCors) { lastError.value = message; throw e1 }
 
-      // 1b) Absolute URL fallback (ulivyoomba)
+      // 1b) Absolute URL fallback (exact call you asked for)
       try {
         const payloadAbs = isEmail(identifier)
           ? { email: identifier, password }
@@ -441,10 +422,9 @@ const handleLogin = async () => {
         )
         data = rAbs.data
       } catch (eAbs) {
-        // 2) Legacy form fallback ONLY if route unsupported/validation issues
         const st = eAbs?.response?.status ?? status
         if (!st || [404, 405, 415, 422].includes(st)) {
-          // continue to form
+          // 2) proceed to legacy form
         } else {
           lastError.value = message || parseAxiosError(eAbs).message
           throw eAbs
@@ -452,22 +432,22 @@ const handleLogin = async () => {
       }
     }
 
-    // 2) Form-encoded fallback (legacy/compat)
+    // 2) Legacy form fallback → /api/auth/login-form
     if (!data) {
       const params = new URLSearchParams()
-      params.set('username', identifier) // server accepts email/username/phone as 'username'
+      params.set('username', identifier) // email/username/phone
       params.set('password', password)
-      const r2 = await api.post('/auth/login-form', params, {
+      const r2 = await api.post('/api/auth/login-form', params, {
         cancelToken: inflightSource.token,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
       data = r2.data
     }
 
-    // A) If JWT/body token exists → save & go
+    // A) JWT in body
     let authed = saveAuthFromBody(data)
 
-    // B) Else assume cookie-session; verify & store minimal profile
+    // B) Cookie-session verification
     if (!authed) authed = await saveAuthFromCookieSession()
     if (!authed) throw new Error('Missing token/session in response.')
 
