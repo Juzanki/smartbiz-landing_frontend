@@ -172,7 +172,33 @@ import { useRouter } from 'vue-router'
 const toast = useToast()
 const router = useRouter()
 
-// ───────────── State ─────────────
+/* ───────────────────────── API base & axios ─────────────────────────
+   - VITE_API_BASE_URL  → e.g. https://smartbiz-backend-lp9u.onrender.com/api
+   - Dev fallback       → http://127.0.0.1:8000
+   - We always send credentials (cookies) for CORS sessions.
+--------------------------------------------------------------------- */
+const ENV_BASE = (import.meta.env.VITE_API_BASE_URL || "").toString().trim().replace(/\/+$/, "")
+const FALLBACK_PROD = "https://smartbiz-backend-lp9u.onrender.com/api"
+const DEV_BASE = "http://127.0.0.1:8000"
+const API_BASE =
+  ENV_BASE ||
+  (location.hostname === "localhost" || location.hostname === "127.0.0.1" ? DEV_BASE : FALLBACK_PROD)
+
+/** ✅ axios instance that ALWAYS sends credentials (cookies) */
+const api = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true,
+  timeout: 15000,
+  headers: {
+    Accept: "application/json",
+    "X-Requested-With": "XMLHttpRequest",
+  },
+})
+
+/** 🔐 Direct absolute login URL (as ulivyoomba). Hutumika pia kama fallback. */
+const ABSOLUTE_LOGIN_URL = "https://smartbiz-backend-lp9u.onrender.com/api/auth/login"
+
+/* ───────────── State ───────────── */
 const loading  = ref(false)
 const showPwd  = ref(false)
 const capsOn   = ref(false)
@@ -199,7 +225,7 @@ onMounted(async () => {
   window.addEventListener('offline', _onOffline)
   document.addEventListener('visibilitychange', onVisChange)
 
-  // Redirect if already authenticated
+  // If already authenticated (JWT in storage), redirect
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
   if (token) {
     await safePushByRole()
@@ -226,49 +252,25 @@ function onVisChange() {
   }
 }
 
-// ───────────── API base & axios ─────────────
-const API_BASE = (
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE ||
-  'http://localhost:8000'
-).replace(/\/+$/, '')
-
-// Some deployments use cookies; allow opting-in without forcing it
-const USE_CREDENTIALS = (import.meta.env.VITE_USE_CREDENTIALS?.toString() === '1')
-
-const api = axios.create({
-  baseURL: API_BASE,
-  timeout: 15000,
-  withCredentials: USE_CREDENTIALS,
-  headers: {
-    Accept: 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-  },
-})
-
-// Attach token if present
+/* ───────────── Interceptors ───────────── */
 api.interceptors.request.use((config) => {
   const t = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
   if (t) config.headers.Authorization = `Bearer ${t}`
-  // Ensure JSON when sending objects
   if (config.data && typeof config.data === 'object' && !(config.data instanceof URLSearchParams)) {
     config.headers['Content-Type'] = config.headers['Content-Type'] || 'application/json'
   }
   return config
 })
 
-// Normalize errors (timeout, network, CORS)
 api.interceptors.response.use(
   r => r,
   err => {
-    if (err?.code === 'ECONNABORTED') {
-      err.message = 'Request timeout'
-    }
+    if (err?.code === 'ECONNABORTED') err.message = 'Request timeout'
     return Promise.reject(err)
   }
 )
 
-// ───────────── Helpers & validation ─────────────
+/* ───────────── Helpers & validation ───────────── */
 const normalizeId = (v) => (v ?? '').trim()
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v)
 
@@ -286,10 +288,8 @@ const validate = () => {
 }
 
 const parseAxiosError = (err) => {
-  // CORS heuristic: has request, no response
   const isCors = !err?.response && !!err?.request
   const status = err?.response?.status
-  // Prefer backend detail if exists
   const message =
     err?.response?.data?.detail ||
     err?.response?.data?.message ||
@@ -319,19 +319,16 @@ const onPwdKeyup = (e) => {
   catch { capsOn.value = false }
 }
 
-function focusPwd() {
-  pwdInput.value?.focus?.()
-}
+function focusPwd() { pwdInput.value?.focus?.() }
 
-function saveAuth(data) {
+/* ───────────── Save auth (JWT) or fallback to cookie-session ───────────── */
+function saveAuthFromBody(data) {
   const token = data?.access_token || data?.token || data?.accessToken
   const user  = data?.user || {}
   const role  = user?.role || data?.role || 'user'
   const name  = user?.full_name || data?.name || user?.name || ''
   const lang  = user?.language || data?.language || 'en'
-
   if (!token) return false
-
   const storage = remember.value ? localStorage : sessionStorage
   storage.setItem('access_token', token)
   storage.setItem('user_role', role)
@@ -339,10 +336,30 @@ function saveAuth(data) {
   storage.setItem('user_lang', lang)
   storage.setItem('auth_at', String(Date.now()))
   localStorage.setItem('last_identifier', normalizeId(form.value.identifier).toLowerCase())
-
   api.defaults.headers.common.Authorization = `Bearer ${token}`
   axios.defaults.headers.common.Authorization = `Bearer ${token}`
   return true
+}
+
+async function saveAuthFromCookieSession() {
+  // Sub-paths accepted by your backend health/session
+  const candidates = ['/auth/session/verify', '/session/verify', '/auth/me', '/me']
+  for (const p of candidates) {
+    try {
+      const r = await api.get(p, { timeout: 6000 })
+      const user = r?.data?.user || r?.data
+      const role = user?.role || 'user'
+      const name = user?.full_name || user?.name || ''
+      const lang = user?.language || 'en'
+      const storage = remember.value ? localStorage : sessionStorage
+      storage.setItem('user_role', role)
+      storage.setItem('user_name', name)
+      storage.setItem('user_lang', lang)
+      storage.setItem('auth_at', String(Date.now()))
+      return true
+    } catch { /* try next */ }
+  }
+  return false
 }
 
 async function safePushByRole() {
@@ -356,7 +373,7 @@ async function safePushByRole() {
   await router.push(target)
 }
 
-// ───────────── Health check ─────────────
+/* ───────────── Health check ───────────── */
 async function checkApiHealth() {
   apiStatus.value = 'checking'
   try {
@@ -369,7 +386,7 @@ async function checkApiHealth() {
   }
 }
 
-// ───────────── Login flow ─────────────
+/* ───────────── Login flow ───────────── */
 let lastTry = 0
 let inflightSource = null
 const COOLDOWN_MS = 1200
@@ -386,9 +403,7 @@ const handleLogin = async () => {
   if (!validate()) return
 
   // Cancel any inflight request to avoid racing
-  if (inflightSource) {
-    inflightSource.cancel('Cancelled due to a new attempt')
-  }
+  if (inflightSource) inflightSource.cancel('Cancelled due to a new attempt')
   inflightSource = axios.CancelToken.source()
 
   const identifier = normalizeId(form.value.identifier)
@@ -399,7 +414,7 @@ const handleLogin = async () => {
   try {
     let data = null
 
-    // Try JSON first (new auth route)
+    // 1) JSON login (preferred)
     try {
       const payload = isEmail(identifier)
         ? { email: identifier, password }
@@ -413,29 +428,48 @@ const handleLogin = async () => {
       if (axios.isCancel(e1)) return
       const { status, isCors, message } = parseAxiosError(e1)
       if (isCors) { lastError.value = message; throw e1 }
-      // Fallback only for unsupported/validation cases
-      if (!status || [404, 405, 415, 422].includes(status)) {
-        // continue to form fallback
-      } else {
-        lastError.value = message
-        throw e1
+
+      // 1b) Absolute URL fallback (ulivyoomba)
+      try {
+        const payloadAbs = isEmail(identifier)
+          ? { email: identifier, password }
+          : { username: identifier, password }
+        const rAbs = await axios.post(
+          ABSOLUTE_LOGIN_URL,
+          payloadAbs,
+          { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
+        )
+        data = rAbs.data
+      } catch (eAbs) {
+        // 2) Legacy form fallback ONLY if route unsupported/validation issues
+        const st = eAbs?.response?.status ?? status
+        if (!st || [404, 405, 415, 422].includes(st)) {
+          // continue to form
+        } else {
+          lastError.value = message || parseAxiosError(eAbs).message
+          throw eAbs
+        }
       }
     }
 
-    // Form-encoded fallback (legacy/compat)
+    // 2) Form-encoded fallback (legacy/compat)
     if (!data) {
       const params = new URLSearchParams()
-      // server side will accept either username/email/phone under 'username'
-      params.set('username', identifier)
+      params.set('username', identifier) // server accepts email/username/phone as 'username'
       params.set('password', password)
       const r2 = await api.post('/auth/login-form', params, {
         cancelToken: inflightSource.token,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
       data = r2.data
     }
 
-    if (!saveAuth(data)) throw new Error('Missing token in response.')
+    // A) If JWT/body token exists → save & go
+    let authed = saveAuthFromBody(data)
+
+    // B) Else assume cookie-session; verify & store minimal profile
+    if (!authed) authed = await saveAuthFromCookieSession()
+    if (!authed) throw new Error('Missing token/session in response.')
 
     toast.success('✅ Login successful! Welcome!')
     await safePushByRole()
