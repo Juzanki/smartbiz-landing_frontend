@@ -1,79 +1,89 @@
-// vite.config.js — Vue 3 + Vite + Netlify (robust & safe)
+// vite.config.js — SmartBiz (Vue 3 + Vite + Netlify)
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
-import UnoCSS from 'unocss/vite'
-import { fileURLToPath, URL } from 'node:url'
+import path from 'node:path'
 
 /* ---------------------- Helpers ---------------------- */
-const trimSlash = (u) => (typeof u === 'string' ? u.replace(/\/+$/g, '') : '')
-const isHttpUrl  = (u) => /^https?:\/\//i.test(u || '')
-const toBool     = (v, d = false) => (v === 'true' || v === true ? true : v === 'false' || v === false ? false : d)
+const trimRightSlash = (u) => String(u || '').replace(/\/+$/, '')
+const isHttp = (u) => /^https?:\/\//i.test(String(u || ''))
+const toBool = (v, d = false) =>
+  v === true || v === 'true' ? true : v === false || v === 'false' ? false : d
 
-/** Optional vendor chunking (OFF by default — safer) */
+/** Optional vendor chunking */
 function vendorChunks(id) {
   if (!id || !id.includes('node_modules')) return
-  const tail  = id.split('node_modules/')[1] || ''
+  const tail = id.split('node_modules/')[1] || ''
   const scope = tail.startsWith('@') ? tail.split('/').slice(0, 2).join('/') : tail.split('/')[0]
   if (/^vue($|\/)|vue-router/.test(scope)) return 'vue'
   if (/(apexcharts|chart\.js)/.test(scope)) return 'charts'
-  if (/@?unocss|@vueuse|nanoid|axios|vue-i18n|pinia/.test(scope)) return 'utils'
+  if (/@?unocss|@vueuse|axios|pinia|vue-i18n/.test(scope)) return 'utils'
   return 'vendor'
 }
 
 /* ---------------------- Config ----------------------- */
 export default defineConfig(async ({ mode, command }) => {
-  const env = loadEnv(mode, process.cwd(), '')          // somba .env* zote
-  const IS_PROD  = mode === 'production'
+  const env = loadEnv(mode, process.cwd(), '') // soma .env* zote
+  const IS_PROD = mode === 'production'
   const IS_SERVE = command === 'serve'
 
-  // Base (Netlify hu-deploy root) → tumia '/'
-  const rawBase = trimSlash(env.VITE_BASE || '/')
-  const base    = isHttpUrl(rawBase) ? '/' : (rawBase || '/')
+  // API root (BILA /api). Mfano: https://smartbiz-backend-lp9u.onrender.com
+  const API_ROOT = trimRightSlash(env.VITE_API_BASE_URL || 'http://127.0.0.1:8000')
 
-  // API (dev proxy)
-  const RAW_API    = env.VITE_API_URL || env.API_URL || env.BACKEND_URL || 'http://localhost:8000'
-  const API_TARGET = trimSlash(RAW_API)
+  // Base ya app (Netlify hu-deploy kwenye root, hivyo '/')
+  const base = '/'
 
-  const plugins = [ vue({ reactivityTransform: false }), vueJsx(), UnoCSS() ]
+  // Plugins za lazima
+  const plugins = [vue({ reactivityTransform: false })]
 
-  // Hiari: Vite DevTools
+  // (Hiari) Vue JSX
+  try {
+    const { default: vueJsx } = await import('@vitejs/plugin-vue-jsx')
+    plugins.push(vueJsx())
+  } catch { /* hakuna -> ruka */ }
+
+  // (Hiari) UnoCSS
+  try {
+    const { default: UnoCSS } = await import('unocss/vite')
+    plugins.push(UnoCSS())
+  } catch { /* hakuna -> ruka */ }
+
+  // (Hiari) Vite DevTools
   if (toBool(env.VITE_DEVTOOLS, false)) {
-    try { const { default: devtools } = await import('vite-plugin-vue-devtools'); plugins.push(devtools()) }
-    catch { console.warn('[vite] vite-plugin-vue-devtools missing; skipping.') }
+    try {
+      const { default: devtools } = await import('vite-plugin-vue-devtools')
+      plugins.push(devtools())
+    } catch { /* hakuna -> ruka */ }
   }
 
-  // ---------- Safe minify strategy ----------
-  // Chagua kupitia env: VITE_MINIFY = 'terser' | 'esbuild' | 'none'
-  const want = String(env.VITE_MINIFY || 'terser').toLowerCase()
-  let MINIFY = want
+  // Minify strategy: VITE_MINIFY = 'terser' | 'esbuild' | 'none'
+  const wantMin = String(env.VITE_MINIFY || 'terser').toLowerCase()
+  let minify = false
   let terserOptions
 
-  if (want === 'terser') {
-    let terserAvailable = false
-    try { await import('terser'); terserAvailable = true } catch {}
-    if (terserAvailable) {
-      MINIFY = 'terser'
-      // ONDOA mangle ili kuepuka lexical-init bugs
-      terserOptions = { mangle: false, compress: { passes: 2, drop_debugger: true, drop_console: false }, format: { comments: false } }
-    } else {
-      console.warn('[vite] terser not installed; switching to no minify.')
-      MINIFY = false
+  if (wantMin === 'esbuild') {
+    minify = 'esbuild'
+  } else if (wantMin === 'terser') {
+    try {
+      await import('terser')
+      minify = 'terser'
+      // ONDOA mangle ili kuepuka makosa ya lexical init
+      terserOptions = {
+        mangle: false,
+        compress: { passes: 2, drop_debugger: true, drop_console: false },
+        format: { comments: false },
+      }
+    } catch {
+      minify = false
     }
-  } else if (want === 'none') {
-    MINIFY = false
-  } else if (want !== 'esbuild') {
-    MINIFY = false
-  }
+  } // 'none' => false
 
-  // ---------- Chunking mode ----------
-  // VITE_CHUNKING = 'auto' (default, no manualChunks) | 'vendor' (split vendors)
-  const CHUNKING = String(env.VITE_CHUNKING || 'auto').toLowerCase()
+  // Chunking: VITE_CHUNKING = 'auto' | 'vendor'
+  const chunking = String(env.VITE_CHUNKING || 'auto').toLowerCase()
   const rollupOutput = {
-    entryFileNames : 'assets/[name]-[hash].js',
-    chunkFileNames : 'assets/[name]-[hash].js',
-    assetFileNames : 'assets/[name]-[hash][extname]',
-    ...(CHUNKING === 'vendor' ? { manualChunks: vendorChunks } : {}), // default hakuna manualChunks (salama)
+    entryFileNames: 'assets/[name]-[hash].js',
+    chunkFileNames: 'assets/[name]-[hash].js',
+    assetFileNames: 'assets/[name]-[hash][extname]',
+    ...(chunking === 'vendor' ? { manualChunks: vendorChunks } : {}),
   }
 
   return {
@@ -82,22 +92,22 @@ export default defineConfig(async ({ mode, command }) => {
 
     resolve: {
       alias: {
-        '@'          : fileURLToPath(new URL('./src', import.meta.url)),
-        '@components': fileURLToPath(new URL('./src/components', import.meta.url)),
-        '@views'     : fileURLToPath(new URL('./src/views', import.meta.url)),
-        '@assets'    : fileURLToPath(new URL('./src/assets', import.meta.url)),
-        '@utils'     : fileURLToPath(new URL('./src/utils', import.meta.url)),
+        '@': path.resolve(__dirname, 'src'),
+        '@components': path.resolve(__dirname, 'src/components'),
+        '@views': path.resolve(__dirname, 'src/views'),
+        '@assets': path.resolve(__dirname, 'src/assets'),
+        '@utils': path.resolve(__dirname, 'src/utils'),
       },
       dedupe: ['vue', 'vue-router'],
     },
 
     envPrefix: ['VITE_', 'SB_'],
+
     define: {
-      __APP_ENV__           : JSON.stringify(env.VITE_ENVIRONMENT || mode),
-      __APP_NAME__          : JSON.stringify(env.VITE_APP_NAME || 'SmartBiz Assistance'),
-      __API_URL__           : JSON.stringify(API_TARGET),
-      __DEV__               : JSON.stringify(!IS_PROD),
-      __BUILD_TIME__        : JSON.stringify(new Date().toISOString()),
+      // Tumia __API_ROOT__ ndani ya app yako (mfano axios baseURL)
+      __API_ROOT__: JSON.stringify(API_ROOT),
+      __APP_ENV__: JSON.stringify(env.VITE_ENVIRONMENT || mode),
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
       'process.env.NODE_ENV': JSON.stringify(mode),
     },
 
@@ -108,27 +118,32 @@ export default defineConfig(async ({ mode, command }) => {
       open: false,
       hmr: { overlay: false },
       cors: true,
-      proxy: { '/api': { target: API_TARGET, changeOrigin: true, secure: false } },
+      // Dev proxy: umoje safi—frontend itapiga /api/... na kuelekezwa API_ROOT
+      proxy: {
+        '/api': {
+          target: API_ROOT,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
       watch: { usePolling: false, interval: 100 },
     },
 
     preview: { host: '0.0.0.0', port: 4173, strictPort: true },
 
-    // Dev-only optimizer (sio build)
     optimizeDeps: {
       include: [
-        'vue', 'vue-router', 'vue-i18n',
-        'axios', '@vueuse/core',
-        'vue-toastification', 'pinia',
-        'hls.js', 'socket.io-client',
-        'vue3-apexcharts'
+        'vue',
+        'vue-router',
+        'axios',
+        '@vueuse/core',
+        // ongeza packages zako muhimu hapa ukitaka dev kuwa mwepesi
       ],
-      exclude: ['@vueuse/motion'],
       entries: ['./index.html'],
       esbuildOptions: {
         target: 'es2020',
         jsx: 'preserve',
-        loader: { '.tsx': 'tsx', '.ts': 'ts', '.jsx': 'jsx' },
+        loader: { '.ts': 'ts', '.tsx': 'tsx', '.jsx': 'jsx' },
         tsconfigRaw: { compilerOptions: { jsx: 'preserve', useDefineForClassFields: false } },
       },
     },
@@ -137,12 +152,12 @@ export default defineConfig(async ({ mode, command }) => {
       outDir: 'dist',
       target: 'es2019',
       cssTarget: 'chrome90',
-      sourcemap: true,               // iwe rahisi kuona stacktrace tukikwama
+      sourcemap: true,
       brotliSize: false,
       assetsInlineLimit: 4096,
       cssCodeSplit: true,
       chunkSizeWarningLimit: 1100,
-      minify: MINIFY,                // 'terser' | 'esbuild' | false
+      minify,
       terserOptions,
       rollupOptions: { output: rollupOutput },
       commonjsOptions: { transformMixedEsModules: true },
@@ -150,7 +165,6 @@ export default defineConfig(async ({ mode, command }) => {
       modulePreload: { polyfill: false },
     },
 
-    // Usiangushe console kwa sasa (inasaidia kusoma errors)
     esbuild: { drop: IS_PROD ? ['debugger'] : [] },
     worker: { format: 'es' },
     json: { stringify: true },
