@@ -1,7 +1,7 @@
 <!-- src/views/Signup.vue -->
 <template>
   <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
-    <div class="wrap">
+    <div class="wrap" style="width:100%;max-width:520px">
       <!-- Logo + title -->
       <div class="text-center mb-3 mt-2 animate-fade-in">
         <img
@@ -30,7 +30,7 @@
               class="form-control input-dark"
               type="text"
               name="name"
-              placeholder="e.g. Mwana Mpotevu"
+              placeholder="e.g. Julius Nkindwa"
               maxlength="60"
               autocomplete="name"
               inputmode="text"
@@ -142,7 +142,7 @@
                 </option>
               </select>
               <input
-                v-model.trim="form.phone_number"
+                v-model.trim="form.phone_local"
                 class="form-control input-dark"
                 type="tel"
                 placeholder="712345678"
@@ -161,8 +161,8 @@
           <div class="mb-3">
             <label class="form-label text-warning small">Preferred Language</label>
             <select class="form-select input-dark" v-model="form.language" required>
-              <option value="sw">Kiswahili</option>
               <option value="en">English</option>
+              <option value="sw">Kiswahili</option>
               <option value="fr">Français</option>
               <option value="ar">العربية</option>
             </select>
@@ -231,225 +231,157 @@
 </template>
 
 <script setup>
-import axios from "axios";
-import { reactive, ref, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import axios from 'axios'
+import { reactive, ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
-const router = useRouter();
+const router = useRouter()
 
-/* ───────────────────────── API base & axios instance ─────────────────────────
-   - VITE_API_BASE_URL  → e.g. https://smartbiz-backend-lp9u.onrender.com/api
-   - If empty on Netlify, we fallback to the Render URL.
-   - Dev: http://127.0.0.1:8000
--------------------------------------------------------------------------------*/
-const ENV_BASE = (import.meta.env.VITE_API_BASE_URL || "").toString().trim().replace(/\/+$/, "");
-const FALLBACK_PROD = "https://smartbiz-backend-lp9u.onrender.com/api";
-const DEV_BASE = "http://127.0.0.1:8000";
-
-const API_BASE =
-  ENV_BASE ||
-  (location.hostname === "localhost" || location.hostname === "127.0.0.1" ? DEV_BASE : FALLBACK_PROD);
-
-/** ✅ axios instance that ALWAYS sends credentials (cookies) */
+/* ─────────── API base & axios ───────────
+   .env: VITE_API_BASE_URL = https://smartbiz-backend-lp9u.onrender.com   (BILA /api)
+   Kisha tunaita /api/auth/signup.
+----------------------------------------- */
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '')
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_ROOT,
   withCredentials: true,
   timeout: 15000,
-  headers: { "Content-Type": "application/json" },
-});
+  headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+})
 
-/** 🔐 Direct login URL you asked to include (ready-to-use) */
-const LOGIN_URL = "https://smartbiz-backend-lp9u.onrender.com/api/auth/login";
-
-/** Example helper showing EXACT call you requested.
-    Tumia hii kwenye component ya Login au hapa kwa test ya haraka tu: */
-async function quickLoginTest(email, password) {
-  return axios.post(
-    LOGIN_URL,
-    { email, password },
-    { withCredentials: true, headers: { "Content-Type": "application/json" } }
-  );
-}
-
-/* ───────────────────────────── form state ───────────────────────────── */
+/* ─────────── State ─────────── */
 const form = reactive({
-  full_name: "",
-  username: "",
-  email: "",
-  password: "",
-  country_code: "+255 (TZ)",
-  phone_number: "",
-  language: "en",
-  business_name: "",
-  business_type: "",
-});
+  full_name    : '',
+  username     : '',
+  email        : '',
+  password     : '',
+  country_code : '+255 (TZ)',
+  phone_local  : '',
+  language     : 'en',
+  business_name: '',
+  business_type: ''
+})
+const showPwd = ref(false)
+const loading = ref(false)
+const error = ref('')
+const success = ref('')
+const agreed = ref(false)
 
 const countryCodes = [
-  { value: "+255 (TZ)", label: "tz +255 (TZ)" },
-  { value: "+254 (KE)", label: "ke +254 (KE)" },
-  { value: "+256 (UG)", label: "ug +256 (UG)" },
-  { value: "+250 (RW)", label: "rw +250 (RW)" },
-  { value: "+1 (US)",   label: "us +1 (US)" },
-];
+  { value: '+255 (TZ)', label: 'tz +255 (TZ)' },
+  { value: '+254 (KE)', label: 'ke +254 (KE)' },
+  { value: '+256 (UG)', label: 'ug +256 (UG)' },
+  { value: '+250 (RW)', label: 'rw +250 (RW)' },
+  { value: '+1 (US)',   label: 'us +1 (US)' },
+]
 
-const showPwd = ref(false);
-const loading = ref(false);
-const error = ref("");
-const success = ref("");
-const agreed = ref(false);
-
-/* ───────────────────────────── validations ───────────────────────────── */
+/* ─────────── Validation ─────────── */
 function isStrongPassword(pwd) {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(pwd || "");
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(pwd || '')
 }
-
 const canSubmit = computed(() =>
   !!form.full_name &&
   !!form.username &&
   !!form.email &&
   !!form.password &&
-  !!form.phone_number &&
+  !!form.phone_local &&
   !!form.language &&
   agreed.value &&
   isStrongPassword(form.password)
-);
-
+)
 const strength = computed(() => {
-  const p = form.password || "";
-  let s = 0;
-  if (p.length >= 8) s++;
-  if (/[A-Z]/.test(p)) s++;
-  if (/[a-z]/.test(p)) s++;
-  if (/\d/.test(p)) s++;
-  if (/[^\w\s]/.test(p)) s++;
+  const p = form.password || ''
+  let s = 0
+  if (p.length >= 8) s++
+  if (/[A-Z]/.test(p)) s++
+  if (/[a-z]/.test(p)) s++
+  if (/\d/.test(p)) s++
+  if (/[^\w\s]/.test(p)) s++
   const map = [
-    { label: "Too weak", percent: 10,  barClass: "bg-danger"  },
-    { label: "Weak",     percent: 30,  barClass: "bg-danger"  },
-    { label: "Fair",     percent: 55,  barClass: "bg-warning" },
-    { label: "Good",     percent: 75,  barClass: "bg-info"    },
-    { label: "Strong",   percent: 100, barClass: "bg-success" },
-  ];
-  return map[Math.max(0, Math.min(s - 1, 4))];
-});
+    { label: 'Too weak', percent: 10,  barClass: 'bg-danger'  },
+    { label: 'Weak',     percent: 30,  barClass: 'bg-danger'  },
+    { label: 'Fair',     percent: 55,  barClass: 'bg-warning' },
+    { label: 'Good',     percent: 75,  barClass: 'bg-info'    },
+    { label: 'Strong',   percent: 100, barClass: 'bg-success' },
+  ]
+  return map[Math.max(0, Math.min(s - 1, 4))]
+})
 
-/* ───────────────────────────── helpers ───────────────────────────── */
+/* ─────────── Helpers ─────────── */
 function normalizeLocalNumber(raw) {
-  let digits = String(raw || "").replace(/[^\d]/g, "");
-  if (digits.startsWith("0")) digits = digits.replace(/^0+/, "");
-  return digits;
+  let digits = String(raw || '').replace(/[^\d]/g, '')
+  if (digits.startsWith('0')) digits = digits.replace(/^0+/, '')
+  return digits
 }
 function toE164(countryLabel, localRaw) {
-  const cc = (String(countryLabel || "").match(/\+\d+/) || [""])[0];
-  const local = normalizeLocalNumber(localRaw);
-  return cc && local ? `${cc}${local}` : local;
+  const cc = (String(countryLabel || '').match(/\+\d+/) || [''])[0]
+  const local = normalizeLocalNumber(localRaw)
+  return cc && local ? `${cc}${local}` : local
 }
-
 function extractError(e) {
-  const r = e?.response;
-  const data = r?.data;
-
+  const r = e?.response
+  const data = r?.data
   if (data?.detail) return Array.isArray(data.detail)
-    ? data.detail.map(d => d.msg || d.detail || d).join(" • ")
-    : String(data.detail);
-
-  if (data?.message) return String(data.message);
-
-  if (data?.errors) {
-    if (Array.isArray(data.errors)) return data.errors.join(" • ");
-    if (typeof data.errors === "object") return Object.values(data.errors).flat().join(" • ");
-  }
-
-  if (r?.status === 429) return "Too many attempts. Please wait a moment.";
-  if (e?.code === "ECONNABORTED") return "Request timed out. Try again.";
-  if (e?.message?.includes("Network")) return "Network error. Please check your internet.";
-
-  return e?.message || "Something went wrong. Please try again.";
+    ? data.detail.map(d => d.msg || d.detail || d).join(' • ')
+    : String(data.detail)
+  if (data?.message) return String(data.message)
+  if (r?.status === 409) return 'Email or username already exists.'
+  if (r?.status === 422) return 'Invalid input. Please check your fields.'
+  if (e?.code === 'ECONNABORTED') return 'Request timed out. Try again.'
+  return e?.message || 'Something went wrong. Please try again.'
 }
 
-/* UX: clear alerts when editing; persist small prefs */
-watch(
-  () => ({ ...form, agreed: agreed.value }),
-  () => { error.value = ""; success.value = ""; },
-  { deep: true }
-);
-watch(() => form.email, v => localStorage.setItem("sb_last_email", v || ""));
-watch(() => form.country_code, v => localStorage.setItem("sb_country", v || ""));
-(() => {
-  const lastEmail = localStorage.getItem("sb_last_email");
-  const lastCc = localStorage.getItem("sb_country");
-  if (lastEmail) form.email = lastEmail;
-  if (lastCc) form.country_code = lastCc;
-})();
+/* UX: clear alerts while typing; remember last picks */
+watch(() => ({...form, agreed: agreed.value}), () => { error.value = ''; success.value = '' }, { deep:true })
+watch(() => form.email, v => localStorage.setItem('sb_last_email', v || ''))
+watch(() => form.country_code, v => localStorage.setItem('sb_country', v || ''))
+;(() => {
+  const lastEmail = localStorage.getItem('sb_last_email')
+  const lastCc = localStorage.getItem('sb_country')
+  if (lastEmail) form.email = lastEmail
+  if (lastCc) form.country_code = lastCc
+})()
 
-/* ─────────────────────── signup flow with fallbacks ───────────────────────
-   Tuta jaribu njia hizi kwa mpangilio hadi ipatikane:
-   1) /auth/signup        (mpya)
-   2) /auth/register      (fallback)
-   3) /api/auth/signup    (fallback kwa reverse proxy setups)
-----------------------------------------------------------------------------*/
-const SIGNUP_PATHS = [
-  "/auth/signup",
-  "/auth/register",
-  "/api/auth/signup",
-];
-
-async function trySignup(payload) {
-  let lastErr;
-  for (const path of SIGNUP_PATHS) {
-    try {
-      await api.post(path, payload);
-      return; // success
-    } catch (e) {
-      lastErr = e;
-      const status = e?.response?.status;
-      const retryable = status === 404 || status === 405 || status === 410;
-      if (!retryable) break;
-    }
-  }
-  throw lastErr;
-}
-
-/* ───────────────────────────── submit ───────────────────────────── */
+/* ─────────── Submit (aligns EXACTLY with PowerShell schema) ─────────── */
 async function onSignup() {
-  if (!canSubmit.value || loading.value) return;
+  if (!canSubmit.value || loading.value) return
 
-  error.value = "";
-  success.value = "";
-  loading.value = true;
+  error.value = ''
+  success.value = ''
+  loading.value = true
 
+  // Jenga phone_number sawa na mfano wa PowerShell: "+255757888541"
+  const phone_number = toE164(form.country_code, form.phone_local)
+
+  // Tuma majina yale yale: full_name, username, email, password, phone_number, language, business_name, business_type
   const payload = {
-    full_name: form.full_name,
-    username: form.username,
-    email: form.email,
-    password: form.password,
-    phone_number: toE164(form.country_code, form.phone_number),
-    language: form.language,
-    business_name: form.business_name || null,
-    business_type: form.business_type || null,
-  };
+    full_name    : form.full_name,
+    username     : form.username,          // ikiwa unataka lowercase: .toLowerCase()
+    email        : form.email,
+    password     : form.password,
+    phone_number,
+    language     : form.language || 'en',
+    business_name: form.business_name || '',
+    business_type: form.business_type || ''
+  }
 
   try {
-    await trySignup(payload);
-
-    // optional analytics
-    try { window.dataLayer?.push({ event: "signup_success", email: form.email }); } catch {}
-
-    success.value = "Account created successfully. Redirecting…";
-    setTimeout(() => router.push("/login"), 900);
+    await api.post('/api/auth/signup', payload)
+    success.value = 'Account created successfully. Redirecting…'
+    setTimeout(() => router.push('/login'), 900)
   } catch (e) {
-    error.value = extractError(e);
+    error.value = extractError(e)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 </script>
 
-<!-- GLOBAL: page background -->
+<!-- Global page bg for this route -->
 <style>
 html, body { background: #0b1220; }
 </style>
 
-<!-- SCOPED styling -->
 <style scoped>
 .bg-dark { background: #0b1220 !important; }
 .card    { background: #0f1e34 !important; }
@@ -483,13 +415,6 @@ input:focus, select:focus {
   box-shadow: 0 0 0 2px #ffd70099 !important;
 }
 
-hr {
-  border-top: 2px solid #ffd700 !important;
-  opacity: .6;
-  margin-top: 1rem;
-  margin-bottom: 1.5rem;
-}
-
 .btn-warning {
   background-color: #ffd700 !important;
   color: #0b1220 !important;
@@ -514,8 +439,14 @@ hr {
 }
 .form-check-label { cursor: pointer; }
 
+/* Strength bar */
+.progress.strength { height: 6px; background: #132441; }
+.progress-bar.bg-danger  { background:#ff6b6b !important; }
+.progress-bar.bg-warning { background:#ffd166 !important; }
+.progress-bar.bg-info    { background:#4dabf7 !important; }
+.progress-bar.bg-success { background:#51cf66 !important; }
+
 @media (max-width: 480px) {
-  h2 { font-size: 1.3rem !important; }
   .btn-warning { font-size: .95rem; padding: .6rem 1.1rem; }
   input.form-control, select.form-select { font-size: .9rem; padding: .6rem .85rem; }
 }
