@@ -156,18 +156,13 @@ import { useRouter } from 'vue-router'
 const toast = useToast()
 const router = useRouter()
 
-/* ─────────── URL helpers ─────────── */
-function trimRightSlash(s) { return String(s || '').replace(/\/+$/, '') }
-function trimLeftSlash(s)  { return String(s || '').replace(/^\/+/, '') }
-function urlJoin(base, path) { return `${trimRightSlash(base)}/${trimLeftSlash(path)}` }
+/* ─────────── Helpers ─────────── */
+const trimRightSlash = (s) => String(s || '').replace(/\/+$/, '')
 
-/* ───────────────────────── API base & axios ─────────────────────────
-   UMESEMA: VITE_API_BASE_URL = https://smartbiz-backend-lp9u.onrender.com  (BILA /api)
-   Hapa tunatumia base hiyo, kisha routes zetu zote ni /api/... ✔
---------------------------------------------------------------------- */
+/* ─────────── API root (NO /api in env; routes below include /api/...) ─────────── */
 const API_ROOT = trimRightSlash(import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000')
 
-/** axios instance that ALWAYS sends credentials (cookies) */
+/* Axios instance (send cookies just in case; token header added via interceptor) */
 const api = axios.create({
   baseURL: API_ROOT,
   withCredentials: true,
@@ -178,7 +173,7 @@ const api = axios.create({
   },
 })
 
-/** Absolute fallback uliyoomba (ikokweli yako inatumia /api prefix) */
+/* Absolute fallback (exactly what you asked for) */
 const ABSOLUTE_LOGIN_URL = 'https://smartbiz-backend-lp9u.onrender.com/api/auth/login'
 
 /* ───────────── State ───────────── */
@@ -196,10 +191,10 @@ const origin   = window.location.origin
 const debug    = (import.meta.env.VITE_APP_DEBUG?.toString() === '1') || /[?&]debug=1/.test(location.search)
 const lastError = ref('')
 
-// API health status: 'checking' | 'ok' | 'down' | 'cors'
+/* API health status: 'checking' | 'ok' | 'down' | 'cors' */
 const apiStatus = ref('checking')
 
-// Connectivity listeners
+/* Connectivity listeners */
 const _onOnline  = () => (online.value = true)
 const _onOffline = () => (online.value = false)
 
@@ -208,7 +203,7 @@ onMounted(async () => {
   window.addEventListener('offline', _onOffline)
   document.addEventListener('visibilitychange', onVisChange)
 
-  // Redirect if already authenticated (JWT)
+  // If already authenticated (JWT in storage), redirect
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
   if (token) { await safePushByRole(); return }
 
@@ -299,7 +294,7 @@ const onPwdKeyup = (e) => {
 }
 function focusPwd() { pwdInput.value?.focus?.() }
 
-/* ───────────── Save auth (JWT) or cookie-session ───────────── */
+/* ───────────── Save auth (JWT) OR cookie-session ───────────── */
 function saveAuthFromBody(data) {
   const token = data?.access_token || data?.token || data?.accessToken
   const user  = data?.user || {}
@@ -314,18 +309,13 @@ function saveAuthFromBody(data) {
   storage.setItem('user_lang', lang)
   storage.setItem('auth_at', String(Date.now()))
   localStorage.setItem('last_identifier', normalizeId(form.value.identifier).toLowerCase())
-  api.defaults.headers.common.Authorization = `Bearer ${token}`
+  api.defaults.headers.common.Authorization   = `Bearer ${token}`
   axios.defaults.headers.common.Authorization = `Bearer ${token}`
   return true
 }
 
 async function saveAuthFromCookieSession() {
-  const candidates = [
-    '/api/auth/session/verify',
-    '/api/session/verify',
-    '/api/auth/me',
-    '/api/me',
-  ]
+  const candidates = ['/api/auth/session/verify', '/api/session/verify', '/api/auth/me', '/api/me']
   for (const p of candidates) {
     try {
       const r = await api.get(p, { timeout: 6000 })
@@ -339,7 +329,7 @@ async function saveAuthFromCookieSession() {
       storage.setItem('user_lang', lang)
       storage.setItem('auth_at', String(Date.now()))
       return true
-    } catch { /* try next */ }
+    } catch { /* next */ }
   }
   return false
 }
@@ -400,6 +390,7 @@ const handleLogin = async () => {
       const payload = isEmail(identifier)
         ? { email: identifier, password }
         : { username: identifier, password }
+
       const r1 = await api.post('/api/auth/login', payload, {
         cancelToken: inflightSource.token,
         headers: { 'Content-Type': 'application/json' },
@@ -415,6 +406,7 @@ const handleLogin = async () => {
         const payloadAbs = isEmail(identifier)
           ? { email: identifier, password }
           : { username: identifier, password }
+
         const rAbs = await axios.post(
           ABSOLUTE_LOGIN_URL,
           payloadAbs,
@@ -444,10 +436,9 @@ const handleLogin = async () => {
       data = r2.data
     }
 
-    // A) JWT in body
+    // A) JWT in body → save & continue
     let authed = saveAuthFromBody(data)
-
-    // B) Cookie-session verification
+    // B) Cookie-session → verify profile if no token
     if (!authed) authed = await saveAuthFromCookieSession()
     if (!authed) throw new Error('Missing token/session in response.')
 
