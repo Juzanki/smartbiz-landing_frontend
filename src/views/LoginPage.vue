@@ -39,12 +39,13 @@
           <code class="text-light">{{ API_ROOT }}</code>.
         </span>
         <span v-else-if="apiStatus === 'cors'">
-          CORS blocked. Allow origin
-          <code class="text-light">{{ origin }}</code> in backend CORS settings.
+          Network/CORS error. Allow origin
+          <code class="text-light">{{ origin }}</code> on the backend.
         </span>
       </div>
 
-      <form @submit.prevent="handleLogin" autocomplete="off" novalidate :aria-busy="loading">
+      <!-- STEP 1: Credentials -->
+      <form v-if="!mfa.required" @submit.prevent="handleLogin" autocomplete="off" novalidate :aria-busy="loading">
         <!-- Identifier -->
         <div class="mb-3 input-group group-dark rounded-3 overflow-hidden">
           <span class="input-group-text border-0"><i class="bi bi-person-fill" aria-hidden="true"></i></span>
@@ -123,6 +124,35 @@
         </button>
       </form>
 
+      <!-- STEP 2: OTP / 2FA (if required by backend) -->
+      <form v-else @submit.prevent="verifyOtp" autocomplete="off" novalidate>
+        <div class="mb-2 text-center">
+          <h2 class="h6 text-warning fw-bold m-0">Two-Factor Authentication</h2>
+          <p class="small text-light-50 m-0 mt-1">Enter the 6-digit code sent to your device.</p>
+        </div>
+        <div class="mb-2 input-group group-dark rounded-3 overflow-hidden">
+          <span class="input-group-text border-0"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i></span>
+          <input
+            v-model.trim="mfa.code"
+            type="text"
+            class="form-control border-0"
+            placeholder="123456"
+            inputmode="numeric"
+            pattern="^[0-9]{4,8}$"
+            maxlength="8"
+            required
+            :disabled="loading"
+            @keydown.enter.prevent="verifyOtp()"
+          />
+        </div>
+        <p v-if="mfa.error" class="small text-danger mb-2">{{ mfa.error }}</p>
+
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary w-50" :disabled="loading" @click="cancelMfa">Cancel</button>
+          <button type="submit" class="btn btn-warning w-50 fw-bold" :disabled="loading || !mfa.code">Verify</button>
+        </div>
+      </form>
+
       <div class="text-center mt-2 small">
         <span class="text-light">Don't have an account?</span>
         <router-link to="/signup" class="text-warning fw-bold ms-1">Signup</router-link>
@@ -139,60 +169,47 @@
           <div>Origin: <code class="text-light">{{ origin }}</code></div>
           <div>API status: <code class="text-light">{{ apiStatus }}</code></div>
           <div>Last error: <code class="text-light">{{ lastError || '-' }}</code></div>
+          <div>MFA: <code class="text-light">{{ mfa }}</code></div>
         </div>
       </details>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineOptions({ name: 'LoginPage' })
 
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import axios from 'axios'
-import { useToast } from 'vue-toastification'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { api, API_ROOT_URL, loginJson, loginForm, verifySession } from '@/lib/api'
 
-const toast = useToast()
 const router = useRouter()
 
-/* ─────────── Helpers ─────────── */
-const trimRightSlash = (s) => String(s || '').replace(/\/+$/, '')
+/* ─────────── Utils ─────────── */
+const origin = window.location.origin
+const trimRightSlash = (s:string) => String(s || '').replace(/\/+$/, '')
+const API_ROOT = trimRightSlash(API_ROOT_URL)
+const ABSOLUTE_LOGIN_URL = 'https://smartbiz-backend-p45m.onrender.com/api/auth/login' // fallback absolute
 
-/* ─────────── API root (NO /api in env; routes below include /api/...) ─────────── */
-const API_ROOT = trimRightSlash(import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000')
-
-/* Axios instance (send cookies just in case; token header added via interceptor) */
-const api = axios.create({
-  baseURL: API_ROOT,
-  withCredentials: true,
-  timeout: 15000,
-  headers: {
-    Accept: 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-  },
-})
-
-/* Absolute fallback (exactly what you asked for) */
-const ABSOLUTE_LOGIN_URL = 'https://smartbiz-backend-lp9u.onrender.com/api/auth/login'
-
-/* ───────────── State ───────────── */
+/* ─────────── State ─────────── */
 const loading  = ref(false)
 const showPwd  = ref(false)
 const capsOn   = ref(false)
 const remember = ref(true)
 const online   = ref(navigator.onLine)
-const form     = ref({ identifier: '', password: '' })
-const errors   = ref({ identifier: '', password: '' })
-
-const idInput  = ref(null)
-const pwdInput = ref(null)
-const origin   = window.location.origin
+const form     = ref<{identifier:string;password:string}>({ identifier: '', password: '' })
+const errors   = ref<{identifier:string;password:string}>({ identifier: '', password: '' })
+const idInput  = ref<HTMLInputElement|null>(null)
+const pwdInput = ref<HTMLInputElement|null>(null)
 const debug    = (import.meta.env.VITE_APP_DEBUG?.toString() === '1') || /[?&]debug=1/.test(location.search)
 const lastError = ref('')
 
+/* MFA */
+const mfa = ref<{required:boolean; token?:string; code?:string; error?:string}>({ required: false })
+
 /* API health status: 'checking' | 'ok' | 'down' | 'cors' */
-const apiStatus = ref('checking')
+const apiStatus = ref<'checking'|'ok'|'down'|'cors'>('checking')
 
 /* Connectivity listeners */
 const _onOnline  = () => (online.value = true)
@@ -203,7 +220,7 @@ onMounted(async () => {
   window.addEventListener('offline', _onOffline)
   document.addEventListener('visibilitychange', onVisChange)
 
-  // If already authenticated (JWT in storage), redirect
+  // If already authenticated, redirect
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
   if (token) { await safePushByRole(); return }
 
@@ -226,33 +243,11 @@ function onVisChange() {
   if (document.visibilityState === 'visible' && apiStatus.value !== 'ok') checkApiHealth()
 }
 
-/* ───────────── Interceptors ───────────── */
-api.interceptors.request.use((config) => {
-  const t = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
-  if (t) config.headers.Authorization = `Bearer ${t}`
-  if (config.data && typeof config.data === 'object' && !(config.data instanceof URLSearchParams)) {
-    config.headers['Content-Type'] = config.headers['Content-Type'] || 'application/json'
-  }
-  return config
-})
+/* ─────────── Validation ─────────── */
+const normalizeId = (v?: string) => (v ?? '').trim()
+const canSubmit = computed(() => normalizeId(form.value.identifier).length > 0 && (form.value.password || '').length > 0)
 
-api.interceptors.response.use(
-  r => r,
-  err => {
-    if (err?.code === 'ECONNABORTED') err.message = 'Request timeout'
-    return Promise.reject(err)
-  }
-)
-
-/* ───────────── Helpers & validation ───────────── */
-const normalizeId = (v) => (v ?? '').trim()
-const isEmail = (v) => /\S+@\S+\.\S+/.test(v)
-
-const canSubmit = computed(() =>
-  normalizeId(form.value.identifier).length > 0 && (form.value.password || '').length > 0
-)
-
-const validate = () => {
+function validate() {
   errors.value.identifier = ''
   errors.value.password = ''
   const id = normalizeId(form.value.identifier)
@@ -261,41 +256,13 @@ const validate = () => {
   return !(errors.value.identifier || errors.value.password)
 }
 
-const parseAxiosError = (err) => {
-  const isCors = !err?.response && !!err?.request
-  const status = err?.response?.status
-  const message =
-    err?.response?.data?.detail ||
-    err?.response?.data?.message ||
-    err?.message ||
-    'Request failed'
-  return { status, isCors, message }
-}
-
-const getErrorMsg = (err) => {
-  const { status, isCors, message } = parseAxiosError(err)
-  if (isCors) return 'Network/CORS error. Ensure the backend allows this origin.'
-  if (status === 499) return 'Client closed the request. Please try again.'
-  if (status === 400) return 'Missing or invalid credentials.'
-  if (status === 401) return 'Invalid credentials.'
-  if (status === 403) return 'You are not allowed to login.'
-  if (status === 404) return 'Login route not found.'
-  if (status === 405) return 'Method not allowed.'
-  if (status === 415) return 'Unsupported content type.'
-  if (status === 422) return 'Invalid input. Please check your fields.'
-  if (status === 429) return 'Too many attempts. Please wait and try again.'
-  if (status === 503) return 'Service temporarily unavailable. Try again shortly.'
-  return message || 'Request failed.'
-}
-
-const onPwdKeyup = (e) => {
-  try { capsOn.value = !!(e?.getModifierState && e.getModifierState('CapsLock')) }
-  catch { capsOn.value = false }
+const onPwdKeyup = (e: KeyboardEvent) => {
+  try { capsOn.value = !!(e.getModifierState && e.getModifierState('CapsLock')) } catch { capsOn.value = false }
 }
 function focusPwd() { pwdInput.value?.focus?.() }
 
-/* ───────────── Save auth (JWT) OR cookie-session ───────────── */
-function saveAuthFromBody(data) {
+/* ─────────── Helpers: save auth (JWT) OR cookie-session ─────────── */
+function saveAuthFromBody(data: any) {
   const token = data?.access_token || data?.token || data?.accessToken
   const user  = data?.user || {}
   const role  = user?.role || data?.role || 'user'
@@ -315,23 +282,19 @@ function saveAuthFromBody(data) {
 }
 
 async function saveAuthFromCookieSession() {
-  const candidates = ['/api/auth/session/verify', '/api/session/verify', '/api/auth/me', '/api/me']
-  for (const p of candidates) {
-    try {
-      const r = await api.get(p, { timeout: 6000 })
-      const user = r?.data?.user || r?.data
-      const role = user?.role || 'user'
-      const name = user?.full_name || user?.name || ''
-      const lang = user?.language || 'en'
-      const storage = remember.value ? localStorage : sessionStorage
-      storage.setItem('user_role', role)
-      storage.setItem('user_name', name)
-      storage.setItem('user_lang', lang)
-      storage.setItem('auth_at', String(Date.now()))
-      return true
-    } catch { /* next */ }
-  }
-  return false
+  try {
+    const profile = await verifySession()
+    const user = profile?.user || profile
+    const role = user?.role || 'user'
+    const name = user?.full_name || user?.name || ''
+    const lang = user?.language || 'en'
+    const storage = remember.value ? localStorage : sessionStorage
+    storage.setItem('user_role', role)
+    storage.setItem('user_name', name)
+    storage.setItem('user_lang', lang)
+    storage.setItem('auth_at', String(Date.now()))
+    return true
+  } catch { return false }
 }
 
 async function safePushByRole() {
@@ -340,38 +303,35 @@ async function safePushByRole() {
     sessionStorage.getItem('user_role') ||
     'user'
   const target =
-    ({ admin: '/dashboard/admin', owner: '/dashboard/owner', user: '/dashboard/user' })[role] ||
+    ({ admin: '/dashboard/admin', owner: '/dashboard/owner', user: '/dashboard/user' } as any)[role] ||
     '/dashboard/user'
   await router.push(target)
 }
 
-/* ───────────── Health check ───────────── */
+/* ─────────── Health check ─────────── */
 async function checkApiHealth() {
   apiStatus.value = 'checking'
   try {
     await api.get('/api/healthz', { timeout: 4000 })
     apiStatus.value = 'ok'
-  } catch (err) {
-    const parsed = parseAxiosError(err)
-    lastError.value = parsed.message
-    apiStatus.value = parsed.isCors ? 'cors' : 'down'
+  } catch (err:any) {
+    const isCors = !err?.response && !!err?.request
+    lastError.value = err?.message || 'Unable to reach API'
+    apiStatus.value = isCors ? 'cors' : 'down'
   }
 }
 
-/* ───────────── Login flow ───────────── */
+/* ─────────── Login flow ─────────── */
 let lastTry = 0
-let inflightSource = null
+let inflightSource: any = null
 const COOLDOWN_MS = 1200
 
-const handleLogin = async () => {
+async function handleLogin() {
   const now = Date.now()
   if (now - lastTry < COOLDOWN_MS || loading.value) return
   lastTry = now
 
-  if (!online.value) {
-    toast.error('You are offline. Please check your connection.')
-    return
-  }
+  if (!navigator.onLine) { lastError.value = 'You are offline.'; return }
   if (!validate()) return
 
   if (inflightSource) inflightSource.cancel('Cancelled due to a new attempt')
@@ -383,77 +343,79 @@ const handleLogin = async () => {
   loading.value = true
   lastError.value = ''
   try {
-    let data = null
+    let data: any = null
 
-    // 1) JSON login (preferred) → /api/auth/login
+    // 1) Preferred JSON login
     try {
-      const payload = isEmail(identifier)
-        ? { email: identifier, password }
-        : { username: identifier, password }
-
-      const r1 = await api.post('/api/auth/login', payload, {
-        cancelToken: inflightSource.token,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      const r1 = await loginJson(identifier, password)
       data = r1.data
-    } catch (e1) {
+    } catch (e1:any) {
       if (axios.isCancel(e1)) return
-      const { status, isCors, message } = parseAxiosError(e1)
-      if (isCors) { lastError.value = message; throw e1 }
-
-      // 1b) Absolute URL fallback (exact call you asked for)
+      // fallback to absolute
       try {
-        const payloadAbs = isEmail(identifier)
+        const payloadAbs = /\S+@\S+\.\S+/.test(identifier)
           ? { email: identifier, password }
           : { username: identifier, password }
-
         const rAbs = await axios.post(
           ABSOLUTE_LOGIN_URL,
           payloadAbs,
-          { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
+          { withCredentials: true, headers: { 'Content-Type': 'application/json' }, cancelToken: inflightSource.token }
         )
         data = rAbs.data
-      } catch (eAbs) {
-        const st = eAbs?.response?.status ?? status
-        if (!st || [404, 405, 415, 422].includes(st)) {
-          // 2) proceed to legacy form
-        } else {
-          lastError.value = message || parseAxiosError(eAbs).message
-          throw eAbs
-        }
+      } catch (eAbs:any) {
+        // fallback to urlencoded form
+        const r2 = await loginForm(identifier, password)
+        data = r2.data
       }
     }
 
-    // 2) Legacy form fallback → /api/auth/login-form
-    if (!data) {
-      const params = new URLSearchParams()
-      params.set('username', identifier) // email/username/phone
-      params.set('password', password)
-      const r2 = await api.post('/api/auth/login-form', params, {
-        cancelToken: inflightSource.token,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      })
-      data = r2.data
+    // Handle MFA
+    if (data?.mfa_required) {
+      mfa.value = { required: true, token: data.mfa_token }
+      return
     }
 
-    // A) JWT in body → save & continue
+    // JWT?
     let authed = saveAuthFromBody(data)
-    // B) Cookie-session → verify profile if no token
+    // Cookie session?
     if (!authed) authed = await saveAuthFromCookieSession()
     if (!authed) throw new Error('Missing token/session in response.')
 
-    toast.success('✅ Login successful! Welcome!')
     await safePushByRole()
-  } catch (err) {
-    const msg = getErrorMsg(err)
-    lastError.value = msg
-    toast.error(`❌ ${msg}`)
+  } catch (err:any) {
+    lastError.value =
+      err?.response?.data?.detail ||
+      err?.response?.data?.message ||
+      err?.message ||
+      'Request failed'
     checkApiHealth()
   } finally {
     loading.value = false
     inflightSource = null
   }
 }
+
+/* ─────────── MFA verify ─────────── */
+async function verifyOtp() {
+  if (!mfa.value.code || !mfa.value.token) { mfa.value.error = 'Enter the code.'; return }
+  mfa.value.error = ''
+  loading.value = true
+  try {
+    const r = await api.post('/api/auth/mfa/verify', {
+      otp: mfa.value.code,
+      mfa_token: mfa.value.token,
+    })
+    let authed = saveAuthFromBody(r.data)
+    if (!authed) authed = await saveAuthFromCookieSession()
+    if (!authed) throw new Error('Session not established after OTP.')
+    await safePushByRole()
+  } catch (e:any) {
+    mfa.value.error = e?.response?.data?.detail || e?.message || 'Invalid code.'
+  } finally {
+    loading.value = false
+  }
+}
+function cancelMfa() { mfa.value = { required: false } }
 </script>
 
 <!-- Global page bg for this route -->
