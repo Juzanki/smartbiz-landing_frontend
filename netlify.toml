@@ -1,94 +1,143 @@
-# netlify.toml — Vite + Vue 3 (SPA) on Netlify
+# netlify.toml — SmartBiz (Vue 3 + Vite) on Netlify
+# Frontend: Netlify  |  Backend (FastAPI): Render
+# Proxy: /api/*  -> https://smartbiz-backend-p45m.onrender.com/api/*
+#        /ws     -> wss://smartbiz-backend-p45m.onrender.com/ws
 
+############################
+# Build Settings
+############################
 [build]
-  # Tumia ci kisha build (Netlify hutumia package-lock.json)
   command = "npm ci && npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
+  # Tumia /api kama base ya mawasiliano; axios itasoma hii.
+  VITE_API_BASE = "/api"
 
-# 🔒 ZIMA Netlify Asset Optimization / Post-processing (tunaamini Vite pekee)
+# Zima post-processing ya Netlify (Vite hufanya minify/bundle tayari)
 [build.processing]
   skip_processing = true
-  # — au tumia granular kama unataka —
-  # [build.processing.css]
-  #   bundle = false
-  #   minify = false
-  # [build.processing.js]
-  #   bundle = false
-  #   minify = false
-  # [build.processing.images]
-  #   compress = false
 
-# ---------------- Redirects ----------------
+############################
+# Redirects (ORDER MATTERS)
+############################
 
-# 1) Bundles/Assets zipite moja kwa moja (zisivunjwe na SPA fallback)
+# 0) Health check (hiari): pitisha moja kwa moja
+[[redirects]]
+  from = "/api/health"
+  to   = "https://smartbiz-backend-p45m.onrender.com/api/health"
+  status = 200
+  force = true
+
+# 1) API HTTP proxy -> Render (Lazima iwe juu ya SPA fallback)
+[[redirects]]
+  from = "/api/*"
+  to   = "https://smartbiz-backend-p45m.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# 2) WebSocket/SSE proxy (kama unatumia)
+[[redirects]]
+  from = "/ws"
+  to   = "wss://smartbiz-backend-p45m.onrender.com/ws"
+  status = 200
+  force = true
+
+# (hiari) socket.io au njia nyingine za ws
+[[redirects]]
+  from = "/socket.io/*"
+  to   = "wss://smartbiz-backend-p45m.onrender.com/socket.io/:splat"
+  status = 200
+  force = true
+
+# 3) Assets za Vite zipite kama zilivyo
 [[redirects]]
   from = "/assets/*"
   to   = "/assets/:splat"
   status = 200
   force = true
 
-# 2) Faili za kawaida zipite moja kwa moja
-[[redirects]]  # favicon
+# 4) Faili za kawaida (favicon/robots/sitemap)
+[[redirects]]
   from = "/favicon.ico"
   to   = "/favicon.ico"
   status = 200
-
-[[redirects]]  # robots
+[[redirects]]
   from = "/robots.txt"
   to   = "/robots.txt"
   status = 200
-
-[[redirects]]  # sitemap
+[[redirects]]
   from = "/sitemap.xml"
   to   = "/sitemap.xml"
   status = 200
 
-# 3) SPA fallback kwa routes zote za app (muhimu kwa Vue Router history mode)
+# 5) SPA fallback (iwe MWISHO ili isimeze /api/*)
 [[redirects]]
   from = "/*"
   to   = "/index.html"
   status = 200
 
-# ---------------- Headers ----------------
+############################
+# Headers
+############################
 
-# A) Security headers kwa kurasa zote
+# A) Global security headers
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
+    X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    # ⚠️ CSP iliyoruhusu app yako kufanya kazi.
-    # Ikiwa utatumia vyanzo maalum (CDN/API), ongeza kwenye connect-src/img-src/font-src n.k.
-    Content-Security-Policy = "default-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; media-src 'self' data: blob: https:; frame-ancestors 'self'; base-uri 'self'"
 
-# B) Usicache index.html (ili kupata deploy mpya mara moja)
+    # ⚠️ CSP imepangwa kuruhusu mawasiliano na Render + WS.
+    # Ongeza CDN/mitandao mingine utakapotumia (fonts, analytics, n.k.).
+    # Ondoa 'unsafe-inline'/'unsafe-eval' ukidhibiti inline script/style.
+    Content-Security-Policy = """
+      default-src 'self' https: blob: data:;
+      base-uri 'self';
+      frame-ancestors 'self';
+      img-src 'self' https: blob: data:;
+      font-src 'self' https: data:;
+      media-src 'self' https: blob: data:;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
+      style-src 'self' 'unsafe-inline' https:;
+      connect-src
+        'self'
+        https://smartbiz-backend-p45m.onrender.com
+        wss://smartbiz-backend-p45m.onrender.com
+        https:;
+    """
+
+# B) Usicache index.html (pata deploy mpya haraka)
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-store, must-revalidate"
 
-# C) Cache kali kwa bundles zilizo na hash (salama sana)
+# C) Cache kali kwa bundles zilizo na hash
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-    # Fonts/CSS kutoka assets kuruhusu matumizi cross-origin (ikihitajika)
-    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Origin = "*"  # huruhusu fonts/CSS cross-origin kama ikihitajika
 
-# D) Service Worker (ikiwa unatumia /sw.js)
+# D) API: zuia cache upande wa Netlify (CORS zitakuja kutoka Render)
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+# E) Service Worker (kama unatumia)
 [[headers]]
   for = "/sw.js"
   [headers.values]
     Service-Worker-Allowed = "/"
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# E) Web App Manifest (hiari)
+# F) Manifest (PWA)
 [[headers]]
   for = "/manifest.webmanifest"
   [headers.values]
