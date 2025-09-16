@@ -56,6 +56,7 @@
               enterkeyhint="next"
               required
             />
+            <small class="text-secondary d-block mt-1">Lowercase & numbers recommended.</small>
           </div>
 
           <!-- EMAIL -->
@@ -230,24 +231,15 @@
   </div>
 </template>
 
-<script setup>
-import axios from 'axios'
+<script setup lang="ts">
 import { reactive, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { api, signup, type SignupPayload } from '@/lib/api'
 
 const router = useRouter()
 
-/* ─────────── API base & axios ───────────
-   .env: VITE_API_BASE_URL = https://smartbiz-backend-lp9u.onrender.com   (BILA /api)
-   Kisha tunaita /api/auth/signup.
------------------------------------------ */
+/** ===== API ROOT (for debugging / logs) ===== */
 const API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '')
-const api = axios.create({
-  baseURL: API_ROOT,
-  withCredentials: true,
-  timeout: 15000,
-  headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-})
 
 /* ─────────── State ─────────── */
 const form = reactive({
@@ -266,17 +258,18 @@ const loading = ref(false)
 const error = ref('')
 const success = ref('')
 const agreed = ref(false)
+let abortCtrl: AbortController | null = null
 
 const countryCodes = [
-  { value: '+255 (TZ)', label: 'tz +255 (TZ)' },
-  { value: '+254 (KE)', label: 'ke +254 (KE)' },
-  { value: '+256 (UG)', label: 'ug +256 (UG)' },
-  { value: '+250 (RW)', label: 'rw +250 (RW)' },
-  { value: '+1 (US)',   label: 'us +1 (US)' },
+  { value: '+255 (TZ)', label: 'TZ +255 (TZ)' },
+  { value: '+254 (KE)', label: 'KE +254 (KE)' },
+  { value: '+256 (UG)', label: 'UG +256 (UG)' },
+  { value: '+250 (RW)', label: 'RW +250 (RW)' },
+  { value: '+1 (US)',   label: 'US +1 (US)'  },
 ]
 
 /* ─────────── Validation ─────────── */
-function isStrongPassword(pwd) {
+function isStrongPassword(pwd?: string) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(pwd || '')
 }
 const canSubmit = computed(() =>
@@ -308,21 +301,21 @@ const strength = computed(() => {
 })
 
 /* ─────────── Helpers ─────────── */
-function normalizeLocalNumber(raw) {
+function normalizeLocalNumber(raw?: string) {
   let digits = String(raw || '').replace(/[^\d]/g, '')
   if (digits.startsWith('0')) digits = digits.replace(/^0+/, '')
   return digits
 }
-function toE164(countryLabel, localRaw) {
+function toE164(countryLabel: string, localRaw: string) {
   const cc = (String(countryLabel || '').match(/\+\d+/) || [''])[0]
   const local = normalizeLocalNumber(localRaw)
   return cc && local ? `${cc}${local}` : local
 }
-function extractError(e) {
+function extractError(e: any): string {
   const r = e?.response
   const data = r?.data
   if (data?.detail) return Array.isArray(data.detail)
-    ? data.detail.map(d => d.msg || d.detail || d).join(' • ')
+    ? data.detail.map((d: any) => d.msg || d.detail || d).join(' • ')
     : String(data.detail)
   if (data?.message) return String(data.message)
   if (r?.status === 409) return 'Email or username already exists.'
@@ -342,34 +335,40 @@ watch(() => form.country_code, v => localStorage.setItem('sb_country', v || ''))
   if (lastCc) form.country_code = lastCc
 })()
 
-/* ─────────── Submit (aligns EXACTLY with PowerShell schema) ─────────── */
+/* ─────────── Submit ─────────── */
 async function onSignup() {
   if (!canSubmit.value || loading.value) return
+  if (!navigator.onLine) {
+    error.value = 'You appear to be offline. Please check your connection.'
+    return
+  }
+
+  // cancel any in-flight request
+  if (abortCtrl) abortCtrl.abort()
+  abortCtrl = new AbortController()
 
   error.value = ''
   success.value = ''
   loading.value = true
 
-  // Jenga phone_number sawa na mfano wa PowerShell: "+255757888541"
   const phone_number = toE164(form.country_code, form.phone_local)
 
-  // Tuma majina yale yale: full_name, username, email, password, phone_number, language, business_name, business_type
-  const payload = {
-    full_name    : form.full_name,
-    username     : form.username,          // ikiwa unataka lowercase: .toLowerCase()
-    email        : form.email,
-    password     : form.password,
+  const payload: SignupPayload = {
+    full_name     : form.full_name,
+    username      : form.username.trim(),
+    email         : form.email.trim(),
+    password      : form.password,
     phone_number,
-    language     : form.language || 'en',
-    business_name: form.business_name || '',
-    business_type: form.business_type || ''
+    language      : form.language || 'en',
+    business_name : form.business_name || '',
+    business_type : form.business_type || ''
   }
 
   try {
-    await api.post('/api/auth/signup', payload)
+    await signup(payload)
     success.value = 'Account created successfully. Redirecting…'
     setTimeout(() => router.push('/login'), 900)
-  } catch (e) {
+  } catch (e: any) {
     error.value = extractError(e)
   } finally {
     loading.value = false
