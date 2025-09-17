@@ -248,14 +248,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, watch } from 'vue'
+import { reactive, ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { authAPI } from '../api/client.js'
+import { authAPI, handleApiError } from '../api/client'
 
 const router = useRouter()
 
 /** ===== API ROOT (for debugging / logs) ===== */
-const API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '')
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 /* ─────────── State ─────────── */
 const form = reactive({
@@ -292,6 +292,8 @@ const countryCodes = [
   { value: '+256 (UG)', label: 'UG +256 (UG)' },
   { value: '+250 (RW)', label: 'RW +250 (RW)' },
   { value: '+1 (US)',   label: 'US +1 (US)'  },
+  { value: '+44 (UK)',  label: 'UK +44 (UK)' },
+  { value: '+27 (ZA)',  label: 'ZA +27 (ZA)' }
 ]
 
 /* ─────────── Validation ─────────── */
@@ -304,10 +306,16 @@ function validateForm() {
   if (!form.full_name.trim()) {
     errors.full_name = 'Full name is required'
     isValid = false
+  } else if (form.full_name.trim().length < 2) {
+    errors.full_name = 'Full name must be at least 2 characters'
+    isValid = false
   }
 
   if (!form.username.trim()) {
     errors.username = 'Username is required'
+    isValid = false
+  } else if (form.username.length < 3) {
+    errors.username = 'Username must be at least 3 characters'
     isValid = false
   } else if (!/^[a-z0-9_]+$/.test(form.username)) {
     errors.username = 'Username can only contain lowercase letters, numbers, and underscores'
@@ -325,8 +333,11 @@ function validateForm() {
   if (!form.password) {
     errors.password = 'Password is required'
     isValid = false
+  } else if (form.password.length < 8) {
+    errors.password = 'Password must be at least 8 characters'
+    isValid = false
   } else if (!isStrongPassword(form.password)) {
-    errors.password = 'Password must be at least 8 characters with uppercase, lowercase, number, and symbol'
+    errors.password = 'Password must include uppercase, lowercase, number, and symbol'
     isValid = false
   }
 
@@ -346,16 +357,21 @@ function validateForm() {
   return isValid
 }
 
-function isStrongPassword(pwd?: string) {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(pwd || '')
+function isStrongPassword(pwd?: string): boolean {
+  if (!pwd) return false
+  const hasUpper = /[A-Z]/.test(pwd)
+  const hasLower = /[a-z]/.test(pwd)
+  const hasNumber = /\d/.test(pwd)
+  const hasSpecial = /[^\w\s]/.test(pwd)
+  return hasUpper && hasLower && hasNumber && hasSpecial && pwd.length >= 8
 }
 
 const canSubmit = computed(() =>
-  !!form.full_name &&
-  !!form.username &&
-  !!form.email &&
+  !!form.full_name?.trim() &&
+  !!form.username?.trim() &&
+  !!form.email?.trim() &&
   !!form.password &&
-  !!form.phone_local &&
+  !!form.phone_local?.trim() &&
   !!form.language &&
   agreed.value &&
   isStrongPassword(form.password)
@@ -363,66 +379,67 @@ const canSubmit = computed(() =>
 
 const strength = computed(() => {
   const p = form.password || ''
-  let s = 0
-  if (p.length >= 8) s++
-  if (/[A-Z]/.test(p)) s++
-  if (/[a-z]/.test(p)) s++
-  if (/\d/.test(p)) s++
-  if (/[^\w\s]/.test(p)) s++
-  const map = [
-    { label: 'Too weak', percent: 10,  barClass: 'bg-danger'  },
-    { label: 'Weak',     percent: 30,  barClass: 'bg-danger'  },
-    { label: 'Fair',     percent: 55,  barClass: 'bg-warning' },
-    { label: 'Good',     percent: 75,  barClass: 'bg-info'    },
-    { label: 'Strong',   percent: 100, barClass: 'bg-success' },
+  let score = 0
+  
+  if (p.length >= 8) score++
+  if (/[A-Z]/.test(p)) score++
+  if (/[a-z]/.test(p)) score++
+  if (/\d/.test(p)) score++
+  if (/[^\w\s]/.test(p)) score++
+  
+  const levels = [
+    { label: 'Too weak', percent: 20, barClass: 'bg-danger' },
+    { label: 'Weak', percent: 40, barClass: 'bg-danger' },
+    { label: 'Fair', percent: 60, barClass: 'bg-warning' },
+    { label: 'Good', percent: 80, barClass: 'bg-info' },
+    { label: 'Strong', percent: 100, barClass: 'bg-success' }
   ]
-  return map[Math.max(0, Math.min(s - 1, 4))]
+  
+  return levels[Math.min(score, levels.length - 1)]
 })
 
 /* ─────────── Helpers ─────────── */
-function normalizeLocalNumber(raw?: string) {
+function normalizeLocalNumber(raw?: string): string {
   let digits = String(raw || '').replace(/[^\d]/g, '')
-  if (digits.startsWith('0')) digits = digits.replace(/^0+/, '')
+  if (digits.startsWith('0')) digits = digits.substring(1)
   return digits
 }
 
-function toE164(countryLabel: string, localRaw: string) {
-  const cc = (String(countryLabel || '').match(/\+\d+/) || [''])[0]
+function toE164(countryLabel: string, localRaw: string): string {
+  const ccMatch = countryLabel.match(/\+(\d+)/)
+  const cc = ccMatch ? ccMatch[0] : ''
   const local = normalizeLocalNumber(localRaw)
   return cc && local ? `${cc}${local}` : local
 }
 
 function extractError(e: any): string {
-  const r = e?.response
-  const data = r?.data
-  if (data?.detail) return Array.isArray(data.detail)
-    ? data.detail.map((d: any) => d.msg || d.detail || d).join(' • ')
-    : String(data.detail)
-  if (data?.message) return String(data.message)
-  if (r?.status === 409) return 'Email or username already exists.'
-  if (r?.status === 422) return 'Invalid input. Please check your fields.'
-  if (e?.code === 'ECONNABORTED') return 'Request timed out. Try again.'
-  return e?.message || 'Something went wrong. Please try again.'
+  return handleApiError(e)
 }
 
 /* UX: clear alerts while typing; remember last picks */
 watch(() => ({...form, agreed: agreed.value}), () => { 
-  error.value = ''; 
-  success.value = '';
+  error.value = ''
+  success.value = ''
   // Clear errors when user starts typing
-  Object.keys(errors).forEach(key => errors[key] = '');
-}, { deep:true })
+  Object.keys(errors).forEach(key => errors[key] = '')
+}, { deep: true })
 
-watch(() => form.email, v => localStorage.setItem('sb_last_email', v || ''))
-watch(() => form.country_code, v => localStorage.setItem('sb_country', v || ''))
+watch(() => form.email, v => {
+  if (v) localStorage.setItem('sb_last_email', v)
+})
+
+watch(() => form.country_code, v => {
+  if (v) localStorage.setItem('sb_country', v)
+})
 
 // Load saved data on component mount
-;(() => {
+onMounted(() => {
   const lastEmail = localStorage.getItem('sb_last_email')
   const lastCc = localStorage.getItem('sb_country')
+  
   if (lastEmail) form.email = lastEmail
   if (lastCc) form.country_code = lastCc
-})()
+})
 
 /* ─────────── Submit ─────────── */
 async function onSignup() {
@@ -433,8 +450,10 @@ async function onSignup() {
     return
   }
 
-  // cancel any in-flight request
-  if (abortCtrl) abortCtrl.abort()
+  // Cancel any in-flight request
+  if (abortCtrl) {
+    abortCtrl.abort()
+  }
   abortCtrl = new AbortController()
 
   error.value = ''
@@ -444,24 +463,34 @@ async function onSignup() {
   const phone_number = toE164(form.country_code, form.phone_local)
 
   const payload = {
-    full_name     : form.full_name,
-    username      : form.username.trim(),
-    email         : form.email.trim(),
+    full_name     : form.full_name.trim(),
+    username      : form.username.trim().toLowerCase(),
+    email         : form.email.trim().toLowerCase(),
     password      : form.password,
     phone_number,
-    language      : form.language || 'en',
-    business_name : form.business_name || '',
-    business_type : form.business_type || ''
+    language      : form.language,
+    business_name : form.business_name.trim() || undefined,
+    business_type : form.business_type || undefined
   }
 
   try {
     const response = await authAPI.signUp(payload)
-    success.value = 'Account created successfully. Redirecting…'
     
-    // Save user data for auto-login
-    localStorage.setItem('sb_signup_email', form.email)
-    
-    setTimeout(() => router.push('/login'), 1500)
+    if (response.data) {
+      success.value = 'Account created successfully. Redirecting to login…'
+      
+      // Save user data for auto-login
+      localStorage.setItem('sb_signup_email', form.email)
+      localStorage.setItem('sb_signup_success', 'true')
+      
+      // Redirect after delay
+      setTimeout(() => {
+        router.push({ 
+          path: '/login',
+          query: { registered: 'true', email: form.email }
+        })
+      }, 1500)
+    }
   } catch (e: any) {
     error.value = extractError(e)
     
@@ -470,116 +499,126 @@ async function onSignup() {
       const backendErrors = e.response.data.errors
       Object.keys(backendErrors).forEach(key => {
         if (errors.hasOwnProperty(key)) {
-          errors[key] = backendErrors[key][0]
+          errors[key] = Array.isArray(backendErrors[key]) 
+            ? backendErrors[key][0] 
+            : backendErrors[key]
         }
       })
     }
   } finally {
     loading.value = false
+    abortCtrl = null
   }
 }
 </script>
 
-<!-- Global page bg for this route -->
 <style>
-html, body { background: #0b1220; }
+html, body { 
+  background: #0b1220 !important;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
 </style>
 
 <style scoped>
-.bg-dark { background: #0b1220 !important; }
-.card    { background: #0f1e34 !important; }
-
-.card {
-  box-shadow: 0 8px 28px rgba(0,0,0,.4), 0 0 0 2px #ffd70033;
-  border: 2px solid #ffd700 !important;
-  transition: box-shadow .3s ease, transform .2s ease;
+.page {
+  min-height: 100vh;
+  background: #0b1220 !important;
+  padding: 2rem 1rem;
 }
+
+.wrap {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.bg-dark { 
+  background: #0b1220 !important; 
+}
+
+.card { 
+  background: #0f1e34 !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 0 0 2px rgba(255, 215, 0, 0.2) !important;
+  border: 2px solid #ffd700 !important;
+  border-radius: 1rem !important;
+  transition: all 0.3s ease;
+}
+
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 32px rgba(0,0,0,.5), 0 0 0 2px #ffd70066;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 2px rgba(255, 215, 0, 0.4) !important;
 }
 
-input.form-control,
-select.form-select,
-.form-check-input {
+:deep(.input-dark),
+:deep(.form-control.input-dark),
+:deep(.form-select.input-dark) {
   background: #132441 !important;
-  color: #fff !important;
+  color: #ffffff !important;
   border: none !important;
-  border-radius: .5rem;
-  padding: .65rem .85rem;
-  font-size: .95rem;
-  transition: box-shadow .25s ease;
+  border-radius: 0.5rem !important;
+  padding: 0.65rem 0.85rem !important;
+  font-size: 0.95rem !important;
+  transition: box-shadow 0.25s ease !important;
 }
-input.form-control::placeholder { color: #b9c3d3 !important; opacity: .9; }
-select.form-select { color: #d4dbe6 !important; }
 
-input:focus, select:focus {
+:deep(.input-dark:focus),
+:deep(.form-control.input-dark:focus),
+:deep(.form-select.input-dark:focus) {
   outline: none !important;
-  box-shadow: 0 0 0 2px #ffd70099 !important;
+  box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.6) !important;
+  background: #132441 !important;
+  color: #ffffff !important;
 }
 
-.input-dark.is-invalid {
+:deep(.input-dark::placeholder) {
+  color: #b9c3d3 !important;
+  opacity: 0.9 !important;
+}
+
+:deep(.form-select.input-dark) {
+  color: #d4dbe6 !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffd700' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+:deep(.input-dark.is-invalid) {
   box-shadow: 0 0 0 2px #dc3545 !important;
 }
 
 .invalid-feedback {
-  color: #ff6b6b;
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
+  color: #ff6b6b !important;
+  font-size: 0.8rem !important;
+  margin-top: 0.25rem !important;
 }
 
 .btn-warning {
-  background-color: #ffd700 !important;
+  background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
   color: #0b1220 !important;
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
   border: none !important;
-  border-radius: .6rem;
-  transition: all .2s ease;
-}
-.btn-warning:hover { background-color: #ffdd33 !important; box-shadow: 0 0 10px rgba(255,214,0,.4); }
-.btn-warning:active,
-.btn-warning:focus { background: #ffec80 !important; outline: none !important; }
-.btn-warning:disabled { opacity: 0.7; cursor: not-allowed; }
-
-.text-warning { color: #ffd700 !important; }
-.form-label, .form-check-label { font-size: .85rem; color: #c7d0df; }
-
-.form-check-input {
-  accent-color: #ffd700 !important;
-  width: 1.15em; height: 1.15em; margin-top: .25em;
-  border: 2px solid #ffd700 !important; border-radius: .3em;
-  cursor: pointer; appearance: auto !important; -webkit-appearance: auto !important;
-}
-.form-check-input.is-invalid {
-  border-color: #dc3545 !important;
-}
-.form-check-label { cursor: pointer; }
-
-/* Strength bar */
-.progress.strength { height: 6px; background: #132441; }
-.progress-bar.bg-danger  { background:#ff6b6b !important; }
-.progress-bar.bg-warning { background:#ffd166 !important; }
-.progress-bar.bg-info    { background:#4dabf7 !important; }
-.progress-bar.bg-success { background:#51cf66 !important; }
-
-.alert {
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.9rem;
+  border-radius: 0.6rem !important;
+  padding: 0.75rem 1.5rem !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3) !important;
 }
 
-@media (max-width: 480px) {
-  .btn-warning { font-size: .95rem; padding: .6rem 1.1rem; }
-  input.form-control, select.form-select { font-size: .9rem; padding: .6rem .85rem; }
+.btn-warning:hover {
+  background: linear-gradient(135deg, #ffed4e, #fff176) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4) !important;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out;
+.btn-warning:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+.text-warning {
+  color: #ffd700 !important;
 }
-</style>
+
+.form-label,
+.form-check-label {
+  font-size: 0.85rem !important;
+  color: #c7d0df !impo
