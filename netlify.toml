@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────
+# Netlify config — Vite + Vue 3 (SPA) + API proxy to Render
+# Inazima matatizo ya MIME text/html na inaweka CSP salama
+# ─────────────────────────────────────────────────────────────
+
 [build]
   command = "npm ci && npm run build"
   publish = "dist"
@@ -5,17 +10,55 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# 1) PROXY: /api → Render (iwe juu ya SPA redirect)
 [[redirects]]
   from = "/api/*"
-  to = "https://smartbiz-backend-p45m.onrender.com/:splat"
+  to   = "https://smartbiz-backend-p45m.onrender.com/:splat"
   status = 200
-  force = true
+  force  = true
 
+# 2) SPA fallback: rudi index.html kwa routes zisizo file halisi
+#    (HII IWE MWISHO ili isizime assets/*.js au /api/*)
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
+
+# 3) HEADERS ZA USALAMA (global)
 [[headers]]
   for = "/*"
   [headers.values]
-  Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://smartbiz-backend-p45m.onrender.com wss://smartbiz-backend-p45m.onrender.com https:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+  # CSP: ruhusu scripts kutoka 'self'; kwa sasa 'unsafe-inline' ili kuepusha block
+  # Ukishapunguza inline scripts, ondoa 'unsafe-inline' na tumia nonce au hashes.
+  Content-Security-Policy = """
+    default-src 'self';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self' data:;
+    connect-src 'self' https://smartbiz-backend-p45m.onrender.com wss://smartbiz-backend-p45m.onrender.com https:;
+    object-src 'none';
+    base-uri 'self';
+    frame-ancestors 'self';
+    form-action 'self'
+  """
   Referrer-Policy = "strict-origin-when-cross-origin"
   X-Content-Type-Options = "nosniff"
   X-Frame-Options = "DENY"
   Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+  Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+# 4) CACHING: waruhusu assets za Vite zicache vizuri (lakini si HTML)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+# 5) API via proxy: usicache, hurahisisha CORS wakati wa proxy
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+  Cache-Control = "no-store"
+  Access-Control-Allow-Origin = "*"
+  Access-Control-Allow-Headers = "Content-Type, Authorization"
+  Access-Control-Allow-Methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
