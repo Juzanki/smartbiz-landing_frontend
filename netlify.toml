@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────
 # Netlify config — Vite + Vue 3 (SPA) + API proxy to Render
-# Inazima matatizo ya MIME text/html na inaweka CSP salama
+# Hutatua: 1) script MIME "text/html"  2) CSP blocks  3) Caching ya assets
 # ─────────────────────────────────────────────────────────────
 
 [build]
@@ -10,26 +10,38 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# 1) PROXY: /api → Render (iwe juu ya SPA redirect)
+# Hakikisha production env inatumia proxy ya Netlify kwa API
+[context.production.environment]
+  VITE_API_BASE = "/api"
+
+# (Optional) Deploy previews pia zitumie proxy hiyo hiyo
+[context.deploy-preview.environment]
+  VITE_API_BASE = "/api"
+
+# ── Redirects ─────────────────────────────────────────────────
+
+# 1) PROXY: /api/* → Render backend
+#    Lazima iwe JUU ya SPA fallback ili isishikwe na index.html
 [[redirects]]
-  from = "/api/*"
-  to   = "https://smartbiz-backend-p45m.onrender.com/:splat"
+  from   = "/api/*"
+  to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
   status = 200
   force  = true
 
-# 2) SPA fallback: rudi index.html kwa routes zisizo file halisi
-#    (HII IWE MWISHO ili isizime assets/*.js au /api/*)
+# 2) SPA fallback: route yoyote isiyo file halisi irudi index.html
+#    HII WEKA MWISHONI – ndiyo kizuizi kikuu cha MIME=text/html kwa scripts
 [[redirects]]
-  from = "/*"
-  to   = "/index.html"
+  from   = "/*"
+  to     = "/index.html"
   status = 200
 
-# 3) HEADERS ZA USALAMA (global)
+# ── Global Security Headers ───────────────────────────────────
+
 [[headers]]
   for = "/*"
   [headers.values]
-  # CSP: ruhusu scripts kutoka 'self'; kwa sasa 'unsafe-inline' ili kuepusha block
-  # Ukishapunguza inline scripts, ondoa 'unsafe-inline' na tumia nonce au hashes.
+  # CSP: tunaruhusu inline scripts/styles kwa sasa ili kuepuka block;
+  # ukishasafisha inline, ondoa 'unsafe-inline' na tumia nonce/hash.
   Content-Security-Policy = """
     default-src 'self';
     script-src 'self' 'unsafe-inline';
@@ -40,25 +52,34 @@
     object-src 'none';
     base-uri 'self';
     frame-ancestors 'self';
-    form-action 'self'
+    form-action 'self';
+    upgrade-insecure-requests
   """
   Referrer-Policy = "strict-origin-when-cross-origin"
   X-Content-Type-Options = "nosniff"
   X-Frame-Options = "DENY"
   Permissions-Policy = "camera=(), microphone=(), geolocation=()"
   Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+  X-Permitted-Cross-Domain-Policies = "none"
 
-# 4) CACHING: waruhusu assets za Vite zicache vizuri (lakini si HTML)
+# HTML haitaki cache ili kila deploy ianze upya vizuri
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+  Cache-Control = "no-store, max-age=0, must-revalidate"
+
+# Vite assets: cache ya mwaka + immutable (hash kwenye majina)
 [[headers]]
   for = "/assets/*"
   [headers.values]
   Cache-Control = "public, max-age=31536000, immutable"
 
-# 5) API via proxy: usicache, hurahisisha CORS wakati wa proxy
+# API (kupitia proxy ya Netlify): usicache response
+# (Hakuna CORS here kwa sababu ni same-origin kupitia proxy;
+# ukihitaji, weka headers zako kwenye backend yenyewe.)
 [[headers]]
   for = "/api/*"
   [headers.values]
   Cache-Control = "no-store"
-  Access-Control-Allow-Origin = "*"
-  Access-Control-Allow-Headers = "Content-Type, Authorization"
-  Access-Control-Allow-Methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  # If you ever need to expose headers to client JS:
+  Access-Control-Expose-Headers = "set-cookie, content-disposition"
