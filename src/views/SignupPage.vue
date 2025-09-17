@@ -250,7 +250,7 @@
 <script setup lang="ts">
 import { reactive, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { authAPI } from '@/api/client'
+import { authAPI } from '../api/client.js'
 
 const router = useRouter()
 
