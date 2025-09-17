@@ -4,55 +4,50 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
     <title>SmartBiz Assistance</title>
+
     <meta name="description" content="SmartBiz Assistance — live streaming + AI host tools." />
     <meta name="theme-color" content="#0f172a" />
     <meta name="color-scheme" content="dark light" />
-    <!-- Epuka kuserve HTML ya zamani wakati wa ku-debug (prod unaweza kuondoa) -->
+    <!-- (Hiari kwa debug) Epuka HTML ya zamani wakati wa ku-test -->
     <meta http-equiv="Cache-Control" content="no-store" />
 
     <!-- Muhimu kwa SPA: mizizi ya routes/assets -->
     <base href="/" />
 
     <link rel="icon" href="/favicon.ico" />
-    <!-- <link rel="apple-touch-icon" href="/apple-touch-icon.png" /> -->
     <!-- <link rel="manifest" href="/manifest.webmanifest" /> -->
 
     <style>
-      :root {
+      :root{
         --bg:#000; --fg:#fff; --muted:#b3b3b3;
         --ring:#9fa8ff; --ring-offline:#f59e0b; --ring-route:#22d3ee;
         --btn:#2563eb; --btn-fg:#fff; --btn-hover:#1e40af
       }
-      @media (prefers-color-scheme: light) {
-        :root { --bg:#ffffff; --fg:#0b1220; --muted:#5b6472; }
-      }
-      html, body, #app { height: 100% }
-      body {
+      @media (prefers-color-scheme: light){ :root{ --bg:#fff; --fg:#0b1220; --muted:#5b6472 } }
+      html,body,#app{ height:100% }
+      body{
         margin:0; background:var(--bg); color:var(--fg);
-        font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";
         -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility
       }
-      #app { display:grid; place-items:center }
-      .sb-loader { display:flex; flex-direction:column; align-items:center; gap:12px; opacity:.95 }
+      #app{ display:grid; place-items:center }
+      .sb-loader{ display:flex; flex-direction:column; align-items:center; gap:12px; opacity:.95 }
       .sb-ring{ width:44px; height:44px; border:3px solid #ffffff33; border-top-color:var(--ring); border-radius:50%; animation:sb-spin 1s linear infinite }
-      @keyframes sb-spin { to { transform: rotate(360deg) } }
+      @keyframes sb-spin{ to{ transform:rotate(360deg) } }
       .sb-note{ color:var(--muted); font-size:14px }
       body.offline .sb-ring{ border-top-color:var(--ring-offline) }
       body.route-loading .sb-ring{ border-top-color:var(--ring-route) }
-      @media (prefers-reduced-motion: reduce) { .sb-ring { animation-duration:2s } }
+      @media (prefers-reduced-motion: reduce){ .sb-ring{ animation-duration:2s } }
       button.sb-btn{ background:var(--btn); color:var(--btn-fg); border:0; padding:.6rem 1rem; border-radius:.6rem; cursor:pointer }
       button.sb-btn:hover{ background:var(--btn-hover) }
-
-      /* ====== DEBUG overlay (itaonekana tu panapotokea error) ====== */
-      #sb-debug {
-        position:fixed; left:8px; right:8px; bottom:8px; max-height:42vh;
-        overflow:auto; background:#0b1220; color:#9ef; padding:10px 12px;
-        border:1px solid #234; border-radius:8px; font:12px/1.45 ui-monospace,monospace;
-        z-index:2147483647; white-space:pre-wrap; display:none
+      /* Debug overlay: inaonekana tu panapotokea error */
+      #sb-debug{
+        position:fixed; left:8px; right:8px; bottom:8px; max-height:42vh; overflow:auto;
+        background:#0b1220; color:#9ef; padding:10px 12px; border:1px solid #234; border-radius:8px;
+        font:12px/1.45 ui-monospace,monospace; z-index:2147483647; white-space:pre-wrap; display:none
       }
-      #sb-debug.show { display:block }
+      #sb-debug.show{ display:block }
     </style>
   </head>
 
@@ -70,93 +65,80 @@
       </noscript>
     </div>
 
-    <!-- ======= DEBUG OVERLAY node ======= -->
+    <!-- DEBUG OVERLAY -->
     <pre id="sb-debug" aria-live="polite"></pre>
 
-    <!-- ======= Guards + recovery + error overlay ======= -->
+    <!-- Guards + recovery + error overlay -->
     <script>
-      (function () {
-        // .no-js → .js
-        try { document.documentElement.classList.remove('no-js'); document.documentElement.classList.add('js'); } catch(_) {}
+      (function(){
+        try{ document.documentElement.classList.replace('no-js','js') }catch{}
 
-        // Weka lang/dir kulingana na browser au user_lang
-        try {
+        // Lang/dir
+        try{
           var saved = localStorage.getItem('user_lang');
           var nav = (saved || (navigator.language||'en')).toLowerCase();
           var dir = /^(ar|fa|ur|he)\b/.test(nav) ? 'rtl' : 'ltr';
           document.documentElement.setAttribute('lang', nav.slice(0,2));
           document.documentElement.setAttribute('dir', dir);
-        } catch(_) {}
+        }catch{}
 
-        // vh-fix (hasa iOS)
+        // vh-fix
         function setVH(){ try{
           var vh = (window.innerHeight||0)*0.01;
           document.documentElement.style.setProperty('--vh', vh+'px');
-        }catch(_){}} setVH();
-        addEventListener('resize', setVH, {passive:true});
-        addEventListener('orientationchange', setVH, {passive:true});
+        }catch{} }
+        setVH(); addEventListener('resize', setVH, {passive:true}); addEventListener('orientationchange', setVH, {passive:true});
 
-        // on/offline hint
+        // network hint
         function setNetHint(){
           try{
-            var h = document.getElementById('sb-hint'); if(!h) return;
-            if (navigator.onLine) { document.body.classList.remove('offline'); h.textContent = '' }
-            else { document.body.classList.add('offline'); h.textContent = 'You seem offline. Some features may pause.' }
-          }catch(_){}
+            var h=document.getElementById('sb-hint'); if(!h) return;
+            if(navigator.onLine){ document.body.classList.remove('offline'); h.textContent='' }
+            else{ document.body.classList.add('offline'); h.textContent='You seem offline. Some features may pause.' }
+          }catch{}
         }
         addEventListener('online', setNetHint); addEventListener('offline', setNetHint); setNetHint();
 
-        // ===== Error overlay (kuona runtime error ya kwanza) =====
-        function dbg(){ var el=document.getElementById('sb-debug'); if(!el) return el;
-          el.classList.add('show'); return el; }
-        function log(){ var el=dbg(); if(!el) return; el.textContent += Array.from(arguments).map(String).join(' ')+'\n'; }
-        addEventListener('error', function(e){ log('ERR:', e.message,'@', (e.filename||'').replace(location.origin,''),':',e.lineno||'',e.colno||''); if(e.error&&e.error.stack) log(e.error.stack) }, {once:false});
-        addEventListener('unhandledrejection', function(e){ var r=e.reason||{}; log('REJ:', (r.message||r).toString()); if(r.stack) log(r.stack) }, {once:false});
+        // error overlay
+        function dbg(){ var el=document.getElementById('sb-debug'); if(!el) return el; el.classList.add('show'); return el }
+        function log(){ var el=dbg(); if(!el) return; el.textContent += Array.from(arguments).map(String).join(' ')+'\n' }
+        addEventListener('error', e => { log('ERR:', e.message,'@',(e.filename||'').replace(location.origin,''),':',e.lineno||'',e.colno||''); if(e.error&&e.error.stack) log(e.error.stack) })
+        addEventListener('unhandledrejection', e => { var r=e.reason||{}; log('REJ:', (r.message||r).toString()); if(r.stack) log(r.stack) })
 
-        // Watchdog: kama app haijamount → onyesha Reload + usafishe SW za zamani
-        var TIMEOUT_MS = 12000;
+        // watchdog
+        var TIMEOUT_MS=12000;
         setTimeout(function(){
           if(!window.__APP_MOUNTED__){
             var el=document.getElementById('app'); if(!el) return;
             el.innerHTML =
               '<div style="text-align:center;max-width:560px;margin:0 auto;padding:24px">' +
-                '<div class="sb-ring" style="margin:0 auto 12px"></div>' +
-                '<div style="font-weight:700;margin-bottom:8px">Still loading…</div>' +
-                '<div class="sb-note" style="margin-bottom:12px">If this stays for long, try a hard refresh (Ctrl/Cmd + F5).</div>' +
-                '<button class="sb-btn" id="sb-reload">Reload</button>' +
+              '<div class="sb-ring" style="margin:0 auto 12px"></div>' +
+              '<div style="font-weight:700;margin-bottom:8px">Still loading…</div>' +
+              '<div class="sb-note" style="margin-bottom:12px">Try a hard refresh (Ctrl/Cmd + F5).</div>' +
+              '<button class="sb-btn" id="sb-reload">Reload</button>' +
               '</div>';
             try{
-              if('serviceWorker' in navigator){
-                navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister() }) })
+              if("serviceWorker" in navigator){
+                navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()))
               }
               var btn=document.getElementById('sb-reload');
               if(btn) btn.addEventListener('click', function(){
-                var u = new URL(location.href);
-                u.searchParams.set('v', Date.now().toString());
-                location.replace(u.toString());
-              });
-            }catch(_){}
-            log('NOTE: App did not mount within '+(TIMEOUT_MS/1000)+'s.');
+                var u=new URL(location.href); u.searchParams.set('v', Date.now().toString()); location.replace(u.toString())
+              })
+            }catch{}
+            log('NOTE: App did not mount within '+(TIMEOUT_MS/1000)+'s.')
           }
-        }, TIMEOUT_MS);
+        }, TIMEOUT_MS)
 
-        // Route-loading indicator (Vue router itaondoa class baada ya nav)
-        addEventListener('sb:route:start', function(){ try{ document.body.classList.add('route-loading') }catch(_){}})
-        addEventListener('sb:route:end', function(){ try{ document.body.classList.remove('route-loading') }catch(_){}})
+        // route loading hooks (optional – app itatuma custom events)
+        addEventListener('sb:route:start', ()=>{ try{ document.body.classList.add('route-loading') }catch{} })
+        addEventListener('sb:route:end',   ()=>{ try{ document.body.classList.remove('route-loading') }catch{} })
       })();
     </script>
 
-    <script nomodule>
-      document.getElementById('app').innerHTML =
-        '<div style="max-width:560px;margin:2rem auto;color:#eee">' +
-          '<h2>Unsupported browser</h2>' +
-          '<p>Please update your browser to the latest version to use SmartBiz.</p>' +
-        '</div>';
-    </script>
-
-    <!-- ✅ Vite entry (DEV). Wakati wa build, Vite hubadilisha kuwa /assets/index-XXXX.js -->
+    <!-- ✅ Vite ENTRY:
+         DEV: Vite hutumia /src/main.js
+         PROD: Vite ata-REWRITE kuwa /assets/index-xxxxx.js -->
     <script type="module" src="/src/main.js"></script>
-    <!-- Kama unatumia TypeScript, Vite pia ata-handle:
-    <script type="module" src="/src/main.ts"></script> -->
   </body>
 </html>
