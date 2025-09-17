@@ -4,12 +4,13 @@ import vue from '@vitejs/plugin-vue'
 import path from 'node:path'
 
 /* ---------------------- Helpers ---------------------- */
-const trimRightSlash = (u) => String(u || '').replace(/\/+$/, '')
-const isHttp = (u) => /^https?:\/\//i.test(String(u || ''))
-const toBool = (v, d = false) =>
-  v === true || v === 'true' ? true : v === false || v === 'false' ? false : d
+const stripEndSlashes = (u) => String(u || '').replace(/\/+$/, '')
+const isHttpsPublic = (u) => /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(String(u || ''))
+const isPrivateOrLocal = (u) =>
+  /(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)/i.test(
+    String(u || '')
+  )
 
-/** Optional vendor chunking */
 function vendorChunks(id) {
   if (!id || !id.includes('node_modules')) return
   const tail = id.split('node_modules/')[1] || ''
@@ -20,74 +21,31 @@ function vendorChunks(id) {
   return 'vendor'
 }
 
+/** Sanitize API base:
+ * - '/api' or ''  → tumia Netlify proxy
+ * - https://...   → ruhusu (public domain tu)
+ * - vingine vyote → rudi '/api'
+ */
+function normalizeApiBase(env) {
+  const raw = env.VITE_API_BASE ?? env.VITE_API_BASE_URL ?? ''
+  if (!raw || String(raw).trim() === '' || String(raw).trim() === '/api') return '/api'
+  const c = stripEndSlashes(String(raw).trim())
+  if (isHttpsPublic(c) && !isPrivateOrLocal(c)) return c
+  return '/api'
+}
+
 /* ---------------------- Config ----------------------- */
-export default defineConfig(async ({ mode, command }) => {
-  const env = loadEnv(mode, process.cwd(), '') // soma .env* zote
+export default defineConfig(({ mode, command }) => {
+  const env = loadEnv(mode, process.cwd(), '')
   const IS_PROD = mode === 'production'
-  const IS_SERVE = command === 'serve'
+  const API_BASE = normalizeApiBase(env) // '/api' au https://...
 
-  // API root (BILA /api). Mfano: https://smartbiz-backend-lp9u.onrender.com
-  const API_ROOT = trimRightSlash(env.VITE_API_BASE_URL || 'http://127.0.0.1:8000')
-
-  // Base ya app (Netlify hu-deploy kwenye root, hivyo '/')
-  const base = '/'
-
-  // Plugins za lazima
-  const plugins = [vue({ reactivityTransform: false })]
-
-  // (Hiari) Vue JSX
-  try {
-    const { default: vueJsx } = await import('@vitejs/plugin-vue-jsx')
-    plugins.push(vueJsx())
-  } catch { /* hakuna -> ruka */ }
-
-  // (Hiari) UnoCSS
-  try {
-    const { default: UnoCSS } = await import('unocss/vite')
-    plugins.push(UnoCSS())
-  } catch { /* hakuna -> ruka */ }
-
-  // (Hiari) Vite DevTools
-  if (toBool(env.VITE_DEVTOOLS, false)) {
-    try {
-      const { default: devtools } = await import('vite-plugin-vue-devtools')
-      plugins.push(devtools())
-    } catch { /* hakuna -> ruka */ }
-  }
-
-  // Minify strategy: VITE_MINIFY = 'terser' | 'esbuild' | 'none'
-  const wantMin = String(env.VITE_MINIFY || 'terser').toLowerCase()
-  let minify = false
-  let terserOptions
-
-  if (wantMin === 'esbuild') {
-    minify = 'esbuild'
-  } else if (wantMin === 'terser') {
-    try {
-      await import('terser')
-      minify = 'terser'
-      // ONDOA mangle ili kuepuka makosa ya lexical init
-      terserOptions = {
-        mangle: false,
-        compress: { passes: 2, drop_debugger: true, drop_console: false },
-        format: { comments: false },
-      }
-    } catch {
-      minify = false
-    }
-  } // 'none' => false
-
-  // Chunking: VITE_CHUNKING = 'auto' | 'vendor'
-  const chunking = String(env.VITE_CHUNKING || 'auto').toLowerCase()
-  const rollupOutput = {
-    entryFileNames: 'assets/[name]-[hash].js',
-    chunkFileNames: 'assets/[name]-[hash].js',
-    assetFileNames: 'assets/[name]-[hash][extname]',
-    ...(chunking === 'vendor' ? { manualChunks: vendorChunks } : {}),
-  }
+  const plugins = [vue()]
 
   return {
-    base,
+    // 🔴 WA MUHIMU: Assets ziandikwe kama /assets/... sio relative → inamaliza MIME text/html
+    base: '/',
+
     plugins,
 
     resolve: {
@@ -104,8 +62,7 @@ export default defineConfig(async ({ mode, command }) => {
     envPrefix: ['VITE_', 'SB_'],
 
     define: {
-      // Tumia __API_ROOT__ ndani ya app yako (mfano axios baseURL)
-      __API_ROOT__: JSON.stringify(API_ROOT),
+      // kwa reference ya build/time tu — API base haikai hapa tena
       __APP_ENV__: JSON.stringify(env.VITE_ENVIRONMENT || mode),
       __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
       'process.env.NODE_ENV': JSON.stringify(mode),
@@ -115,59 +72,52 @@ export default defineConfig(async ({ mode, command }) => {
       host: '0.0.0.0',
       port: 5173,
       strictPort: true,
-      open: false,
       hmr: { overlay: false },
       cors: true,
-      // Dev proxy: umoje safi—frontend itapiga /api/... na kuelekezwa API_ROOT
-      proxy: {
-        '/api': {
-          target: API_ROOT,
-          changeOrigin: true,
-          secure: false,
-        },
-      },
-      watch: { usePolling: false, interval: 100 },
+      // Dev proxy: ikiwa umeweka URL kamili ya HTTPS, piga /api → huko.
+      // Ukiacha '/api', haitafanya kitu hapa (uta-test dev dhidi ya Netlify proxy au mock).
+      proxy:
+        API_BASE !== '/api'
+          ? {
+              '/api': {
+                target: API_BASE,
+                changeOrigin: true,
+                secure: true,
+              },
+            }
+          : undefined,
     },
 
     preview: { host: '0.0.0.0', port: 4173, strictPort: true },
 
     optimizeDeps: {
-      include: [
-        'vue',
-        'vue-router',
-        'axios',
-        '@vueuse/core',
-        // ongeza packages zako muhimu hapa ukitaka dev kuwa mwepesi
-      ],
+      include: ['vue', 'vue-router', 'axios', '@vueuse/core'],
       entries: ['./index.html'],
-      esbuildOptions: {
-        target: 'es2020',
-        jsx: 'preserve',
-        loader: { '.ts': 'ts', '.tsx': 'tsx', '.jsx': 'jsx' },
-        tsconfigRaw: { compilerOptions: { jsx: 'preserve', useDefineForClassFields: false } },
-      },
     },
 
     build: {
       outDir: 'dist',
+      assetsDir: 'assets',
       target: 'es2019',
-      cssTarget: 'chrome90',
-      sourcemap: true,
-      brotliSize: false,
-      assetsInlineLimit: 4096,
+      sourcemap: false,
       cssCodeSplit: true,
       chunkSizeWarningLimit: 1100,
-      minify,
-      terserOptions,
-      rollupOptions: { output: rollupOutput },
-      commonjsOptions: { transformMixedEsModules: true },
+      rollupOptions: {
+        output: {
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
+          manualChunks: vendorChunks,
+        },
+      },
+      minify: IS_PROD ? 'terser' : false,
+      terserOptions: {
+        mangle: false,
+        compress: { passes: 2, drop_debugger: true, drop_console: false },
+        format: { comments: false },
+      },
       emptyOutDir: true,
       modulePreload: { polyfill: false },
     },
-
-    esbuild: { drop: IS_PROD ? ['debugger'] : [] },
-    worker: { format: 'es' },
-    json: { stringify: true },
-    css: { devSourcemap: false },
   }
 })
