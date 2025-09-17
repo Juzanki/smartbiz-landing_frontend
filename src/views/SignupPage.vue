@@ -1,34 +1,33 @@
-<!-- src/views/Signup.vue -->
+<!-- src/views/SignupPage.vue -->
 <template>
-  <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
-    <div class="wrap" style="width:100%;max-width:520px">
+  <div class="page">
+    <div class="wrap">
       <!-- Logo + title -->
-      <div class="text-center mb-3 mt-2 animate-fade-in">
+      <div class="brand">
         <img
           src="/icons/logo.png"
           alt="SmartBiz Logo"
           width="56"
           height="56"
-          class="rounded-circle border border-warning shadow-sm"
-          style="background:#fff"
+          class="brand-logo"
           loading="eager"
           decoding="async"
         />
-        <h1 class="fw-bold text-warning mt-2 h5 m-0">Create Your Account</h1>
-        <p class="text-secondary small m-0 mt-1">Join SmartBiz and simplify your business journey.</p>
+        <h1 class="brand-title">Create Your Account</h1>
+        <p class="brand-sub">Join SmartBiz and simplify your business journey.</p>
       </div>
 
       <!-- Card -->
-      <div class="card shadow-lg border border-warning rounded-4 p-3 p-sm-4">
+      <div class="card">
         <form @submit.prevent="onSignup" autocomplete="off" novalidate>
           <!-- FULL NAME -->
           <div class="mb-3">
-            <label for="fullname" class="form-label text-warning small">Full Name</label>
+            <label for="fullname" class="label">Full Name</label>
             <input
               id="fullname"
               v-model.trim="form.full_name"
-              class="form-control input-dark"
-              :class="{ 'is-invalid': errors.full_name }"
+              class="input"
+              :class="{ 'is-invalid': !!errors.full_name }"
               type="text"
               name="name"
               placeholder="e.g. Julius Nkindwa"
@@ -38,17 +37,17 @@
               enterkeyhint="next"
               required
             />
-            <div v-if="errors.full_name" class="invalid-feedback d-block">{{ errors.full_name }}</div>
+            <div v-if="errors.full_name" class="invalid">{{ errors.full_name }}</div>
           </div>
 
           <!-- USERNAME -->
           <div class="mb-3">
-            <label for="username" class="form-label text-warning small">Username</label>
+            <label for="username" class="label">Username</label>
             <input
               id="username"
               v-model.trim="form.username"
-              class="form-control input-dark"
-              :class="{ 'is-invalid': errors.username }"
+              class="input"
+              :class="{ 'is-invalid': !!errors.username }"
               type="text"
               name="username"
               placeholder="Unique username"
@@ -59,18 +58,18 @@
               enterkeyhint="next"
               required
             />
-            <small class="text-secondary d-block mt-1">Lowercase & numbers recommended.</small>
-            <div v-if="errors.username" class="invalid-feedback d-block">{{ errors.username }}</div>
+            <small class="hint">Lowercase & numbers recommended.</small>
+            <div v-if="errors.username" class="invalid">{{ errors.username }}</div>
           </div>
 
           <!-- EMAIL -->
           <div class="mb-3">
-            <label for="email" class="form-label text-warning small">Email Address</label>
+            <label for="email" class="label">Email Address</label>
             <input
               id="email"
               v-model.trim="form.email"
-              class="form-control input-dark"
-              :class="{ 'is-invalid': errors.email }"
+              class="input"
+              :class="{ 'is-invalid': !!errors.email }"
               type="email"
               name="email"
               placeholder="your@email.com"
@@ -82,30 +81,30 @@
               enterkeyhint="next"
               required
             />
-            <div v-if="errors.email" class="invalid-feedback d-block">{{ errors.email }}</div>
+            <div v-if="errors.email" class="invalid">{{ errors.email }}</div>
           </div>
 
           <!-- PASSWORD -->
           <div class="mb-2">
-            <label for="password" class="form-label text-warning small">Password</label>
-            <div class="input-group">
+            <label for="password" class="label">Password</label>
+            <div class="row-inline">
               <input
                 :type="showPwd ? 'text' : 'password'"
                 id="password"
                 v-model="form.password"
-                class="form-control input-dark"
-                :class="{ 'is-invalid': errors.password }"
+                class="input flex-1"
+                :class="{ 'is-invalid': !!errors.password }"
                 name="new-password"
                 placeholder="Strong password"
                 minlength="8"
                 autocomplete="new-password"
-                :aria-invalid="form.password && !isStrongPassword(form.password)"
+                :aria-invalid="!!(form.password && !isStrongPassword(form.password))"
                 enterkeyhint="next"
                 required
               />
               <button
                 type="button"
-                class="btn btn-outline-warning"
+                class="btn-ghost"
                 @click="showPwd = !showPwd"
                 :aria-pressed="showPwd"
                 aria-label="Toggle password visibility"
@@ -116,9 +115,9 @@
 
             <!-- Strength meter -->
             <div class="mt-2">
-              <div class="progress strength" aria-hidden="true">
+              <div class="strength">
                 <div
-                  class="progress-bar"
+                  class="strength-bar"
                   role="progressbar"
                   :style="{ width: strength.percent + '%' }"
                   :class="strength.barClass"
@@ -129,31 +128,31 @@
               </div>
               <small
                 v-if="form.password"
-                class="d-block mt-1"
-                :class="isStrongPassword(form.password) ? 'text-success' : 'text-danger'"
+                class="mt-1"
+                :class="isStrongPassword(form.password) ? 'ok' : 'bad'"
               >
                 {{ strength.label }}
               </small>
-              <small v-if="form.password && !isStrongPassword(form.password)" class="text-danger d-block">
+              <small v-if="form.password && !isStrongPassword(form.password)" class="bad d-block">
                 Must include upper/lowercase, a number & a symbol (8+ chars).
               </small>
             </div>
-            <div v-if="errors.password" class="invalid-feedback d-block">{{ errors.password }}</div>
+            <div v-if="errors.password" class="invalid">{{ errors.password }}</div>
           </div>
 
           <!-- PHONE -->
           <div class="mb-3">
-            <label class="form-label text-warning small">Phone Number</label>
-            <div class="d-flex gap-2">
-              <select v-model="form.country_code" class="form-select input-dark w-auto" required>
+            <label class="label">Phone Number</label>
+            <div class="row-inline gap-2">
+              <select v-model="form.country_code" class="input select w-auto" required>
                 <option v-for="code in countryCodes" :key="code.value" :value="code.value">
                   {{ code.label }}
                 </option>
               </select>
               <input
                 v-model.trim="form.phone_local"
-                class="form-control input-dark"
-                :class="{ 'is-invalid': errors.phone_number }"
+                class="input flex-1"
+                :class="{ 'is-invalid': !!errors.phone_number }"
                 type="tel"
                 placeholder="712345678"
                 pattern="^[1-9][0-9]{7,13}$"
@@ -164,14 +163,16 @@
                 required
               />
             </div>
-            <small class="text-secondary">Start without 0 (e.g. <span class="text-warning">712345678</span>)</small>
-            <div v-if="errors.phone_number" class="invalid-feedback d-block">{{ errors.phone_number }}</div>
+            <small class="hint">
+              Start without 0 (e.g. <span class="accent">712345678</span>)
+            </small>
+            <div v-if="errors.phone_number" class="invalid">{{ errors.phone_number }}</div>
           </div>
 
           <!-- LANGUAGE -->
           <div class="mb-3">
-            <label class="form-label text-warning small">Preferred Language</label>
-            <select class="form-select input-dark" v-model="form.language" required>
+            <label class="label">Preferred Language</label>
+            <select class="input select" v-model="form.language" required>
               <option value="en">English</option>
               <option value="sw">Kiswahili</option>
               <option value="fr">Français</option>
@@ -181,17 +182,17 @@
 
           <!-- OPTIONALS -->
           <div class="mb-3">
-            <label class="form-label text-warning small">
-              Business Name <span class="text-secondary">(Optional)</span>
+            <label class="label">
+              Business Name <span class="muted">(Optional)</span>
             </label>
-            <input class="form-control input-dark" v-model.trim="form.business_name" maxlength="60" />
+            <input class="input" v-model.trim="form.business_name" maxlength="60" />
           </div>
 
           <div class="mb-3">
-            <label class="form-label text-warning small">
-              Business Type <span class="text-secondary">(Optional)</span>
+            <label class="label">
+              Business Type <span class="muted">(Optional)</span>
             </label>
-            <select class="form-select input-dark" v-model="form.business_type">
+            <select class="input select" v-model="form.business_type">
               <option value="">Select Type</option>
               <option value="Retail">Retail</option>
               <option value="Service">Service</option>
@@ -202,75 +203,98 @@
           </div>
 
           <!-- TERMS -->
-          <div class="form-check d-flex align-items-center gap-2 mb-3">
+          <div class="mb-3 row-inline gap-2 align-center">
             <input
               id="terms"
               v-model="agreed"
-              class="form-check-input border-warning"
-              :class="{ 'is-invalid': errors.agreed }"
+              class="checkbox"
+              :class="{ 'is-invalid': !!errors.agreed }"
               type="checkbox"
-              style="accent-color:#ffd700;width:1.15em;height:1.15em"
               required
             />
-            <label for="terms" class="form-check-label text-light small">
+            <label for="terms" class="label light">
               I agree to the
-              <a href="#" class="text-warning text-decoration-underline">terms and conditions</a>
+              <a href="#" class="link">terms and conditions</a>
             </label>
-            <div v-if="errors.agreed" class="invalid-feedback d-block">{{ errors.agreed }}</div>
           </div>
+          <div v-if="errors.agreed" class="invalid">{{ errors.agreed }}</div>
 
           <!-- Alerts -->
           <div class="mb-2" aria-live="polite">
-            <div v-if="error" class="alert alert-danger py-2 px-3 mb-2">
+            <div v-if="error" class="alert error">
               <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
             </div>
-            <div v-if="success" class="alert alert-success py-2 px-3 mb-2">
+            <div v-if="success" class="alert ok">
               <i class="bi bi-check-circle me-2"></i>{{ success }}
             </div>
           </div>
 
           <!-- SUBMIT -->
-          <button class="btn btn-warning w-100 fw-bold py-2 rounded-3" :disabled="loading || !canSubmit">
-            <span v-if="loading"><span class="spinner-border spinner-border-sm me-2"></span>Signing Up…</span>
+          <button class="btn-primary" :disabled="loading || !canSubmit">
+            <span v-if="loading">
+              <span class="spinner"></span>Signing Up…
+            </span>
             <span v-else>Sign Up</span>
           </button>
         </form>
 
-        <div class="text-center mt-3 small text-secondary">
+        <div class="footer-note">
           Already have an account?
-          <router-link to="/login" class="text-warning fw-bold text-decoration-underline ms-1">Login</router-link>
+          <router-link to="/login" class="link strong">Login</router-link>
         </div>
       </div>
 
-      <div class="mt-4"></div>
+      <div class="space"></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, watch, onMounted } from 'vue'
+import { reactive, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { authAPI, handleApiError } from '../api/client'
 
+defineOptions({ name: 'SignupPage' })
+
 const router = useRouter()
 
-/** ===== API ROOT (for debugging / logs) ===== */
+// For debugging/logs if needed
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
-/* ─────────── State ─────────── */
-const form = reactive({
-  full_name    : '',
-  username     : '',
-  email        : '',
-  password     : '',
-  country_code : '+255 (TZ)',
-  phone_local  : '',
-  language     : 'en',
+type Form = {
+  full_name: string
+  username: string
+  email: string
+  password: string
+  country_code: string
+  phone_local: string
+  language: 'en' | 'sw' | 'fr' | 'ar'
+  business_name: string
+  business_type: '' | 'Retail' | 'Service' | 'Wholesale' | 'Education' | 'Other'
+}
+
+type ErrorBag = {
+  full_name: string
+  username: string
+  email: string
+  password: string
+  phone_number: string
+  agreed: string
+}
+
+const form = reactive<Form>({
+  full_name: '',
+  username: '',
+  email: '',
+  password: '',
+  country_code: '+255 (TZ)',
+  phone_local: '',
+  language: 'en',
   business_name: '',
   business_type: ''
 })
 
-const errors = reactive({
+const errors = reactive<ErrorBag>({
   full_name: '',
   username: '',
   email: '',
@@ -291,16 +315,94 @@ const countryCodes = [
   { value: '+254 (KE)', label: 'KE +254 (KE)' },
   { value: '+256 (UG)', label: 'UG +256 (UG)' },
   { value: '+250 (RW)', label: 'RW +250 (RW)' },
-  { value: '+1 (US)',   label: 'US +1 (US)'  },
-  { value: '+44 (UK)',  label: 'UK +44 (UK)' },
-  { value: '+27 (ZA)',  label: 'ZA +27 (ZA)' }
-]
+  { value: '+1 (US)', label: 'US +1 (US)' },
+  { value: '+44 (UK)', label: 'UK +44 (UK)' },
+  { value: '+27 (ZA)', label: 'ZA +27 (ZA)' }
+] as const
 
-/* ─────────── Validation ─────────── */
-function validateForm() {
-  // Clear previous errors
-  Object.keys(errors).forEach(key => errors[key] = '')
-  
+function isStrongPassword(pwd?: string): boolean {
+  if (!pwd) return false
+  const hasUpper = /[A-Z]/.test(pwd)
+  const hasLower = /[a-z]/.test(pwd)
+  const hasNumber = /\d/.test(pwd)
+  const hasSpecial = /[^\w\s]/.test(pwd)
+  return hasUpper && hasLower && hasNumber && hasSpecial && pwd.length >= 8
+}
+
+const canSubmit = computed(() =>
+  !!form.full_name?.trim() &&
+  !!form.username?.trim() &&
+  !!form.email?.trim() &&
+  !!form.password &&
+  !!form.phone_local?.trim() &&
+  !!form.language &&
+  agreed.value &&
+  isStrongPassword(form.password)
+)
+
+const strength = computed(() => {
+  const p = form.password || ''
+  let score = 0
+  if (p.length >= 8) score++
+  if (/[A-Z]/.test(p)) score++
+  if (/[a-z]/.test(p)) score++
+  if (/\d/.test(p)) score++
+  if (/[^\w\s]/.test(p)) score++
+  const levels = [
+    { label: 'Too weak', percent: 20, barClass: 'bar-danger' },
+    { label: 'Weak', percent: 40, barClass: 'bar-danger' },
+    { label: 'Fair', percent: 60, barClass: 'bar-warn' },
+    { label: 'Good', percent: 80, barClass: 'bar-info' },
+    { label: 'Strong', percent: 100, barClass: 'bar-ok' }
+  ] as const
+  return levels[Math.min(score, levels.length - 1)]
+})
+
+function normalizeLocalNumber(raw?: string): string {
+  let digits = String(raw || '').replace(/[^\d]/g, '')
+  if (digits.startsWith('0')) digits = digits.substring(1)
+  return digits
+}
+
+function toE164(countryLabel: string, localRaw: string): string {
+  const ccMatch = countryLabel.match(/\+(\d+)/)
+  const cc = ccMatch ? ccMatch[0] : ''
+  const local = normalizeLocalNumber(localRaw)
+  return cc && local ? `${cc}${local}` : local
+}
+
+function extractError(e: any): string {
+  return handleApiError(e)
+}
+
+// UX: clear alerts while typing; remember last picks
+watch(() => ({ ...form, agreed: agreed.value }), () => {
+  error.value = ''
+  success.value = ''
+  Object.keys(errors).forEach((key) => ((errors as any)[key] = ''))
+}, { deep: true })
+
+watch(() => form.email, (v) => {
+  if (v) localStorage.setItem('sb_last_email', v)
+})
+
+watch(() => form.country_code, (v) => {
+  if (v) localStorage.setItem('sb_country', v)
+})
+
+onMounted(() => {
+  const lastEmail = localStorage.getItem('sb_last_email')
+  const lastCc = localStorage.getItem('sb_country')
+  if (lastEmail) form.email = lastEmail
+  if (lastCc) form.country_code = lastCc
+})
+
+onBeforeUnmount(() => {
+  if (abortCtrl) abortCtrl.abort()
+})
+
+function validateForm(): boolean {
+  Object.keys(errors).forEach((key) => ((errors as any)[key] = ''))
   let isValid = true
 
   if (!form.full_name.trim()) {
@@ -318,7 +420,7 @@ function validateForm() {
     errors.username = 'Username must be at least 3 characters'
     isValid = false
   } else if (!/^[a-z0-9_]+$/.test(form.username)) {
-    errors.username = 'Username can only contain lowercase letters, numbers, and underscores'
+    errors.username = 'Use lowercase letters, numbers, and underscores only'
     isValid = false
   }
 
@@ -345,7 +447,7 @@ function validateForm() {
     errors.phone_number = 'Phone number is required'
     isValid = false
   } else if (!/^[1-9][0-9]{7,13}$/.test(form.phone_local)) {
-    errors.phone_number = 'Please enter a valid phone number (without 0)'
+    errors.phone_number = 'Use a valid phone number (without the leading 0)'
     isValid = false
   }
 
@@ -357,103 +459,14 @@ function validateForm() {
   return isValid
 }
 
-function isStrongPassword(pwd?: string): boolean {
-  if (!pwd) return false
-  const hasUpper = /[A-Z]/.test(pwd)
-  const hasLower = /[a-z]/.test(pwd)
-  const hasNumber = /\d/.test(pwd)
-  const hasSpecial = /[^\w\s]/.test(pwd)
-  return hasUpper && hasLower && hasNumber && hasSpecial && pwd.length >= 8
-}
-
-const canSubmit = computed(() =>
-  !!form.full_name?.trim() &&
-  !!form.username?.trim() &&
-  !!form.email?.trim() &&
-  !!form.password &&
-  !!form.phone_local?.trim() &&
-  !!form.language &&
-  agreed.value &&
-  isStrongPassword(form.password)
-)
-
-const strength = computed(() => {
-  const p = form.password || ''
-  let score = 0
-  
-  if (p.length >= 8) score++
-  if (/[A-Z]/.test(p)) score++
-  if (/[a-z]/.test(p)) score++
-  if (/\d/.test(p)) score++
-  if (/[^\w\s]/.test(p)) score++
-  
-  const levels = [
-    { label: 'Too weak', percent: 20, barClass: 'bg-danger' },
-    { label: 'Weak', percent: 40, barClass: 'bg-danger' },
-    { label: 'Fair', percent: 60, barClass: 'bg-warning' },
-    { label: 'Good', percent: 80, barClass: 'bg-info' },
-    { label: 'Strong', percent: 100, barClass: 'bg-success' }
-  ]
-  
-  return levels[Math.min(score, levels.length - 1)]
-})
-
-/* ─────────── Helpers ─────────── */
-function normalizeLocalNumber(raw?: string): string {
-  let digits = String(raw || '').replace(/[^\d]/g, '')
-  if (digits.startsWith('0')) digits = digits.substring(1)
-  return digits
-}
-
-function toE164(countryLabel: string, localRaw: string): string {
-  const ccMatch = countryLabel.match(/\+(\d+)/)
-  const cc = ccMatch ? ccMatch[0] : ''
-  const local = normalizeLocalNumber(localRaw)
-  return cc && local ? `${cc}${local}` : local
-}
-
-function extractError(e: any): string {
-  return handleApiError(e)
-}
-
-/* UX: clear alerts while typing; remember last picks */
-watch(() => ({...form, agreed: agreed.value}), () => { 
-  error.value = ''
-  success.value = ''
-  // Clear errors when user starts typing
-  Object.keys(errors).forEach(key => errors[key] = '')
-}, { deep: true })
-
-watch(() => form.email, v => {
-  if (v) localStorage.setItem('sb_last_email', v)
-})
-
-watch(() => form.country_code, v => {
-  if (v) localStorage.setItem('sb_country', v)
-})
-
-// Load saved data on component mount
-onMounted(() => {
-  const lastEmail = localStorage.getItem('sb_last_email')
-  const lastCc = localStorage.getItem('sb_country')
-  
-  if (lastEmail) form.email = lastEmail
-  if (lastCc) form.country_code = lastCc
-})
-
-/* ─────────── Submit ─────────── */
 async function onSignup() {
   if (!validateForm() || loading.value) return
-  
   if (!navigator.onLine) {
     error.value = 'You appear to be offline. Please check your connection.'
     return
   }
 
-  // Cancel any in-flight request
-  if (abortCtrl) {
-    abortCtrl.abort()
-  }
+  if (abortCtrl) abortCtrl.abort()
   abortCtrl = new AbortController()
 
   error.value = ''
@@ -463,45 +476,33 @@ async function onSignup() {
   const phone_number = toE164(form.country_code, form.phone_local)
 
   const payload = {
-    full_name     : form.full_name.trim(),
-    username      : form.username.trim().toLowerCase(),
-    email         : form.email.trim().toLowerCase(),
-    password      : form.password,
+    full_name: form.full_name.trim(),
+    username: form.username.trim().toLowerCase(),
+    email: form.email.trim().toLowerCase(),
+    password: form.password,
     phone_number,
-    language      : form.language,
-    business_name : form.business_name.trim() || undefined,
-    business_type : form.business_type || undefined
+    language: form.language,
+    business_name: form.business_name.trim() || undefined,
+    business_type: form.business_type || undefined
   }
 
   try {
     const response = await authAPI.signUp(payload)
-    
-    if (response.data) {
+    if ((response as any)?.data) {
       success.value = 'Account created successfully. Redirecting to login…'
-      
-      // Save user data for auto-login
       localStorage.setItem('sb_signup_email', form.email)
       localStorage.setItem('sb_signup_success', 'true')
-      
-      // Redirect after delay
       setTimeout(() => {
-        router.push({ 
-          path: '/login',
-          query: { registered: 'true', email: form.email }
-        })
+        router.push({ path: '/login', query: { registered: 'true', email: form.email } })
       }, 1500)
     }
   } catch (e: any) {
     error.value = extractError(e)
-    
-    // Handle specific field errors from backend
-    if (e.response?.data?.errors) {
+    if (e?.response?.data?.errors) {
       const backendErrors = e.response.data.errors
-      Object.keys(backendErrors).forEach(key => {
-        if (errors.hasOwnProperty(key)) {
-          errors[key] = Array.isArray(backendErrors[key]) 
-            ? backendErrors[key][0] 
-            : backendErrors[key]
+      Object.keys(backendErrors).forEach((key) => {
+        if (key in errors) {
+          ;(errors as any)[key] = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key]
         }
       })
     }
@@ -513,7 +514,8 @@ async function onSignup() {
 </script>
 
 <style>
-html, body { 
+/* page bg reset (global) */
+html, body {
   background: #0b1220 !important;
   height: 100%;
   margin: 0;
@@ -522,103 +524,136 @@ html, body {
 </style>
 
 <style scoped>
+/* Layout */
 .page {
   min-height: 100vh;
-  background: #0b1220 !important;
+  display: grid;
+  place-items: center;
   padding: 2rem 1rem;
+  background: #0b1220;
 }
-
 .wrap {
+  width: 100%;
+  max-width: 520px;
   animation: fadeInUp 0.6s ease-out;
 }
 
-.bg-dark { 
-  background: #0b1220 !important; 
+/* Brand */
+.brand { text-align: center; margin-bottom: 1rem; margin-top: 0.5rem; }
+.brand-logo {
+  border-radius: 9999px;
+  border: 2px solid #ffd700;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.brand-title { color: #ffd700; font-weight: 700; font-size: 1.125rem; margin: .5rem 0 0; }
+.brand-sub { color: #9fb0c9; font-size: .85rem; margin: .25rem 0 0; }
+
+/* Card */
+.card {
+  background: #0f1e34;
+  border: 2px solid rgba(255, 215, 0, 0.6);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 0 0 2px rgba(255, 215, 0, 0.2);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.card:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 2px rgba(255, 215, 0, 0.4); }
+
+/* Inputs */
+.label { color: #ffd700; font-size: .85rem; display: inline-block; margin-bottom: .35rem; }
+.label.light { color: #d3dbeb; }
+.input, .select {
+  width: 100%;
+  background: #132441;
+  color: #ffffff;
+  border: none;
+  border-radius: .5rem;
+  padding: .65rem .85rem;
+  font-size: .95rem;
+  outline: none;
+  box-shadow: 0 0 0 0 rgba(255,215,0,0);
+  transition: box-shadow .2s ease;
+}
+.input:focus, .select:focus { box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.6); }
+.input::placeholder { color: #b9c3d3; opacity: .95; }
+.is-invalid { box-shadow: 0 0 0 2px #dc3545 !important; }
+
+.checkbox {
+  width: 1.15em; height: 1.15em; border-radius: .25rem; border: 2px solid #ffd700;
+  accent-color: #ffd700;
+  background: #132441; color: #fff;
 }
 
-.card { 
-  background: #0f1e34 !important;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 0 0 2px rgba(255, 215, 0, 0.2) !important;
-  border: 2px solid #ffd700 !important;
-  border-radius: 1rem !important;
-  transition: all 0.3s ease;
-}
+/* Helpers */
+.row-inline { display: flex; align-items: center; }
+.flex-1 { flex: 1 1 auto; }
+.align-center { align-items: center; }
+.gap-2 { gap: .5rem; }
+.mb-2 { margin-bottom: .5rem; }
+.mb-3 { margin-bottom: .85rem; }
+.mt-1 { margin-top: .25rem; }
+.mt-2 { margin-top: .5rem; }
+.d-block { display: block; }
+.hint { color: #9fb0c9; font-size: .8rem; margin-top: .25rem; }
+.muted { color: #9fb0c9; font-weight: 400; }
+.accent { color: #ffd700; }
 
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 2px rgba(255, 215, 0, 0.4) !important;
-}
+.invalid { color: #ff6b6b; font-size: .8rem; margin-top: .25rem; }
 
-:deep(.input-dark),
-:deep(.form-control.input-dark),
-:deep(.form-select.input-dark) {
-  background: #132441 !important;
-  color: #ffffff !important;
-  border: none !important;
-  border-radius: 0.5rem !important;
-  padding: 0.65rem 0.85rem !important;
-  font-size: 0.95rem !important;
-  transition: box-shadow 0.25s ease !important;
+/* Alerts */
+.alert {
+  padding: .5rem .75rem;
+  border-radius: .6rem;
+  font-size: .9rem;
 }
+.alert.error { background: #3a1120; color: #ff98a5; border: 1px solid #ff6b6b33; }
+.alert.ok { background: #0f2f20; color: #7bf2b9; border: 1px solid #7bf2b933; }
 
-:deep(.input-dark:focus),
-:deep(.form-control.input-dark:focus),
-:deep(.form-select.input-dark:focus) {
-  outline: none !important;
-  box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.6) !important;
-  background: #132441 !important;
-  color: #ffffff !important;
+/* Buttons */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #ffd70066;
+  color: #ffd700;
+  padding: .55rem .75rem;
+  border-radius: .55rem;
+  cursor: pointer;
 }
+.btn-ghost:hover { background: #1a2b4f; }
 
-:deep(.input-dark::placeholder) {
-  color: #b9c3d3 !important;
-  opacity: 0.9 !important;
+.btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #0b1220;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  border-radius: .6rem;
+  padding: .75rem 1.25rem;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
 }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
-:deep(.form-select.input-dark) {
-  color: #d4dbe6 !important;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffd700' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+/* Strength meter */
+.strength {
+  width: 100%;
+  height: 8px;
+  background: #0e1a30;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #193256;
 }
-
-:deep(.input-dark.is-invalid) {
-  box-shadow: 0 0 0 2px #dc3545 !important;
+.strength-bar {
+  height: 100%;
+  transition: width .25s ease;
 }
+.bar-danger { background: #e74c3c; }
+.bar-warn   { background: #f1c40f; }
+.bar-info   { background: #00bcd4; }
+.bar-ok     { background: #2ecc71; }
 
-.invalid-feedback {
-  color: #ff6b6b !important;
-  font-size: 0.8rem !important;
-  margin-top: 0.25rem !important;
-}
-
-.btn-warning {
-  background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
-  color: #0b1220 !important;
-  font-weight: 700 !important;
-  font-size: 1rem !important;
-  border: none !important;
-  border-radius: 0.6rem !important;
-  padding: 0.75rem 1.5rem !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3) !important;
-}
-
-.btn-warning:hover {
-  background: linear-gradient(135deg, #ffed4e, #fff176) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4) !important;
-}
-
-.btn-warning:disabled {
-  opacity: 0.6 !important;
-  cursor: not-allowed !important;
-  transform: none !important;
-}
-
-.text-warning {
-  color: #ffd700 !important;
-}
-
-.form-label,
-.form-check-label {
-  font-size: 0.85rem !important;
-  color: #c7
+.ok { color: #7bf2b9; }
+.bad { color: #f
