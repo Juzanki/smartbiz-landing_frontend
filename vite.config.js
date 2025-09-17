@@ -1,52 +1,37 @@
-// vite.config.js — SmartBiz (Vue 3 + Vite + Netlify)
+// vite.config.js — SmartBiz (Vue 3 + Vite + Netlify, stable)
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'node:path'
 
-/* ---------------------- Helpers ---------------------- */
+/* ───────────── Helpers ───────────── */
 const stripEndSlashes = (u) => String(u || '').replace(/\/+$/, '')
 const isHttpsPublic = (u) => /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(String(u || ''))
 const isPrivateOrLocal = (u) =>
-  /(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)/i.test(
-    String(u || '')
-  )
+  /(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)/i
+    .test(String(u || ''))
 
-function vendorChunks(id) {
-  if (!id || !id.includes('node_modules')) return
-  const tail = id.split('node_modules/')[1] || ''
-  const scope = tail.startsWith('@') ? tail.split('/').slice(0, 2).join('/') : tail.split('/')[0]
-  if (/^vue($|\/)|vue-router/.test(scope)) return 'vue'
-  if (/(apexcharts|chart\.js)/.test(scope)) return 'charts'
-  if (/@?unocss|@vueuse|axios|pinia|vue-i18n/.test(scope)) return 'utils'
-  return 'vendor'
-}
-
-/** Sanitize API base:
- * - '/api' or ''  → tumia Netlify proxy
- * - https://...   → ruhusu (public domain tu)
- * - vingine vyote → rudi '/api'
+/** Normalize API base:
+ *  - '' or '/api'  → tumia Netlify proxy
+ *  - public HTTPS  → ruhusu
+ *  - vingine vyote → '/api'
  */
-function normalizeApiBase(env) {
+function normalizeApiBase (env) {
   const raw = env.VITE_API_BASE ?? env.VITE_API_BASE_URL ?? ''
   if (!raw || String(raw).trim() === '' || String(raw).trim() === '/api') return '/api'
   const c = stripEndSlashes(String(raw).trim())
-  if (isHttpsPublic(c) && !isPrivateOrLocal(c)) return c
-  return '/api'
+  return (isHttpsPublic(c) && !isPrivateOrLocal(c)) ? c : '/api'
 }
 
-/* ---------------------- Config ----------------------- */
+/* ───────────── Config ───────────── */
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const IS_PROD = mode === 'production'
-  const API_BASE = normalizeApiBase(env) // '/api' au https://...
-
-  const plugins = [vue()]
+  const API_BASE = normalizeApiBase(env)
 
   return {
-    // 🔴 WA MUHIMU: Assets ziandikwe kama /assets/... sio relative → inamaliza MIME text/html
+    // 🔴 Lazima absolute: huepuka assets kurudi HTML (MIME text/html)
     base: '/',
 
-    plugins,
+    plugins: [vue()],
 
     resolve: {
       alias: {
@@ -62,7 +47,6 @@ export default defineConfig(({ mode, command }) => {
     envPrefix: ['VITE_', 'SB_'],
 
     define: {
-      // kwa reference ya build/time tu — API base haikai hapa tena
       __APP_ENV__: JSON.stringify(env.VITE_ENVIRONMENT || mode),
       __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
       'process.env.NODE_ENV': JSON.stringify(mode),
@@ -74,18 +58,10 @@ export default defineConfig(({ mode, command }) => {
       strictPort: true,
       hmr: { overlay: false },
       cors: true,
-      // Dev proxy: ikiwa umeweka URL kamili ya HTTPS, piga /api → huko.
-      // Ukiacha '/api', haitafanya kitu hapa (uta-test dev dhidi ya Netlify proxy au mock).
-      proxy:
-        API_BASE !== '/api'
-          ? {
-              '/api': {
-                target: API_BASE,
-                changeOrigin: true,
-                secure: true,
-              },
-            }
-          : undefined,
+      // Dev proxy: tumia tu ikiwa umeweka URL kamili ya HTTPS.
+      proxy: API_BASE !== '/api'
+        ? { '/api': { target: API_BASE, changeOrigin: true, secure: true } }
+        : undefined,
     },
 
     preview: { host: '0.0.0.0', port: 4173, strictPort: true },
@@ -93,8 +69,10 @@ export default defineConfig(({ mode, command }) => {
     optimizeDeps: {
       include: ['vue', 'vue-router', 'axios', '@vueuse/core'],
       entries: ['./index.html'],
+      esbuildOptions: { target: 'es2020' },
     },
 
+    // 🔒 Build salama (hakuna manualChunks → hakuna TDZ/ordering issues)
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
@@ -102,20 +80,19 @@ export default defineConfig(({ mode, command }) => {
       sourcemap: false,
       cssCodeSplit: true,
       chunkSizeWarningLimit: 1100,
+
+      // Acha Rollup a-deal na graph ordering: no manualChunks.
       rollupOptions: {
         output: {
           entryFileNames: 'assets/[name]-[hash].js',
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash][extname]',
-          manualChunks: vendorChunks,
         },
       },
-      minify: IS_PROD ? 'terser' : false,
-      terserOptions: {
-        mangle: false,
-        compress: { passes: 2, drop_debugger: true, drop_console: false },
-        format: { comments: false },
-      },
+
+      // Minifier salama (kuepuka reordering hatari)
+      minify: 'esbuild',
+
       emptyOutDir: true,
       modulePreload: { polyfill: false },
     },
