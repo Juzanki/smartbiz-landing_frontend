@@ -1,7 +1,4 @@
-# ─────────────────────────────────────────────────────────────
-# Netlify config — Vite + Vue 3 (SPA) + API proxy to Render
-# Hutatua: 1) script MIME "text/html"  2) CSP blocks  3) Caching ya assets
-# ─────────────────────────────────────────────────────────────
+# netlify.toml — SmartBiz (Vite + Vue 3 SPA)
 
 [build]
   command = "npm ci && npm run build"
@@ -10,76 +7,95 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Hakikisha production env inatumia proxy ya Netlify kwa API
-[context.production.environment]
-  VITE_API_BASE = "/api"
+# Zima Netlify post-processing (tunategemea Vite pekee)
+[build.processing]
+  skip_processing = true
 
-# (Optional) Deploy previews pia zitumie proxy hiyo hiyo
-[context.deploy-preview.environment]
-  VITE_API_BASE = "/api"
-
-# ── Redirects ─────────────────────────────────────────────────
-
-# 1) PROXY: /api/* → Render backend
-#    Lazima iwe JUU ya SPA fallback ili isishikwe na index.html
+# ───────────────────────── Redirects ─────────────────────────
+# 1) API proxy (iwe KABLA ya SPA fallback)
 [[redirects]]
   from   = "/api/*"
   to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
   status = 200
   force  = true
 
-# 2) SPA fallback: route yoyote isiyo file halisi irudi index.html
-#    HII WEKA MWISHONI – ndiyo kizuizi kikuu cha MIME=text/html kwa scripts
+# 2) Assets ziende moja kwa moja (zisiepukwe na SPA fallback)
+[[redirects]]
+  from   = "/assets/*"
+  to     = "/assets/:splat"
+  status = 200
+  force  = true
+
+# 3) Faili maalum (favicon/robots/sitemap)
+[[redirects]]
+  from   = "/favicon.ico"
+  to     = "/favicon.ico"
+  status = 200
+
+[[redirects]]
+  from   = "/robots.txt"
+  to     = "/robots.txt"
+  status = 200
+
+[[redirects]]
+  from   = "/sitemap.xml"
+  to     = "/sitemap.xml"
+  status = 200
+
+# 4) (Hiari) Service worker kama upo
+[[redirects]]
+  from   = "/sw.js"
+  to     = "/sw.js"
+  status = 200
+
+# 5) SPA fallback (MWISHO) — routes zote zirudi index.html
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
 
-# ── Global Security Headers ───────────────────────────────────
-
+# ───────────────────────── Headers ─────────────────────────
+# A) Usalama wa jumla
 [[headers]]
   for = "/*"
   [headers.values]
-  # CSP: tunaruhusu inline scripts/styles kwa sasa ili kuepuka block;
-  # ukishasafisha inline, ondoa 'unsafe-inline' na tumia nonce/hash.
-  Content-Security-Policy = """
-    default-src 'self';
-    script-src 'self' 'unsafe-inline';
-    style-src 'self' 'unsafe-inline';
-    img-src 'self' data: https:;
-    font-src 'self' data:;
-    connect-src 'self' https://smartbiz-backend-p45m.onrender.com wss://smartbiz-backend-p45m.onrender.com https:;
-    object-src 'none';
-    base-uri 'self';
-    frame-ancestors 'self';
-    form-action 'self';
-    upgrade-insecure-requests
-  """
-  Referrer-Policy = "strict-origin-when-cross-origin"
-  X-Content-Type-Options = "nosniff"
-  X-Frame-Options = "DENY"
-  Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-  Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-  X-Permitted-Cross-Domain-Policies = "none"
+    X-Content-Type-Options     = "nosniff"
+    Referrer-Policy            = "strict-origin-when-cross-origin"
+    Permissions-Policy         = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security  = "max-age=31536000; includeSubDomains; preload"
+    # ⚠️ CSP: ruhusu inline script kidogo (loader) + miunganisho ya backend
+    #   Ukishatoa inline <script> kwenye index.html, ondoa 'unsafe-inline'.
+    Content-Security-Policy = """
+      default-src 'self' https: data: blob:;
+      script-src  'self' 'unsafe-inline' https:;
+      style-src   'self' 'unsafe-inline' https:;
+      img-src     'self' https: data: blob:;
+      font-src    'self' https: data:;
+      connect-src 'self' https://smartbiz-backend-p45m.onrender.com wss://smartbiz-backend-p45m.onrender.com https:;
+      media-src   'self' https: data: blob:;
+      frame-ancestors 'self';
+      base-uri 'self'
+    """
 
-# HTML haitaki cache ili kila deploy ianze upya vizuri
+# B) Usicache index.html (ili mteja aone deploy mpya mara moja)
 [[headers]]
   for = "/index.html"
   [headers.values]
-  Cache-Control = "no-store, max-age=0, must-revalidate"
+    Cache-Control = "no-store, must-revalidate"
 
-# Vite assets: cache ya mwaka + immutable (hash kwenye majina)
+# C) Cache kali, salama kwa bundles zenye hash
 [[headers]]
   for = "/assets/*"
   [headers.values]
-  Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=31536000, immutable"
 
-# API (kupitia proxy ya Netlify): usicache response
-# (Hakuna CORS here kwa sababu ni same-origin kupitia proxy;
-# ukihitaji, weka headers zako kwenye backend yenyewe.)
+# D) Manifest & favicon (cache nyepesi)
 [[headers]]
-  for = "/api/*"
+  for = "/manifest.webmanifest"
   [headers.values]
-  Cache-Control = "no-store"
-  # If you ever need to expose headers to client JS:
-  Access-Control-Expose-Headers = "set-cookie, content-disposition"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/favicon.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
