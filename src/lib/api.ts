@@ -1,13 +1,11 @@
 // src/lib/api.ts
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 
-/* ─────────────────────── Base URL resolution (STRICT) ─────────────────────── */
+/* ─────────────── Base URL resolution (STRICT: no localhost/private IP) ─────────────── */
 
 const stripEndSlashes = (s: string) => s.replace(/\/+$/, "");
 const isPrivateOrLocal = (v: string) =>
-  /(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)/i.test(
-    v
-  );
+  /(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)/i.test(v);
 
 // Prefer VITE_API_BASE; fallback to VITE_API_BASE_URL if provided
 const rawBase =
@@ -15,26 +13,39 @@ const rawBase =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
   "";
 
-/** If rawBase empty or "/api" → use Netlify proxy. Otherwise must be public HTTPS. */
-let API_ROOT_URL = ""; // axios baseURL; empty means "use current origin"
-let USING_PROXY = true;
+// If rawBase empty or "/api" → use Netlify proxy (origin). Else must be PUBLIC HTTPS.
+let _ROOT = "";           // axios baseURL; empty => use current origin
+let _USING_PROXY = true;  // /api via Netlify proxy
 
 if (rawBase && rawBase.trim() !== "" && rawBase.trim() !== "/api") {
   const candidate = stripEndSlashes(String(rawBase).trim());
   const isHttps = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(candidate);
   if (!isHttps || isPrivateOrLocal(candidate)) {
     throw new Error(
-      `[API] Invalid VITE_API_BASE value: "${rawBase}". Use "/api" (Netlify proxy) ` +
-        `or a full PUBLIC HTTPS URL (no localhost/private IP/http).`
+      `[API] Invalid VITE_API_BASE="${rawBase}". Use "/api" (Netlify proxy) or a PUBLIC HTTPS URL.`
     );
   }
-  API_ROOT_URL = candidate;
-  USING_PROXY = false;
+  _ROOT = candidate;      // e.g. https://smartbiz-backend-xxxx.onrender.com
+  _USING_PROXY = false;
+}
+
+/** Exported for places that still build raw fetch URLs (safe to be empty string). */
+export const API_ROOT_URL: string = _ROOT;
+/** Whether we are using Netlify proxy (useful in debugging/UI). */
+export const USING_API_PROXY: boolean = _USING_PROXY;
+
+/** Join helper to build absolute API URLs safely (handles //) */
+export function apiURL(path: string): string {
+  const left = API_ROOT_URL;
+  const right = path || "";
+  const joined =
+    (left ? stripEndSlashes(left) : "") + "/" + right.replace(/^\/+/, "");
+  return joined.replace(/\/{2,}/g, "/");
 }
 
 console.log(
   "[API] baseURL at runtime =",
-  USING_PROXY ? "/api (via Netlify proxy)" : API_ROOT_URL
+  USING_API_PROXY ? "/api (via Netlify proxy)" : API_ROOT_URL
 );
 
 /** Debug flag (also enabled by ?debug=1) */
@@ -42,7 +53,7 @@ export const API_DEBUG =
   (import.meta.env.VITE_APP_DEBUG?.toString() === "1") ||
   /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
 
-/* ───────────────────────────── Small helpers ───────────────────────────── */
+/* ───────────────────────────── Utilities ───────────────────────────── */
 
 function readCookie(name: string): string | null {
   const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
@@ -86,16 +97,13 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// Log + attach CSRF / JWT before each request
+// Attach CSRF/JWT + debug log
 api.interceptors.request.use((config) => {
   config.headers = config.headers || {};
-
   const csrf = readCookie("csrftoken") || readCookie("XSRF-TOKEN");
   if (csrf) (config.headers as any)["X-CSRFToken"] = csrf;
-
   const token = getStoredToken();
   if (token) (config.headers as any).Authorization = `Bearer ${token}`;
-
   if (API_DEBUG) {
     console.debug(
       "[API] →",
@@ -107,17 +115,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Normalize errors + guard against HTML (SPA fallback)
+// Guard against HTML (SPA fallback) + normalize errors
 api.interceptors.response.use(
   (res: AxiosResponse) => {
     if (API_DEBUG) console.debug("[API] ←", res.status, res.config.url);
-
-    // If server returned HTML for an /api request, surface a clear error.
     const ct = String(res.headers?.["content-type"] || "");
     if (res.config.url?.startsWith("/api/") && ct.includes("text/html")) {
       throw new Error(
-        "Received HTML instead of JSON from /api. Most likely SPA fallback or wrong redirect " +
-          "(ensure /api proxy redirect is ABOVE SPA fallback in netlify.toml)."
+        "Received HTML instead of JSON from /api. Likely SPA fallback. " +
+          "Ensure '/api/*' proxy redirect is ABOVE SPA fallback in netlify.toml."
       );
     }
     return res;
