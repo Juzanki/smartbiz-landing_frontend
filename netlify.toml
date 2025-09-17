@@ -19,14 +19,21 @@
   status = 200
   force  = true
 
-# 2) Assets ziende moja kwa moja (zisiepukwe na SPA fallback)
+# 2) PIT script proxy (iwe KABLA ya SPA fallback)
+[[redirects]]
+  from   = "/pit"
+  to     = "/pit.js"  # Au "/assets/pit.js" kulingana na eneo halisi
+  status = 200
+  force  = false
+
+# 3) Assets ziende moja kwa moja (zisiepukwe na SPA fallback)
 [[redirects]]
   from   = "/assets/*"
   to     = "/assets/:splat"
   status = 200
   force  = true
 
-# 3) Faili maalum (favicon/robots/sitemap)
+# 4) Faili maalum (favicon/robots/sitemap)
 [[redirects]]
   from   = "/favicon.ico"
   to     = "/favicon.ico"
@@ -42,13 +49,13 @@
   to     = "/sitemap.xml"
   status = 200
 
-# 4) (Hiari) Service worker kama upo
+# 5) (Hiari) Service worker kama upo
 [[redirects]]
   from   = "/sw.js"
   to     = "/sw.js"
   status = 200
 
-# 5) SPA fallback (MWISHO) — routes zote zirudi index.html
+# 6) SPA fallback (MWISHO) — routes zote zirudi index.html
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
@@ -99,3 +106,10 @@
   for = "/favicon.ico"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+
+# E) Headers maalum kwa PIT script
+[[headers]]
+  for = "/pit.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "public, max-age=3600"
