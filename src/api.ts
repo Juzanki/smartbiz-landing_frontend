@@ -1,45 +1,64 @@
 // src/api.ts
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
-const RAW = (import.meta.env.VITE_API_BASE ?? "").toString().trim();
+/** kata slashes za mwisho */
+const trimEndSlashes = (s: string) => s.replace(/\/+$/, "");
 
-// kata slashes za mwisho
-const clean = (s: string) => s.replace(/\/+$/, "");
+/** guard: kataa localhost/private-IP/http */
+const isBadHost = (v: string) =>
+  /(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)/i.test(
+    v
+  );
 
-let API_BASE = clean(RAW);
+const raw = String(import.meta.env.VITE_API_BASE ?? "").trim();
+let API_BASE = trimEndSlashes(raw || "/api"); // default ni /api bila kujali env
 
-// DEV default: kama hakuna env, tumia local
-if (!import.meta.env.PROD) {
-  if (!API_BASE) API_BASE = "http://127.0.0.1:8000/api";
-} else {
-  // PROD rules: ruhusu tu "/api" au https://...
-  if (!API_BASE) API_BASE = "/api";
+// Ruhusu tu "/api" AU https://domain/...
+const isHttpsUrl = /^https:\/\/[a-z0-9.-]+(?::\d+)?(\/.*)?$/i.test(API_BASE);
+const isPathApi = API_BASE === "/api";
 
-  const isOK =
-    API_BASE === "/api" ||
-    /^https:\/\/[a-z0-9.-]+(?:\/.*)?$/i.test(API_BASE); // https://... tu
-
-  if (!isOK) {
-    throw new Error(
-      `[API] Invalid VITE_API_BASE in production: "${RAW}". Use "/api" (with Netlify proxy) or a full https URL.`
-    );
-  }
+if (!(isPathApi || isHttpsUrl)) {
+  throw new Error(
+    `[API] VITE_API_BASE must be "/api" or an HTTPS URL. Got: "${raw}"`
+  );
+}
+if (isHttpsUrl && (API_BASE.startsWith("http://") || isBadHost(API_BASE))) {
+  throw new Error(
+    `[API] Insecure/forbidden host in VITE_API_BASE: "${raw}". Use HTTPS public domain only.`
+  );
 }
 
-console.info("[API] baseURL at runtime =", API_BASE);
+console.info("[API] baseURL =", API_BASE);
 
 export const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
   timeout: 20000,
+  headers: {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+  },
 });
 
-// (hiari) interceptor ya error ili uone kinachorudi
+// Interceptors (logs fupi + kurudisha error halisi)
 api.interceptors.response.use(
-  (r) => r,
-  (err) => {
-    const u = err?.config?.baseURL + (err?.config?.url ?? "");
-    console.warn("[API] failed:", u, err?.response?.status, err?.response?.data);
+  (res) => res,
+  (err: AxiosError<any>) => {
+    const u = (err.config?.baseURL ?? "") + (err.config?.url ?? "");
+    const code = err.response?.status;
+    const kind =
+      err.response?.headers?.["content-type"]?.includes("text/html")
+        ? "HTML_RESPONSE"
+        : "API_ERROR";
+    console.warn("[API]", kind, code ?? "NO_STATUS", "→", u);
     return Promise.reject(err);
   }
 );
+
+// (hiari) helper ya endpoint joining bila // maradufu
+export const join = (...parts: string[]) =>
+  parts
+    .filter(Boolean)
+    .map((p, i) => (i === 0 ? trimEndSlashes(p) : p.replace(/^\/+/, "")))
+    .join("/")
+    .replace(/\/{2,}/g, "/");
