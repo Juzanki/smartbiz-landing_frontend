@@ -1,4 +1,4 @@
-# Unda faili ya client.js
+# Unda faili mpya yenye code sahihi
 @'
 // src/api/client.js
 import axios from "axios";
@@ -87,4 +87,4 @@ export const authAPI = {
 export default apiClient;
 '@ | Out-File -FilePath "client.js" -Encoding UTF8
 
-Write-Host "✅ Faili ya API client imeundwa: src/api/client.js" -ForegroundColor Green
+Write-Host "✅ Faili mpya ya API client imeundwa kwa syntax sahihi" -ForegroundColor Green
