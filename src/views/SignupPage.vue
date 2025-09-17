@@ -125,7 +125,7 @@
                   :aria-valuenow="strength.percent"
                   aria-valuemin="0"
                   aria-valuemax="100"
-                />
+                ></div>
               </div>
               <small
                 v-if="form.password"
@@ -231,7 +231,7 @@
 
           <!-- SUBMIT -->
           <button class="btn btn-warning w-100 fw-bold py-2 rounded-3" :disabled="loading || !canSubmit">
-            <span v-if="loading"><span class="spinner-border spinner-border-sm me-2" />Signing Up…</span>
+            <span v-if="loading"><span class="spinner-border spinner-border-sm me-2"></span>Signing Up…</span>
             <span v-else>Sign Up</span>
           </button>
         </form>
@@ -621,4 +621,4 @@ html, body {
 .form-label,
 .form-check-label {
   font-size: 0.85rem !important;
-  color: #c7d0df !impo
+  color: #c7
