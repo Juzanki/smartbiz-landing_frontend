@@ -1,144 +1,21 @@
-# netlify.toml — SmartBiz (Vue 3 + Vite) on Netlify
-# Frontend: Netlify  |  Backend (FastAPI): Render
-# Proxy: /api/*  -> https://smartbiz-backend-p45m.onrender.com/api/*
-#        /ws     -> wss://smartbiz-backend-p45m.onrender.com/ws
-
-############################
-# Build Settings
-############################
 [build]
   command = "npm ci && npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
-  # Tumia /api kama base ya mawasiliano; axios itasoma hii.
-  VITE_API_BASE = "/api"
 
-# Zima post-processing ya Netlify (Vite hufanya minify/bundle tayari)
-[build.processing]
-  skip_processing = true
-
-############################
-# Redirects (ORDER MATTERS)
-############################
-
-# 0) Health check (hiari): pitisha moja kwa moja
-[[redirects]]
-  from = "/api/health"
-  to   = "https://smartbiz-backend-p45m.onrender.com/api/health"
-  status = 200
-  force = true
-
-# 1) API HTTP proxy -> Render (Lazima iwe juu ya SPA fallback)
 [[redirects]]
   from = "/api/*"
-  to   = "https://smartbiz-backend-p45m.onrender.com/api/:splat"
+  to = "https://smartbiz-backend-p45m.onrender.com/:splat"
   status = 200
   force = true
 
-# 2) WebSocket/SSE proxy (kama unatumia)
-[[redirects]]
-  from = "/ws"
-  to   = "wss://smartbiz-backend-p45m.onrender.com/ws"
-  status = 200
-  force = true
-
-# (hiari) socket.io au njia nyingine za ws
-[[redirects]]
-  from = "/socket.io/*"
-  to   = "wss://smartbiz-backend-p45m.onrender.com/socket.io/:splat"
-  status = 200
-  force = true
-
-# 3) Assets za Vite zipite kama zilivyo
-[[redirects]]
-  from = "/assets/*"
-  to   = "/assets/:splat"
-  status = 200
-  force = true
-
-# 4) Faili za kawaida (favicon/robots/sitemap)
-[[redirects]]
-  from = "/favicon.ico"
-  to   = "/favicon.ico"
-  status = 200
-[[redirects]]
-  from = "/robots.txt"
-  to   = "/robots.txt"
-  status = 200
-[[redirects]]
-  from = "/sitemap.xml"
-  to   = "/sitemap.xml"
-  status = 200
-
-# 5) SPA fallback (iwe MWISHO ili isimeze /api/*)
-[[redirects]]
-  from = "/*"
-  to   = "/index.html"
-  status = 200
-
-############################
-# Headers
-############################
-
-# A) Global security headers
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-
-    # ⚠️ CSP imepangwa kuruhusu mawasiliano na Render + WS.
-    # Ongeza CDN/mitandao mingine utakapotumia (fonts, analytics, n.k.).
-    # Ondoa 'unsafe-inline'/'unsafe-eval' ukidhibiti inline script/style.
-    Content-Security-Policy = """
-      default-src 'self' https: blob: data:;
-      base-uri 'self';
-      frame-ancestors 'self';
-      img-src 'self' https: blob: data:;
-      font-src 'self' https: data:;
-      media-src 'self' https: blob: data:;
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
-      style-src 'self' 'unsafe-inline' https:;
-      connect-src
-        'self'
-        https://smartbiz-backend-p45m.onrender.com
-        wss://smartbiz-backend-p45m.onrender.com
-        https:;
-    """
-
-# B) Usicache index.html (pata deploy mpya haraka)
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "no-store, must-revalidate"
-
-# C) Cache kali kwa bundles zilizo na hash
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-    Access-Control-Allow-Origin = "*"  # huruhusu fonts/CSS cross-origin kama ikihitajika
-
-# D) API: zuia cache upande wa Netlify (CORS zitakuja kutoka Render)
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Cache-Control = "no-store"
-
-# E) Service Worker (kama unatumia)
-[[headers]]
-  for = "/sw.js"
-  [headers.values]
-    Service-Worker-Allowed = "/"
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-# F) Manifest (PWA)
-[[headers]]
-  for = "/manifest.webmanifest"
-  [headers.values]
-    Cache-Control = "public, max-age=3600"
+  Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://smartbiz-backend-p45m.onrender.com wss://smartbiz-backend-p45m.onrender.com https:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+  Referrer-Policy = "strict-origin-when-cross-origin"
+  X-Content-Type-Options = "nosniff"
+  X-Frame-Options = "DENY"
+  Permissions-Policy = "camera=(), microphone=(), geolocation=()"
