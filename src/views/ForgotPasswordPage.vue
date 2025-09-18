@@ -22,7 +22,6 @@
 
       <!-- Card -->
       <div class="card shadow-lg border border-warning rounded-4 p-3 p-sm-4">
-        <!-- API tips / status -->
         <div v-if="!online" class="alert alert-dark border border-danger text-danger small py-2 mb-3" role="alert">
           You seem to be offline. Please check your connection.
         </div>
@@ -71,7 +70,6 @@
             <span v-else><span class="spinner-border spinner-border-sm me-2" />Sending…</span>
           </button>
 
-          <!-- Cooldown timer -->
           <div v-if="onCooldown" class="text-center small text-secondary mt-2">
             Please wait {{ cooldownLeft }}s before requesting again.
           </div>
@@ -92,7 +90,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { api, USING_API_PROXY, preWarmIfNeeded } from '@/lib/api' // HATUTUMII tena API_ROOT_URL
+import { api } from '@/lib/api' // **import only this** so build haivunjiki
 
 const router = useRouter()
 const toast  = useToast()
@@ -106,7 +104,7 @@ const online     = ref<boolean>(navigator.onLine)
 const idInput    = ref<HTMLInputElement|null>(null)
 const hint       = ref('')
 
-/* Cooldown (anti-spam) */
+/* Cooldown */
 const COOLDOWN_SECONDS = 30
 const cooldownUntil = ref<number>(0)
 const cooldownLeft  = computed(() => Math.max(0, Math.ceil((cooldownUntil.value - Date.now()) / 1000)))
@@ -122,18 +120,28 @@ const canSubmit = computed(() => identifier.value.trim().length > 2)
 const _onOnline  = () => (online.value = true)
 const _onOffline = () => (online.value = false)
 
+/* Soft wake-up (usi-tegemee lib/api to export a helper) */
+async function wakeBackend(softMs = 4000) {
+  try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), softMs)
+    const base = (import.meta.env.VITE_API_BASE as string) || '/api'
+    await fetch(`${base.replace(/\/+$/,'')}/health`, { credentials: 'include', signal: ctrl.signal })
+    clearTimeout(t)
+  } catch { /* ignore */ }
+}
+
 onMounted(async () => {
   window.addEventListener('online', _onOnline)
   window.addEventListener('offline', _onOffline)
 
-  // UX: focus
   await nextTick()
   idInput.value?.focus?.()
 
-  // Pre-warm backend (Render cold start) na onyesha base hint rafiki
-  await preWarmIfNeeded().catch(() => {})
+  // Pre-warm backend (Render cold start) & show friendly hint
+  await wakeBackend()
   const envBase = (import.meta.env.VITE_API_BASE as string) || '/api'
-  hint.value = USING_API_PROXY ? `API base: ${envBase} (Netlify proxy)` : `API base: ${envBase}`
+  hint.value = `API base: ${envBase.replace(/\/+$/,'')}`
 })
 
 onBeforeUnmount(() => {
@@ -150,21 +158,19 @@ function parseError(e:any): string {
   return d?.detail || d?.message || e?.message || 'Failed to send reset code.'
 }
 
-/* Build payload compatible with multiple backends */
+/* Build payload */
 function buildPayload(id: string) {
   const v = id.trim()
   if (isEmail(v)) return { email: v, identifier: v }
   if (isLikelyPhone(v)) {
     const ph = normalizePhone(v)
-    if (!ph.startsWith('+')) {
-      throw new Error('Please enter phone in international format, e.g. +255712345678.')
-    }
+    if (!ph.startsWith('+')) throw new Error('Please enter phone in international format, e.g. +255712345678.')
     return { phone_number: ph, identifier: ph }
   }
-  return { identifier: v } // fallback; backend anaweza ku-map kwenye username/email/phone
+  return { identifier: v }
 }
 
-/* Endpoints to try (first that works wins) */
+/* Endpoints to try (first success wins) */
 const ENDPOINTS = [
   '/api/auth/request-reset',
   '/api/auth/password/forgot',
@@ -201,12 +207,11 @@ async function requestReset() {
         lastErr = e
         const st = e?.response?.status
         if (!st || [404, 405, 415].includes(st)) continue
-        break // 400/422 nk → acha tuonyeshe error
+        break
       }
     }
     if (!sent) throw lastErr || new Error('No reset route responded.')
 
-    // success UX
     sessionStorage.setItem('reset_identifier', String(payload.email || payload.phone_number || payload.identifier))
     success.value = 'Reset code sent successfully! Check your email or SMS.'
     cooldownUntil.value = Date.now() + COOLDOWN_SECONDS * 1000
@@ -219,7 +224,7 @@ async function requestReset() {
 }
 </script>
 
-<!-- Global page bg for this route -->
+<!-- Global page bg -->
 <style>
 html, body { background: #0b1220; }
 </style>
