@@ -1,15 +1,15 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import { h, defineComponent, defineAsyncComponent } from 'vue'
-import { customAlphabet } from 'nanoid' // IDs bora kuliko Date+Math.random
+import { customAlphabet } from 'nanoid'
 
 /* ────────────────────────────────────────────────────────────
-   0) Live ID generator (compact, friendly, uppercase)
+   0) Live ID generator
    ──────────────────────────────────────────────────────────── */
 const makeLiveId = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 12)
 
 /* ────────────────────────────────────────────────────────────
-   1) i18n loader wa hiari (hakivunji app kama huna i18n)
+   1) Optional i18n (non-fatal if missing)
    ──────────────────────────────────────────────────────────── */
 let _i18n = null
 async function loadI18n () {
@@ -24,18 +24,15 @@ async function loadI18n () {
 /* ────────────────────────────────────────────────────────────
    2) Dynamic view loaders (Vite glob) + retries + fallback
    ──────────────────────────────────────────────────────────── */
-const viewModules = import.meta.glob('../views/**/*.vue')
+const viewModules = import.meta.glob('../views/**/*.vue') // vite builds these to /assets/*.js
 
 function resolveViewLoader (path) {
   if (!path) return null
   if (viewModules[path]) return viewModules[path]
-
-  // Case-insensitive & tolerant (ruhusu kuandika bila "../views/")
   const want = String(path)
     .replace(/^\.\//, '')
     .replace(/^(\.\.\/)?views\//, '')
     .toLowerCase()
-
   const key = Object.keys(viewModules).find(k => {
     const low = k.toLowerCase()
     return low.endsWith(want) || low === `../views/${want}`
@@ -47,9 +44,9 @@ const ChunkError = defineComponent({
   name: 'ChunkError',
   props: { hint: { type: String, default: '' } },
   render () {
-    return h('div', { style: 'padding:1rem' }, [
+    return h('div', { style: 'padding:1rem;max-width:860px;margin:24px auto' }, [
       h('h2', { style: 'margin:0 0 .25rem' }, 'Failed to load page'),
-      h('p', { style: 'opacity:.8' }, [
+      h('p', { style: 'opacity:.8;margin:0' }, [
         'Please refresh the app. ',
         this.hint ? h('code', this.hint) : null,
       ]),
@@ -59,13 +56,11 @@ const ChunkError = defineComponent({
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
-// Detect transient chunk errors
 function isTransientChunkError (err) {
   const msg = String(err?.message || err || '')
   return /Failed to fetch dynamically imported module|Loading chunk .* failed|Importing a module script failed|ChunkLoadError/i.test(msg)
 }
 
-// One-time recovery: clear SW + caches then hard-reload with cache-buster
 let __triedRecovery = false
 async function recoverFromChunkErrorOnce () {
   if (__triedRecovery) return
@@ -94,28 +89,20 @@ function lazyAny (pathsOrFns, { retries = 2, delay = 140, timeout = 20000 } = {}
     .filter(Boolean)
 
   if (!loaders.length) {
-    return defineAsyncComponent({
-      loader: async () => ({ default: ChunkError }),
-      suspensible: false,
-    })
+    return defineAsyncComponent({ loader: async () => ({ default: ChunkError }), suspensible: false })
   }
 
   return defineAsyncComponent({
     loader: async () => {
       for (const load of loaders) {
         for (let attempt = 0; attempt <= retries; attempt++) {
-          try {
-            return await load()
-          } catch (err) {
-            if (isTransientChunkError(err) && attempt < retries) {
-              await sleep(delay)
-              continue
-            }
+          try { return await load() }
+          catch (err) {
+            if (isTransientChunkError(err) && attempt < retries) { await sleep(delay); continue }
             break
           }
         }
       }
-      // Kama imefeli kabisa, jaribu recovery (SW/cache) kisha toa fallback
       recoverFromChunkErrorOnce().catch(() => {})
       return { default: ChunkError }
     },
@@ -128,33 +115,23 @@ function lazyAny (pathsOrFns, { retries = 2, delay = 140, timeout = 20000 } = {}
   })
 }
 
-// Prefetch ya hiari (tunaiita kwenye beforeEnter ya baadhi ya routes)
 function prefetchView (path) {
   try { const l = resolveViewLoader(path); if (l) l() } catch {}
 }
 
 /* ────────────────────────────────────────────────────────────
-   3) Auth helpers (token & role)
+   3) Auth helpers
    ──────────────────────────────────────────────────────────── */
 function lsGet (k) { try { return localStorage.getItem(k) || '' } catch { return '' } }
-
-// ⚠️ SAFE regex escape (hii ndiyo iliyokuwa ikivuruga build na “Unexpected '^'”)
-// Tumia /[.*+?^${}()|[\]\\]/g na replacement '\\$&'
 const RE_META = /[.*+?^${}()|[\]\\]/g
 const reEscape = (s) => String(s).replace(RE_META, '\\$&')
-
 function readCookie (name) {
   const re = new RegExp(`(?:^|; )${reEscape(name)}=([^;]+)`)
   const m = document.cookie.match(re)
   return m ? decodeURIComponent(m[1]) : ''
 }
-
-function getToken () {
-  return lsGet('access_token') || readCookie('sb_access') || ''
-}
-function getRole () {
-  return (lsGet('user_role') || '').toLowerCase().trim()
-}
+function getToken () { return lsGet('access_token') || readCookie('sb_access') || '' }
+function getRole  () { return (lsGet('user_role') || '').toLowerCase().trim() }
 
 /* ────────────────────────────────────────────────────────────
    4) Views (lazy)
@@ -268,7 +245,7 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     meta: { title: 'Dashboard' },
-    beforeEnter: (to, from, next) => {
+    beforeEnter: (_to, _from, next) => {
       const role = getRole()
       if (role === 'owner') return next('/dashboard/owner')
       if (role === 'admin') return next('/dashboard/admin')
@@ -434,7 +411,8 @@ const routes = [
    6) Router
    ──────────────────────────────────────────────────────────── */
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL || '/'),
+  // BASE_URL huwekwa na Vite kulingana na vite.config.base (kwa Netlify: '/')
+  history: createWebHistory(import.meta.env.BASE_URL ?? '/'),
   routes,
   scrollBehavior (to, from, saved) {
     if (saved) return saved
@@ -443,7 +421,7 @@ const router = createRouter({
   },
 })
 
-/* Safe push (epuka error ya redundant navigation) */
+/* Safe push (epuka redundant navigation error) */
 const _push = router.push.bind(router)
 router.push = (to) => _push(to).catch(err => {
   const msg = String(err?.message || '')
@@ -453,15 +431,13 @@ router.push = (to) => _push(to).catch(err => {
 
 /* Chunk error handler (global) */
 router.onError(err => {
-  if (isTransientChunkError(err)) {
-    recoverFromChunkErrorOnce().catch(() => {})
-  }
+  if (isTransientChunkError(err)) recoverFromChunkErrorOnce().catch(() => {})
 })
 
 /* ────────────────────────────────────────────────────────────
    7) Guards: i18n, titles, auth, roles
    ──────────────────────────────────────────────────────────── */
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // i18n (lazy, non-blocking)
   const lang = lsGet('user_lang') || 'en'
   loadI18n().then(inst => { try { if (inst?.global) inst.global.locale = lang } catch {} })
@@ -482,9 +458,8 @@ router.beforeEach(async (to, from, next) => {
     const allowed = to.meta.roles.includes(role) || (role === 'owner' && to.meta.roles.includes('admin'))
     if (!allowed) return next('/unauthorized')
   }
-  if (to.meta?.requiresRole && role !== to.meta.requiresRole && role !== 'owner') {
-    return next('/unauthorized')
-  }
+  if (to.meta?.requiresRole && role !== to.meta.requiresRole && role !== 'owner') return next('/unauthorized')
+
   next()
 })
 
