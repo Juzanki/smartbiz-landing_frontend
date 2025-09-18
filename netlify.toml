@@ -1,5 +1,4 @@
-# netlify.toml — SmartBiz (Vite + Vue 3 SPA • Netlify)
-# ----------------------------------------------------
+# netlify.toml — SmartBiz (Vite + Vue 3 SPA)
 
 [build]
   command = "npm ci && npm run build"
@@ -7,28 +6,35 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Frontend itumie same-origin proxy:
+  VITE_API_BASE = "/api"
 
-# Tumia artifacts za Vite kama zilivyo
+# Tumia artifacts za Vite kama zilivyo (hakuna minify/transform ya Netlify)
 [build.processing]
   skip_processing = true
 
 # ───────────────────────────── Redirects / Proxies ─────────────────────────────
-# 1) API proxy (LAZIMA iwe juu ya rules zote)
+# 1) API proxy (LAZIMA juu ya rules zote ili isizimwe na SPA fallback)
 [[redirects]]
   from   = "/api/*"
   to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
   status = 200
   force  = true
-  # Netlify huta-forward automatically method/body/headers
 
-# 2) Ruhusu assets za Vite zipitie moja kwa moja (zisilogwe na SPA fallback)
+# 2) Assets za Vite (zipitie tu; zisigeuzwe HTML)
 [[redirects]]
   from   = "/assets/*"
   to     = "/assets/:splat"
   status = 200
   force  = true
 
-# 3) Faili maalum (hiari lakini ni nzuri kuwa wazi)
+# 3) Service worker (kama unatumia)
+[[redirects]]
+  from   = "/sw.js"
+  to     = "/sw.js"
+  status = 200
+
+# 4) Faili maalum (wazi wazi – si lazima, lakini hupunguza kejeli ya fallback)
 [[redirects]]
   from   = "/favicon.ico"
   to     = "/favicon.ico"
@@ -44,31 +50,23 @@
   to     = "/sitemap.xml"
   status = 200
 
-# 4) (Hiari) Service worker kama upo
-[[redirects]]
-  from   = "/sw.js"
-  to     = "/sw.js"
-  status = 200
-
-# 5) SPA fallback (MWISHO kabisa)
+# 5) SPA fallback (MWISHO KABISA)
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
 
 # ───────────────────────────────── Headers ─────────────────────────────────
-# A) Usalama wa jumla (CSP imepimwa kwa app yako)
+# A) Usalama wa jumla
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Content-Type-Options    = "nosniff"
-    Referrer-Policy           = "strict-origin-when-cross-origin"
-    Permissions-Policy        = "camera=(), microphone=(), geolocation=()"
-    Cross-Origin-Opener-Policy = "same-origin"
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    # ⚠ CSP: ruhusu scripts/styles za app + backend ya Render (API), data/blob kwa media.
-    #   Ukiwahi kuondoa inline loader kabisa, futa 'unsafe-inline'.
+    X-Content-Type-Options      = "nosniff"
+    Referrer-Policy             = "strict-origin-when-cross-origin"
+    Permissions-Policy          = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security   = "max-age=31536000; includeSubDomains; preload"
+    # ⚠ CSP: ruhusu backend yako ya Render kwenye requests (XHR/fetch/WebSocket).
+    #   Ukiisha kuondoa inline styles/scripts, ondoa 'unsafe-inline'.
     Content-Security-Policy = """
       default-src 'self' https: data: blob:;
       script-src  'self' 'unsafe-inline' https:;
@@ -81,7 +79,7 @@
       base-uri 'self'
     """
 
-# B) Usicache index.html (ili mteja aone deploy mpya papo hapo)
+# B) index.html isicache – ili updates zionekane papo hapo
 [[headers]]
   for = "/index.html"
   [headers.values]
@@ -93,7 +91,14 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# D) Manifest & favicon: cache nyepesi
+# D) Sourcemaps (ziwe na cache fupi na content-type sahihi)
+[[headers]]
+  for = "/assets/*.map"
+  [headers.values]
+    Content-Type  = "application/json"
+    Cache-Control = "public, max-age=3600"
+
+# E) Manifest & favicon
 [[headers]]
   for = "/manifest.webmanifest"
   [headers.values]
@@ -104,9 +109,15 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# (Hiari) kama una script maalum, weka header zake hapa
-# [[headers]]
-#   for = "/pit.js"
-#   [headers.values]
-#     Content-Type = "application/javascript"
-#     Cache-Control = "public, max-age=3600"
+# F) WebAssembly (kama unayo)
+[[headers]]
+  for = "/assets/*.wasm"
+  [headers.values]
+    Content-Type  = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# G) Images (cache nzuri, lakini si ya mwaka mzima kama bundles)
+[[headers]]
+  for = "/assets/*.(png|jpg|jpeg|gif|webp|avif|svg)"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000" # ~30 days
