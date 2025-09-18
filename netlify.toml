@@ -1,4 +1,5 @@
-# netlify.toml — SmartBiz (Vite + Vue 3 SPA)
+# netlify.toml — SmartBiz (Vite + Vue 3 SPA • Netlify)
+# ----------------------------------------------------
 
 [build]
   command = "npm ci && npm run build"
@@ -7,33 +8,27 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Zima Netlify post-processing (tunategemea Vite pekee)
+# Tumia artifacts za Vite kama zilivyo
 [build.processing]
   skip_processing = true
 
-# ───────────────────────── Redirects ─────────────────────────
-# 1) API proxy (iwe KABLA ya SPA fallback)
+# ───────────────────────────── Redirects / Proxies ─────────────────────────────
+# 1) API proxy (LAZIMA iwe juu ya rules zote)
 [[redirects]]
   from   = "/api/*"
   to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
   status = 200
   force  = true
+  # Netlify huta-forward automatically method/body/headers
 
-# 2) PIT script proxy (iwe KABLA ya SPA fallback)
-[[redirects]]
-  from   = "/pit"
-  to     = "/pit.js"  # Au "/assets/pit.js" kulingana na eneo halisi
-  status = 200
-  force  = false
-
-# 3) Assets ziende moja kwa moja (zisiepukwe na SPA fallback)
+# 2) Ruhusu assets za Vite zipitie moja kwa moja (zisilogwe na SPA fallback)
 [[redirects]]
   from   = "/assets/*"
   to     = "/assets/:splat"
   status = 200
   force  = true
 
-# 4) Faili maalum (favicon/robots/sitemap)
+# 3) Faili maalum (hiari lakini ni nzuri kuwa wazi)
 [[redirects]]
   from   = "/favicon.ico"
   to     = "/favicon.ico"
@@ -49,29 +44,31 @@
   to     = "/sitemap.xml"
   status = 200
 
-# 5) (Hiari) Service worker kama upo
+# 4) (Hiari) Service worker kama upo
 [[redirects]]
   from   = "/sw.js"
   to     = "/sw.js"
   status = 200
 
-# 6) SPA fallback (MWISHO) — routes zote zirudi index.html
+# 5) SPA fallback (MWISHO kabisa)
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
 
-# ───────────────────────── Headers ─────────────────────────
-# A) Usalama wa jumla
+# ───────────────────────────────── Headers ─────────────────────────────────
+# A) Usalama wa jumla (CSP imepimwa kwa app yako)
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Content-Type-Options     = "nosniff"
-    Referrer-Policy            = "strict-origin-when-cross-origin"
-    Permissions-Policy         = "camera=(), microphone=(), geolocation=()"
-    Strict-Transport-Security  = "max-age=31536000; includeSubDomains; preload"
-    # ⚠️ CSP: ruhusu inline script kidogo (loader) + miunganisho ya backend
-    #   Ukishatoa inline <script> kwenye index.html, ondoa 'unsafe-inline'.
+    X-Content-Type-Options    = "nosniff"
+    Referrer-Policy           = "strict-origin-when-cross-origin"
+    Permissions-Policy        = "camera=(), microphone=(), geolocation=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # ⚠ CSP: ruhusu scripts/styles za app + backend ya Render (API), data/blob kwa media.
+    #   Ukiwahi kuondoa inline loader kabisa, futa 'unsafe-inline'.
     Content-Security-Policy = """
       default-src 'self' https: data: blob:;
       script-src  'self' 'unsafe-inline' https:;
@@ -84,19 +81,19 @@
       base-uri 'self'
     """
 
-# B) Usicache index.html (ili mteja aone deploy mpya mara moja)
+# B) Usicache index.html (ili mteja aone deploy mpya papo hapo)
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-store, must-revalidate"
 
-# C) Cache kali, salama kwa bundles zenye hash
+# C) Bundles zenye hash: cache ya muda mrefu
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# D) Manifest & favicon (cache nyepesi)
+# D) Manifest & favicon: cache nyepesi
 [[headers]]
   for = "/manifest.webmanifest"
   [headers.values]
@@ -107,9 +104,9 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# E) Headers maalum kwa PIT script
-[[headers]]
-  for = "/pit.js"
-  [headers.values]
-    Content-Type = "application/javascript"
-    Cache-Control = "public, max-age=3600"
+# (Hiari) kama una script maalum, weka header zake hapa
+# [[headers]]
+#   for = "/pit.js"
+#   [headers.values]
+#     Content-Type = "application/javascript"
+#     Cache-Control = "public, max-age=3600"
