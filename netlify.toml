@@ -6,35 +6,39 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  # Frontend itumie same-origin proxy:
+  # Frontend itumie same-origin proxy kwenda backend
   VITE_API_BASE = "/api"
 
-# Tumia artifacts za Vite kama zilivyo (hakuna minify/transform ya Netlify)
+# Zima Netlify Forms ili POST zako za XHR zisiishie kumezwa na Netlify
+[forms]
+  enabled = false
+
+# Usifanye “post-processing” ya Netlify kwenye bundles
 [build.processing]
   skip_processing = true
 
 # ───────────────────────────── Redirects / Proxies ─────────────────────────────
-# 1) API proxy (LAZIMA juu ya rules zote ili isizimwe na SPA fallback)
+# (LAZIMA hizi rules ziwe juu ya SPA fallback)
+# 1) API proxy → Render (hu-forward METHODS zote ikiwa ni 200-rewrite)
 [[redirects]]
   from   = "/api/*"
   to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
   status = 200
   force  = true
 
-# 2) Assets za Vite (zipitie tu; zisigeuzwe HTML)
+# 2) Ruhusu assets zipitie kama zilivyo
 [[redirects]]
   from   = "/assets/*"
   to     = "/assets/:splat"
   status = 200
   force  = true
 
-# 3) Service worker (kama unatumia)
+# 3) Faili maalum (si lazima, lakini hupunguza fallback zisizo za lazima)
 [[redirects]]
   from   = "/sw.js"
   to     = "/sw.js"
   status = 200
 
-# 4) Faili maalum (wazi wazi – si lazima, lakini hupunguza kejeli ya fallback)
 [[redirects]]
   from   = "/favicon.ico"
   to     = "/favicon.ico"
@@ -50,7 +54,7 @@
   to     = "/sitemap.xml"
   status = 200
 
-# 5) SPA fallback (MWISHO KABISA)
+# 4) SPA fallback (MWISHO KABISA)
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
@@ -61,44 +65,53 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Content-Type-Options      = "nosniff"
-    Referrer-Policy             = "strict-origin-when-cross-origin"
-    Permissions-Policy          = "camera=(), microphone=(), geolocation=()"
-    Strict-Transport-Security   = "max-age=31536000; includeSubDomains; preload"
-    # ⚠ CSP: ruhusu backend yako ya Render kwenye requests (XHR/fetch/WebSocket).
-    #   Ukiisha kuondoa inline styles/scripts, ondoa 'unsafe-inline'.
+    X-Content-Type-Options    = "nosniff"
+    Referrer-Policy           = "strict-origin-when-cross-origin"
+    Permissions-Policy        = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # ⚠ CSP: ruhusu maombi kwenda backend yako ya Render
     Content-Security-Policy = """
       default-src 'self' https: data: blob:;
       script-src  'self' 'unsafe-inline' https:;
       style-src   'self' 'unsafe-inline' https:;
       img-src     'self' https: data: blob:;
       font-src    'self' https: data:;
-      connect-src 'self' https://smartbiz-backend-p45m.onrender.com wss://smartbiz-backend-p45m.onrender.com https:;
+      connect-src 'self' https://smartbiz-backend-p45m.onrender.com https:;
       media-src   'self' https: data: blob:;
       frame-ancestors 'self';
       base-uri 'self'
     """
 
-# B) index.html isicache – ili updates zionekane papo hapo
+# (OPTIONAL) B) CORS headers kupitia Netlify kwa /api/*
+# Backend yako tayari ina CORS; unaweza kuacha block hii ikiwa unataka
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin      = "https://smartbizsite.netlify.app"
+    Access-Control-Allow-Credentials = "true"
+    Access-Control-Allow-Headers     = "*"
+    Access-Control-Allow-Methods     = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+
+# C) index.html isicache sana
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-store, must-revalidate"
 
-# C) Bundles zenye hash: cache ya muda mrefu
+# D) Bundles zenye hash: cache ya muda mrefu
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# D) Sourcemaps (ziwe na cache fupi na content-type sahihi)
+# E) Sourcemaps
 [[headers]]
   for = "/assets/*.map"
   [headers.values]
     Content-Type  = "application/json"
     Cache-Control = "public, max-age=3600"
 
-# E) Manifest & favicon
+# F) Manifest & favicon
 [[headers]]
   for = "/manifest.webmanifest"
   [headers.values]
@@ -109,15 +122,15 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# F) WebAssembly (kama unayo)
+# G) WebAssembly (kama ipo)
 [[headers]]
   for = "/assets/*.wasm"
   [headers.values]
     Content-Type  = "application/wasm"
     Cache-Control = "public, max-age=31536000, immutable"
 
-# G) Images (cache nzuri, lakini si ya mwaka mzima kama bundles)
+# H) Picha
 [[headers]]
   for = "/assets/*.(png|jpg|jpeg|gif|webp|avif|svg)"
   [headers.values]
-    Cache-Control = "public, max-age=2592000" # ~30 days
+    Cache-Control = "public, max-age=2592000"
