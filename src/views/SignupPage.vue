@@ -147,7 +147,7 @@
           <div class="mb-3">
             <label class="label">Phone Number</label>
             <div class="row-inline gap-2">
-              <select v-model="form.country_code" class="input select w-auto" required>
+              <select v-model="form.country_code" class="input select w-auto" required aria-label="Country code">
                 <option v-for="code in countryCodes" :key="code.value" :value="code.value">
                   {{ code.label }}
                 </option>
@@ -175,7 +175,7 @@
           <!-- LANGUAGE -->
           <div class="mb-3">
             <label class="label">Preferred Language</label>
-            <select class="input select" v-model="form.language" required>
+            <select class="input select" v-model="form.language" required aria-label="Preferred language">
               <option value="en">English</option>
               <option value="sw">Kiswahili</option>
               <option value="fr">Français</option>
@@ -253,12 +253,11 @@
 <script setup lang="ts">
 import { reactive, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { authAPI, handleApiError } from '../api/client'
+import { signup as apiSignup, friendlyError, preWarmIfNeeded } from '@/lib/api'
 
 defineOptions({ name: 'SignupPage' })
 
 const router = useRouter()
-const API_BASE = import.meta.env.VITE_API_BASE || '/api' // optional: for debug
 
 type Lang = 'en' | 'sw' | 'fr' | 'ar'
 type BizType = '' | 'Retail' | 'Service' | 'Wholesale' | 'Education' | 'Other'
@@ -275,7 +274,7 @@ const form = reactive({
   business_type: '' as BizType
 })
 
-const errors = reactive({
+const errors = reactive<Record<string, string>>({
   full_name: '',
   username: '',
   email: '',
@@ -296,7 +295,7 @@ const countryCodes = [
   { value: '+254 (KE)', label: 'KE +254 (KE)' },
   { value: '+256 (UG)', label: 'UG +256 (UG)' },
   { value: '+250 (RW)', label: 'RW +250 (RW)' },
-  { value: '+1 (US)', label: 'US +1 (US)' },
+  { value: '+1 (US)',  label: 'US +1 (US)'  },
   { value: '+44 (UK)', label: 'UK +44 (UK)' },
   { value: '+27 (ZA)', label: 'ZA +27 (ZA)' }
 ] as const
@@ -331,10 +330,10 @@ const strength = computed(() => {
   if (/[^\w\s]/.test(p)) score++
   const levels = [
     { label: 'Too weak', percent: 20, barClass: 'bar-danger' },
-    { label: 'Weak', percent: 40, barClass: 'bar-danger' },
-    { label: 'Fair', percent: 60, barClass: 'bar-warn' },
-    { label: 'Good', percent: 80, barClass: 'bar-info' },
-    { label: 'Strong', percent: 100, barClass: 'bar-ok' }
+    { label: 'Weak',     percent: 40, barClass: 'bar-danger' },
+    { label: 'Fair',     percent: 60, barClass: 'bar-warn'   },
+    { label: 'Good',     percent: 80, barClass: 'bar-info'   },
+    { label: 'Strong',   percent: 100, barClass: 'bar-ok'    }
   ] as const
   return levels[Math.min(score, levels.length - 1)]
 })
@@ -353,29 +352,32 @@ function toE164(countryLabel: string, localRaw: string): string {
 }
 
 function extractError(e: any): string {
-  return handleApiError(e)
+  return friendlyError(e)
 }
 
 watch(() => ({ ...form, agreed: agreed.value }), () => {
   error.value = ''
   success.value = ''
-  Object.keys(errors).forEach((k) => ((errors as any)[k] = ''))
+  Object.keys(errors).forEach((k) => (errors[k] = ''))
 }, { deep: true })
 
 watch(() => form.email, (v) => { if (v) localStorage.setItem('sb_last_email', v) })
 watch(() => form.country_code, (v) => { if (v) localStorage.setItem('sb_country', v) })
 
-onMounted(() => {
+onMounted(async () => {
   const lastEmail = localStorage.getItem('sb_last_email')
   const lastCc = localStorage.getItem('sb_country')
   if (lastEmail) form.email = lastEmail
   if (lastCc) form.country_code = lastCc
+
+  // pre-warm backend (Render cold-start)
+  await preWarmIfNeeded().catch(() => {})
 })
 
 onBeforeUnmount(() => { if (abortCtrl) abortCtrl.abort() })
 
 function validateForm(): boolean {
-  Object.keys(errors).forEach((k) => ((errors as any)[k] = ''))
+  Object.keys(errors).forEach((k) => (errors[k] = ''))
   let ok = true
 
   if (!form.full_name.trim()) { errors.full_name = 'Full name is required'; ok = false }
@@ -404,7 +406,7 @@ async function onSignup() {
   if (!validateForm() || loading.value) return
   if (!navigator.onLine) { error.value = 'You appear to be offline. Please check your connection.'; return }
 
-  if (abortCtrl) abortCtrl.abort()
+  if (abortCtrl) { abortCtrl.abort() }
   abortCtrl = new AbortController()
 
   error.value = ''
@@ -424,8 +426,8 @@ async function onSignup() {
   }
 
   try {
-    const res = await authAPI.signUp(payload /*, { signal: abortCtrl.signal } */)
-    if ((res as any)?.data) {
+    const data = await apiSignup(payload)
+    if (data) {
       success.value = 'Account created successfully. Redirecting to login…'
       localStorage.setItem('sb_signup_email', form.email)
       localStorage.setItem('sb_signup_success', 'true')
@@ -435,10 +437,10 @@ async function onSignup() {
     }
   } catch (e: any) {
     error.value = extractError(e)
-    const be = e?.response?.data?.errors
+    const be = e?.data?.errors || e?.response?.data?.errors
     if (be && typeof be === 'object') {
       Object.keys(be).forEach((k) => {
-        if (k in errors) (errors as any)[k] = Array.isArray(be[k]) ? be[k][0] : String(be[k])
+        if (k in errors) errors[k] = Array.isArray(be[k]) ? be[k][0] : String(be[k])
       })
     }
   } finally {
