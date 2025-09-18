@@ -1,8 +1,8 @@
-<!-- src/views/ForgotPassword.vue -->
+<!-- src/views/ForgotPasswordPage.vue -->
 <template>
   <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
     <div class="wrap" style="width:100%;max-width:520px">
-      <!-- Logo + title (kama login/signup) -->
+      <!-- Logo + title -->
       <div class="text-center mb-3 mt-2">
         <img
           src="/icons/logo.png"
@@ -92,7 +92,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import { api, API_ROOT_URL } from '@/lib/api' // axios instance (withCredentials on)
+import { api, USING_API_PROXY, preWarmIfNeeded } from '@/lib/api' // HATUTUMII tena API_ROOT_URL
 
 const router = useRouter()
 const toast  = useToast()
@@ -130,9 +130,10 @@ onMounted(async () => {
   await nextTick()
   idInput.value?.focus?.()
 
-  // Optional hint about API root
-  const ROOT = API_ROOT_URL.replace(/\/+$/, '')
-  hint.value = `API base: ${ROOT}`
+  // Pre-warm backend (Render cold start) na onyesha base hint rafiki
+  await preWarmIfNeeded().catch(() => {})
+  const envBase = (import.meta.env.VITE_API_BASE as string) || '/api'
+  hint.value = USING_API_PROXY ? `API base: ${envBase} (Netlify proxy)` : `API base: ${envBase}`
 })
 
 onBeforeUnmount(() => {
@@ -146,12 +147,7 @@ function parseError(e:any): string {
   if (!r && e?.message?.toLowerCase?.().includes('network')) {
     return 'Network/CORS error. Ensure your backend allows this origin.'
   }
-  return (
-    d?.detail ||
-    d?.message ||
-    e?.message ||
-    'Failed to send reset code.'
-  )
+  return d?.detail || d?.message || e?.message || 'Failed to send reset code.'
 }
 
 /* Build payload compatible with multiple backends */
@@ -160,14 +156,12 @@ function buildPayload(id: string) {
   if (isEmail(v)) return { email: v, identifier: v }
   if (isLikelyPhone(v)) {
     const ph = normalizePhone(v)
-    // Expecting full international format; if user typed local like 0712..., advise via error
     if (!ph.startsWith('+')) {
-      // We do NOT assume default country here; keep strict to avoid wrong SMS delivery
       throw new Error('Please enter phone in international format, e.g. +255712345678.')
     }
     return { phone_number: ph, identifier: ph }
   }
-  return { identifier: v } // fallback; backend may map it to username/email/phone
+  return { identifier: v } // fallback; backend anaweza ku-map kwenye username/email/phone
 }
 
 /* Endpoints to try (first that works wins) */
@@ -205,11 +199,9 @@ async function requestReset() {
         break
       } catch (e:any) {
         lastErr = e
-        // If route is missing/incompatible, try next
         const st = e?.response?.status
         if (!st || [404, 405, 415].includes(st)) continue
-        // 422/400/etc = probably bad input → break and show error
-        break
+        break // 400/422 nk → acha tuonyeshe error
       }
     }
     if (!sent) throw lastErr || new Error('No reset route responded.')
@@ -217,9 +209,7 @@ async function requestReset() {
     // success UX
     sessionStorage.setItem('reset_identifier', String(payload.email || payload.phone_number || payload.identifier))
     success.value = 'Reset code sent successfully! Check your email or SMS.'
-    // cooldown to prevent spamming
     cooldownUntil.value = Date.now() + COOLDOWN_SECONDS * 1000
-    // redirect after a brief pause
     setTimeout(() => router.push('/verify-code'), 800)
   } catch (e:any) {
     error.value = parseError(e)
