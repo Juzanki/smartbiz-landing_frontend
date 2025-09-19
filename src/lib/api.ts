@@ -1,31 +1,24 @@
-// src/lib/api.ts
 /* eslint-disable no-console */
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 
-/* ───────────────────────────── Base URL (hard-coded Render) ─────────────────────────────
-   Tunatumia URL ya backend yako moja kwa moja:
-   https://smartbiz-backend-p45m.onrender.com
-   Ukiwahi kuhamisha domain, badilisha thamani ya BACKEND_BASE tu.
------------------------------------------------------------------------------------------ */
-
-export const BACKEND_BASE = "https://smartbiz-backend-p45m.onrender.com"; // <<— Render URL yako
-const API_ROOT_URL = BACKEND_BASE;           // hakuna proxy
-const USING_API_PROXY = false;               // kwa rekodi tu
+/* ─────────────────────────────────────────────────────────────────────────────
+   BASE URL (Hard-coded → Render)
+   Ukiwahi kubadilisha domain ya backend, badilisha tu thamani ya BACKEND_BASE.
+───────────────────────────────────────────────────────────────────────────── */
+export const BACKEND_BASE   = "https://smartbiz-backend-p45m.onrender.com";
+export const API_ROOT_URL   = BACKEND_BASE;   // kwa pages zinazotaka kuonyesha hint
+export const USING_API_PROXY = false;         // tupo direct-to-backend (si proxy)
 
 const stripEndSlashes = (s: string) => s.replace(/\/+$/, "");
-function apiURL(path: string): string {
-  const left = API_ROOT_URL;
-  const right = path || "";
-  return ((left ? stripEndSlashes(left) : "") + "/" + right.replace(/^\/+/, "")).replace(/\/{2,}/g, "/");
-}
+const apiURL = (path = "") =>
+  ((API_ROOT_URL ? stripEndSlashes(API_ROOT_URL) : "") + "/" + path.replace(/^\/+/, "")).replace(/\/{2,}/g, "/");
 
 /** Debug flag (au weka ?debug=1 kwenye URL) */
 export const API_DEBUG =
   (import.meta.env.VITE_APP_DEBUG?.toString() === "1") ||
   (typeof location !== "undefined" && /(?:^|[?&])debug=1(?:&|$)/.test(location.search));
 
-/* ───────────────────────────── Small utils ───────────────────────────── */
-
+/* ───────────────────────────── Utils ───────────────────────────── */
 const now = () => Date.now();
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const backoff = (n: number) => Math.min(8000, 350 * 2 ** n) + Math.floor(Math.random() * 200);
@@ -65,19 +58,16 @@ export function friendlyError(err: AxiosError<any> | any): string {
 }
 
 /* ───────────────────────────── Axios Instance ───────────────────────────── */
+const DEFAULT_TIMEOUT   = 60000;   // 60s
+const MAX_RETRIES       = 3;
+const CIRCUIT_COOLDOWN  = 6000;
 
-const DEFAULT_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT_MS || 60000); // 60s
-const MAX_RETRIES      = Number(import.meta.env.VITE_API_MAX_RETRIES || 3);
-const CIRCUIT_WINDOWMS = 20_000;
-const CIRCUIT_COOLDOWN = 6_000;
-
-// “circuit” ndogo dhidi ya maombi mengi yanayofeli mfululizo
 let circuitOpenTill = 0;
-let lastFailureAt = 0;
+let lastFailureAt   = 0;
 
 export const api: AxiosInstance = axios.create({
-  baseURL: API_ROOT_URL,     // absolute base (Render)
-  withCredentials: true,
+  baseURL: API_ROOT_URL,
+  withCredentials: true,             // ruhusu cookie-session kama ipo
   timeout: DEFAULT_TIMEOUT,
   headers: {
     Accept: "application/json",
@@ -87,55 +77,50 @@ export const api: AxiosInstance = axios.create({
 });
 
 if (API_DEBUG) {
-  console.info("[API] baseURL:", USING_API_PROXY ? "(proxy) /api/*" : API_ROOT_URL);
+  console.info("[API] baseURL:", API_ROOT_URL, "| proxy:", USING_API_PROXY ? "YES" : "NO");
 }
 
-/* ─────────── Wake-up helper: iamsha backend (Render cold start) ─────────── */
-
+/* ─────────── Wake-up helper (Render cold start) ─────────── */
 export async function wakeBackend(opts: { soft?: boolean } = {}) {
   const to = opts.soft ? 4000 : 8000;
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), to);
   try {
-    // tumia health ya API (prefixed)
-    const url = apiURL("/api/healthz");
-    await fetch(url, { signal: controller.signal, credentials: "include" });
+    await fetch(apiURL("/api/healthz"), { signal: controller.signal, credentials: "include" });
   } catch {/* ignore */}
   clearTimeout(t);
 }
 
 /* ─────────── Interceptors: headers, logging, retries, HTML guard ─────────── */
-
-// Request: ongeza CSRF/JWT + log
 api.interceptors.request.use((config) => {
   const nowMs = now();
   if (nowMs < circuitOpenTill) {
-    const wait = circuitOpenTill - nowMs;
-    config.timeout = Math.max(config.timeout || DEFAULT_TIMEOUT, DEFAULT_TIMEOUT);
-    if (API_DEBUG) console.debug("[API] circuit cooling, proceeding in background ~", wait, "ms");
+    // tunaendelea lakini tuna-log (circuit ya muda tu)
+    if (API_DEBUG) console.debug("[API] circuit cooling…");
   }
 
   config.headers = config.headers || {};
   const csrf = readCookie("csrftoken") || readCookie("XSRF-TOKEN");
   if (csrf) (config.headers as any)["X-CSRFToken"] = csrf;
+
   const token = getStoredToken();
   if (token) (config.headers as any).Authorization = `Bearer ${token}`;
 
   if (API_DEBUG) {
-    const urlShown = (config.baseURL ?? "") + (config.url || "");
-    console.debug("[API] →", (config.method || "GET").toUpperCase(), urlShown, { withCreds: config.withCredentials });
+    const shown = (config.baseURL ?? "") + (config.url || "");
+    console.debug("[API] →", (config.method || "GET").toUpperCase(), shown);
   }
   return config;
 });
 
-// Response: SPA-fallback guard + smart retries + error normalize
 api.interceptors.response.use(
   (res: AxiosResponse) => {
     if (API_DEBUG) console.debug("[API] ←", res.status, res.config.url);
     const ct = String(res.headers?.["content-type"] || "");
+    // Kinga: tusipokee HTML kutoka /api/* (inaashiria SPA fallback/redirect)
     if ((res.config.url || "").startsWith("/api/") && ct.includes("text/html")) {
       throw new AxiosError(
-        "Received HTML instead of JSON from /api (huenda SPA fallback).",
+        "Received HTML instead of JSON from /api (labda SPA fallback).",
         "ERR_BAD_RESPONSE",
         res.config,
         res.request,
@@ -146,21 +131,17 @@ api.interceptors.response.use(
   },
   async (error: AxiosError<any>) => {
     const cfg: any = error?.config || {};
-    const status = error?.response?.status;
-    const code = error?.code;
+    const status   = error?.response?.status;
+    const code     = error?.code;
 
     lastFailureAt = now();
 
-    const isTimeout = code === "ECONNABORTED";
-    const isNetErr = code === "ERR_NETWORK" && !status;
-    const retryableStatus = [408, 425, 429, 500, 502, 503, 504].includes(Number(status));
+    const isTimeout  = code === "ECONNABORTED";
+    const isNetErr   = code === "ERR_NETWORK" && !status;
+    const retryable  = [408, 425, 429, 500, 502, 503, 504].includes(Number(status));
+    const mayRetry   = (isTimeout || isNetErr || retryable) && (cfg.__retryCount ?? 0) < (cfg.maxRetries ?? MAX_RETRIES);
 
-    const canRetry =
-      (isTimeout || isNetErr || retryableStatus) &&
-      (cfg.__retryCount ?? 0) < (cfg.maxRetries ?? MAX_RETRIES) &&
-      (cfg.method || "get").toLowerCase() !== "get" ? true : (isTimeout || isNetErr || retryableStatus);
-
-    if (canRetry) {
+    if (mayRetry) {
       cfg.__retryCount = (cfg.__retryCount ?? 0) + 1;
       if (cfg.__retryCount === 1) await wakeBackend();
       if (isNetErr) circuitOpenTill = now() + CIRCUIT_COOLDOWN;
@@ -178,7 +159,6 @@ api.interceptors.response.use(
 );
 
 /* ───────────────────────────── Types ───────────────────────────── */
-
 export type SignupPayload = {
   full_name: string;
   username: string;
@@ -194,19 +174,16 @@ export type LoginJsonPayload =
   | { email: string; password: string }
   | { username: string; password: string };
 
-/* ─────────────────────── Public small helpers ─────────────────────── */
-
+/* ─────────────────────── Public helpers ─────────────────────── */
 export function isColdStartLikely(): boolean {
   return now() - lastFailureAt < 15_000;
 }
 
 export async function preWarmIfNeeded() {
-  // bado render huweza kuwa cold-start; iamsha kimya kimya
   await wakeBackend({ soft: true }).catch(() => {});
 }
 
 /* ───────────────────────────── API calls ───────────────────────────── */
-
 export async function healthz() {
   return api.get("/api/healthz", { timeout: 6000 }).then((r) => r.data);
 }
@@ -227,6 +204,7 @@ export async function loginJson(identifier: string, password: string) {
 export async function loginForm(identifier: string, password: string) {
   await preWarmIfNeeded();
   const params = new URLSearchParams();
+  // wengi wa backends hutegemea "username" hapa; badilisha kama server inataka "email"
   params.set("username", identifier);
   params.set("password", password);
   return api
