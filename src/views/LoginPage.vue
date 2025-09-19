@@ -26,17 +26,17 @@
 
       <hr class="mb-3 border-warning opacity-75" />
 
-      <!-- API status -->
+      <!-- Backend status -->
       <div
         v-if="apiStatus !== 'ok'"
         class="alert alert-dark border border-warning-subtle text-warning small py-2 mb-2"
         role="alert"
         aria-live="polite"
       >
-        <span v-if="apiStatus === 'checking'">Checking API availability…</span>
+        <span v-if="apiStatus === 'checking'">Checking server availability…</span>
         <span v-else-if="apiStatus === 'down'">
-          API unreachable. Ensure backend is running at
-          <code class="text-light">{{ API_BASE_HINT }}</code>.
+          Server unreachable. Ensure backend is running at
+          <code class="text-light">{{ BACKEND_BASE }}</code>.
         </span>
         <span v-else-if="apiStatus === 'cors'">
           Network/CORS error. Allow origin
@@ -124,7 +124,7 @@
         </button>
       </form>
 
-      <!-- STEP 2: OTP / 2FA (if required by backend) -->
+      <!-- STEP 2: OTP / 2FA (optional: only if backend ever returns mfa_required) -->
       <form v-else @submit.prevent="verifyOtp" autocomplete="off" novalidate>
         <div class="mb-2 text-center">
           <h2 class="h6 text-warning fw-bold m-0">Two-Factor Authentication</h2>
@@ -165,9 +165,9 @@
       <details v-if="debug" class="mt-3 small text-light-50">
         <summary class="text-warning">Debug</summary>
         <div class="mt-2">
-          <div>API_BASE: <code class="text-light">{{ API_BASE_HINT }}</code></div>
+          <div>BACKEND_BASE: <code class="text-light">{{ BACKEND_BASE }}</code></div>
           <div>Origin: <code class="text-light">{{ origin }}</code></div>
-          <div>API status: <code class="text-light">{{ apiStatus }}</code></div>
+          <div>Status: <code class="text-light">{{ apiStatus }}</code></div>
           <div>Last error: <code class="text-light">{{ lastError || '-' }}</code></div>
           <div>MFA: <code class="text-light">{{ mfa }}</code></div>
         </div>
@@ -181,17 +181,41 @@ defineOptions({ name: 'LoginPage' })
 
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
-import { api, loginJson, loginForm, verifySession } from '@/lib/api'
 
 const router = useRouter()
 
-/* ─────────── Utils ─────────── */
-const origin = window.location.origin
-const API_BASE_HINT = ((import.meta.env.VITE_API_BASE as string) || '/api').replace(/\/+$/,'')
-const ABSOLUTE_LOGIN_URL = 'https://smartbiz-backend-p45m.onrender.com/api/auth/login' // fallback absolute
+/* ===== Backend base (NO /api) ===== */
+const BACKEND_BASE =
+  (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
+  'https://smartbiz-backend-p45m.onrender.com'
+
+/* Small fetch helpers */
+async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BACKEND_BASE}${path}`, {
+    credentials: 'include',
+    ...init,
+  })
+  let data: any = null
+  try { data = await res.json() } catch {}
+  if (!res.ok) {
+    const err: any = new Error(data?.detail || data?.message || res.statusText)
+    err.status = res.status
+    err.data = data
+    throw err
+  }
+  return data as T
+}
+async function postJSON<T>(path: string, body: any, signal?: AbortSignal): Promise<T> {
+  return getJSON<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal
+  })
+}
 
 /* ─────────── State ─────────── */
+const origin   = window.location.origin
 const loading  = ref(false)
 const showPwd  = ref(false)
 const capsOn   = ref(false)
@@ -204,10 +228,10 @@ const pwdInput = ref<HTMLInputElement|null>(null)
 const debug    = (import.meta.env.VITE_APP_DEBUG?.toString() === '1') || /[?&]debug=1/.test(location.search)
 const lastError = ref('')
 
-/* MFA */
+/* MFA (optional) */
 const mfa = ref<{required:boolean; token?:string; code?:string; error?:string}>({ required: false })
 
-/* API health status: 'checking' | 'ok' | 'down' | 'cors' */
+/* API health status */
 const apiStatus = ref<'checking'|'ok'|'down'|'cors'>('checking')
 
 /* Connectivity listeners */
@@ -219,7 +243,7 @@ onMounted(async () => {
   window.addEventListener('offline', _onOffline)
   document.addEventListener('visibilitychange', onVisChange)
 
-  // If already authenticated, redirect
+  // If already authenticated (token saved), redirect
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
   if (token) { await safePushByRole(); return }
 
@@ -260,7 +284,7 @@ const onPwdKeyup = (e: KeyboardEvent) => {
 }
 function focusPwd() { pwdInput.value?.focus?.() }
 
-/* ─────────── Helpers: save auth (JWT) OR cookie-session ─────────── */
+/* ─────────── Helpers: token/cookie session ─────────── */
 function saveAuthFromBody(data: any) {
   const token = data?.access_token || data?.token || data?.accessToken
   const user  = data?.user || {}
@@ -275,22 +299,18 @@ function saveAuthFromBody(data: any) {
   storage.setItem('user_lang', lang)
   storage.setItem('auth_at', String(Date.now()))
   localStorage.setItem('last_identifier', normalizeId(form.value.identifier).toLowerCase())
-  api.defaults.headers.common.Authorization   = `Bearer ${token}`
-  axios.defaults.headers.common.Authorization = `Bearer ${token}`
   return true
 }
 
 async function saveAuthFromCookieSession() {
   try {
-    const profile = await verifySession()
-    const user = profile?.user || profile
-    const role = user?.role || 'user'
-    const name = user?.full_name || user?.name || ''
-    const lang = user?.language || 'en'
+    const res = await getJSON<{ valid:boolean; user?: any }>('/auth/session/verify')
+    if (!res.valid) return false
+    const profile = await getJSON<any>('/auth/me')
     const storage = remember.value ? localStorage : sessionStorage
-    storage.setItem('user_role', role)
-    storage.setItem('user_name', name)
-    storage.setItem('user_lang', lang)
+    storage.setItem('user_role', profile?.role || 'user')
+    storage.setItem('user_name', profile?.full_name || profile?.username || '')
+    storage.setItem('user_lang', profile?.language || 'en')
     storage.setItem('auth_at', String(Date.now()))
     return true
   } catch { return false }
@@ -307,23 +327,32 @@ async function safePushByRole() {
   await router.push(target)
 }
 
-/* ─────────── Health check ─────────── */
+/* ─────────── Health check (NO /api) ─────────── */
 async function checkApiHealth() {
   apiStatus.value = 'checking'
   try {
-    await api.get('/api/healthz', { timeout: 4000 })
+    await getJSON('/health', { method: 'GET' } as any)
     apiStatus.value = 'ok'
-  } catch (err:any) {
-    const isCors = !err?.response && !!err?.request
-    lastError.value = err?.message || 'Unable to reach API'
-    apiStatus.value = isCors ? 'cors' : 'down'
+  } catch (err: any) {
+    lastError.value = err?.message || 'Unable to reach server'
+    // If fetch reached network layer but blocked, label as cors
+    apiStatus.value = (err?.name === 'TypeError' && !navigator.onLine ? 'down' : 'cors')
   }
 }
 
-/* ─────────── Login flow ─────────── */
+/* ─────────── Login flow (NO /api) ─────────── */
 let lastTry = 0
-let inflightSource: any = null
+let abortCtrl: AbortController | null = null
 const COOLDOWN_MS = 1200
+
+function buildLoginPayload(identifier: string, password: string) {
+  const emailLike = /\S+@\S+\.\S+/.test(identifier)
+  const digits = identifier.replace(/\D+/g, '')
+  const isPhone = digits.length >= 8 && !emailLike && /^[0-9+()\s-]+$/.test(identifier)
+  if (emailLike) return { email: identifier.toLowerCase(), password }
+  if (isPhone)   return { phone: digits, password }
+  return { username: identifier.toLowerCase(), password }
+}
 
 async function handleLogin() {
   const now = Date.now()
@@ -333,8 +362,8 @@ async function handleLogin() {
   if (!navigator.onLine) { lastError.value = 'You are offline.'; return }
   if (!validate()) return
 
-  if (inflightSource) inflightSource.cancel('Cancelled due to a new attempt')
-  inflightSource = axios.CancelToken.source()
+  if (abortCtrl) abortCtrl.abort()
+  abortCtrl = new AbortController()
 
   const identifier = normalizeId(form.value.identifier)
   const password   = form.value.password
@@ -342,74 +371,54 @@ async function handleLogin() {
   loading.value = true
   lastError.value = ''
   try {
-    let data: any = null
+    const payload = buildLoginPayload(identifier, password)
 
-    // 1) Preferred JSON login (proxied /api/auth/login)
-    try {
-      const r1 = await loginJson(identifier, password)
-      data = r1
-    } catch (e1:any) {
-      if (axios.isCancel(e1)) return
-      // 2) Fallback: absolute URL to Render
-      try {
-        const payloadAbs = /\S+@\S+\.\S+/.test(identifier)
-          ? { email: identifier, password }
-          : { username: identifier, password }
-        const rAbs = await axios.post(
-          ABSOLUTE_LOGIN_URL,
-          payloadAbs,
-          { withCredentials: true, headers: { 'Content-Type': 'application/json' }, cancelToken: inflightSource.token }
-        )
-        data = rAbs.data
-      } catch {
-        // 3) Fallback: urlencoded form
-        const r2 = await loginForm(identifier, password)
-        data = r2
-      }
-    }
+    // POST /auth/login (JSON), cookies enabled
+    const data = await postJSON<any>('/auth/login', payload, abortCtrl.signal)
 
-    // Handle MFA
-    if (data?.mfa_required) {
+    // Optional MFA flow (only if backend returns these fields)
+    if (data?.mfa_required && data?.mfa_token) {
       mfa.value = { required: true, token: data.mfa_token }
       return
     }
 
-    // JWT?
+    // JWT or cookie-session
     let authed = saveAuthFromBody(data)
-    // Cookie session?
     if (!authed) authed = await saveAuthFromCookieSession()
     if (!authed) throw new Error('Missing token/session in response.')
 
     await safePushByRole()
   } catch (err:any) {
     lastError.value =
-      err?.response?.data?.detail ||
-      err?.response?.data?.message ||
+      err?.data?.detail ||
+      err?.data?.message ||
       err?.message ||
-      'Request failed'
+      'Login failed'
+    // refresh health panel
     checkApiHealth()
   } finally {
     loading.value = false
-    inflightSource = null
+    abortCtrl = null
   }
 }
 
-/* ─────────── MFA verify ─────────── */
+/* ─────────── MFA verify (optional; path shown if you later add it) ─────────── */
 async function verifyOtp() {
   if (!mfa.value.code || !mfa.value.token) { mfa.value.error = 'Enter the code.'; return }
   mfa.value.error = ''
   loading.value = true
   try {
-    const r = await api.post('/api/auth/mfa/verify', {
+    // If/when you add the endpoint, keep it without /api:
+    const data = await postJSON<any>('/auth/mfa/verify', {
       otp: mfa.value.code,
       mfa_token: mfa.value.token,
     })
-    let authed = saveAuthFromBody(r.data)
+    let authed = saveAuthFromBody(data)
     if (!authed) authed = await saveAuthFromCookieSession()
     if (!authed) throw new Error('Session not established after OTP.')
     await safePushByRole()
   } catch (e:any) {
-    mfa.value.error = e?.response?.data?.detail || e?.message || 'Invalid code.'
+    mfa.value.error = e?.data?.detail || e?.message || 'Invalid code.'
   } finally {
     loading.value = false
   }
