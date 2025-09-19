@@ -2,7 +2,7 @@
 <template>
   <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
     <div class="wrap" style="width:100%;max-width:520px">
-      <!-- Logo + title (kama login/signup) -->
+      <!-- Logo + title -->
       <div class="text-center mb-3 mt-2">
         <img
           src="/icons/logo.png"
@@ -22,7 +22,6 @@
 
       <!-- Card -->
       <div class="card shadow-lg border border-warning rounded-4 p-3 p-sm-4">
-        <!-- Status / tips -->
         <div v-if="!online" class="alert alert-dark border border-danger text-danger small py-2 mb-3" role="alert">
           You seem to be offline. Please check your connection.
         </div>
@@ -51,13 +50,11 @@
             />
           </div>
 
-          <!-- Inline error / success -->
           <div class="mb-2" aria-live="polite">
             <div v-if="error" class="alert alert-danger py-2 px-3 mb-2">{{ error }}</div>
             <div v-if="success" class="alert alert-success py-2 px-3 mb-2">{{ success }}</div>
           </div>
 
-          <!-- Submit -->
           <button
             type="submit"
             class="btn btn-warning w-100 fw-bold py-2 rounded-3"
@@ -92,7 +89,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, API_ROOT_URL } from '@/lib/api' // axios instance (withCredentials enabled)
+import { api } from '@/lib/api' // ✅ API_ROOT_URL removed
 
 const router = useRouter()
 
@@ -120,9 +117,12 @@ const codeValue = computed(() => digits.value.join(''))
 
 /* Mount focus + hint */
 onMounted(async () => {
-  window.addEventListener('online', () => (online.value = true))
+  window.addEventListener('online',  () => (online.value = true))
   window.addEventListener('offline', () => (online.value = false))
-  hint.value = `API base: ${API_ROOT_URL.replace(/\/+$/, '')}`
+
+  // Friendly API hint from axios instance
+  const root = String(api.defaults.baseURL || '/api').replace(/\/+$/, '')
+  hint.value = `API base: ${root}`
 
   await nextTick()
   focusIndex(0)
@@ -136,7 +136,6 @@ function focusIndex(i: number) {
 }
 
 function onInput(i: number) {
-  // keep only a single digit
   digits.value[i] = (digits.value[i] || '').replace(/\D/g, '').slice(0, 1)
   if (digits.value[i] && i < 5) focusIndex(i + 1)
 }
@@ -150,13 +149,10 @@ function onKeydown(i: number, e: KeyboardEvent) {
       e.preventDefault()
     }
   } else if (key === 'ArrowLeft' && i > 0) {
-    focusIndex(i - 1)
-    e.preventDefault()
+    focusIndex(i - 1); e.preventDefault()
   } else if (key === 'ArrowRight' && i < 5) {
-    focusIndex(i + 1)
-    e.preventDefault()
+    focusIndex(i + 1); e.preventDefault()
   } else if (!/^\d$/.test(key) && key.length === 1) {
-    // block non-digits
     e.preventDefault()
   }
 }
@@ -182,10 +178,9 @@ function parseError(e: any): string {
 function buildVerifyPayload(code: string) {
   const payload: any = { code }
   if (identifier.value) {
-    // Common backend keys
-    payload.identifier    = identifier.value
-    payload.email         = /\S+@\S+\.\S+/.test(identifier.value) ? identifier.value : undefined
-    payload.phone_number  = identifier.value.startsWith('+') ? identifier.value : undefined
+    payload.identifier   = identifier.value
+    if (/\S+@\S+\.\S+/.test(identifier.value)) payload.email = identifier.value
+    if (identifier.value.startsWith('+'))      payload.phone_number = identifier.value
   }
   return payload
 }
@@ -226,15 +221,13 @@ async function verifyCode() {
         lastErr = e
         const st = e?.response?.status
         if (!st || [404, 405, 415].includes(st)) continue
-        break // validation or server error: stop trying
+        break
       }
     }
     if (!data) throw lastErr || new Error('No verification route responded.')
 
-    // accept various token key names
     const resetToken = data.reset_token || data.resetToken || data.token
     if (resetToken) sessionStorage.setItem('reset_token', String(resetToken))
-    // Keep identifier for next step too
     if (identifier.value) sessionStorage.setItem('reset_identifier', identifier.value)
 
     success.value = 'Code verified! Redirecting…'
