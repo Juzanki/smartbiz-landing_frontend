@@ -30,7 +30,7 @@
               :class="{ 'is-invalid': !!errors.full_name }"
               type="text"
               name="name"
-              placeholder="e.g. Julius Nkindwa"
+              placeholder="e.g. Mwana Mpotevu"
               maxlength="60"
               autocomplete="name"
               inputmode="text"
@@ -253,7 +253,6 @@
 <script setup lang="ts">
 import { reactive, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { signup as apiSignup, friendlyError, preWarmIfNeeded } from '@/lib/api'
 
 defineOptions({ name: 'SignupPage' })
 
@@ -261,6 +260,42 @@ const router = useRouter()
 
 type Lang = 'en' | 'sw' | 'fr' | 'ar'
 type BizType = '' | 'Retail' | 'Service' | 'Wholesale' | 'Education' | 'Other'
+
+/** ===== Backend base (NO /api) ===== */
+const BACKEND_BASE =
+  (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
+  'https://smartbiz-backend-p45m.onrender.com'
+
+/** Small helper: POST JSON with abort + cookies */
+async function postJSON<T>(
+  path: string,
+  body: any,
+  signal?: AbortSignal
+): Promise<T> {
+  const res = await fetch(`${BACKEND_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // cookie-based auth
+    body: JSON.stringify(body),
+    signal
+  })
+  let data: any = null
+  try { data = await res.json() } catch { /* ignore */ }
+
+  if (!res.ok) {
+    const detail = data?.detail || data?.message || res.statusText
+    const msg =
+      res.status === 409 ? 'Email already registered' :
+      res.status === 422 ? 'Please check the fields and try again' :
+      res.status === 401 ? 'Unauthorized' :
+      String(detail || 'Request failed')
+    const err: any = new Error(msg)
+    err.status = res.status
+    err.data = data
+    throw err
+  }
+  return data as T
+}
 
 const form = reactive({
   full_name: '',
@@ -351,8 +386,11 @@ function toE164(countryLabel: string, localRaw: string): string {
   return cc && local ? `${cc}${local}` : local
 }
 
-function extractError(e: any): string {
-  return friendlyError(e)
+function friendlyError(e: any): string {
+  const d = e?.data || e?.response?.data
+  if (typeof d?.detail === 'string') return d.detail
+  if (Array.isArray(d?.detail) && d.detail[0]?.msg) return d.detail[0].msg
+  return e?.message || 'Something went wrong'
 }
 
 watch(() => ({ ...form, agreed: agreed.value }), () => {
@@ -370,8 +408,8 @@ onMounted(async () => {
   if (lastEmail) form.email = lastEmail
   if (lastCc) form.country_code = lastCc
 
-  // pre-warm backend (Render cold-start)
-  await preWarmIfNeeded().catch(() => {})
+  // Pre-warm backend (Render cold start) — note: no /api
+  try { await fetch(`${BACKEND_BASE}/health`, { credentials: 'include' }) } catch {}
 })
 
 onBeforeUnmount(() => { if (abortCtrl) abortCtrl.abort() })
@@ -426,7 +464,12 @@ async function onSignup() {
   }
 
   try {
-    const data = await apiSignup(payload)
+    // NO /api here:
+    const data = await postJSON<{ message?: string }>(
+      '/auth/register',
+      payload,
+      abortCtrl.signal
+    )
     if (data) {
       success.value = 'Account created successfully. Redirecting to login…'
       localStorage.setItem('sb_signup_email', form.email)
@@ -436,8 +479,8 @@ async function onSignup() {
       }, 1500)
     }
   } catch (e: any) {
-    error.value = extractError(e)
-    const be = e?.data?.errors || e?.response?.data?.errors
+    error.value = friendlyError(e)
+    const be = e?.data?.errors
     if (be && typeof be === 'object') {
       Object.keys(be).forEach((k) => {
         if (k in errors) errors[k] = Array.isArray(be[k]) ? be[k][0] : String(be[k])
