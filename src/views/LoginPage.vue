@@ -1,4 +1,4 @@
-<!-- src/views/LoginPage.vue -->
+<!-- src/views/LoginPage.vue (BORESHWA – email+password JSON tu) -->
 <template>
   <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
     <div
@@ -6,6 +6,7 @@
       role="dialog"
       aria-labelledby="loginTitle"
       aria-describedby="loginDesc"
+      style="max-width:420px;width:100%"
     >
       <!-- Logo + title -->
       <div class="text-center mb-3 mt-1">
@@ -15,8 +16,7 @@
           class="rounded-circle border border-warning shadow-sm"
           width="56" height="56"
           style="background:#fff;object-fit:contain"
-          loading="eager"
-          decoding="async"
+          loading="eager" decoding="async"
         />
         <h1 id="loginTitle" class="fw-bold text-warning mt-2 h5 m-0">Login to SmartBiz</h1>
         <p id="loginDesc" class="text-light-50 small m-0 mt-1">
@@ -30,8 +30,7 @@
       <div
         v-if="apiStatus !== 'ok'"
         class="alert alert-dark border border-warning-subtle text-warning small py-2 mb-2"
-        role="alert"
-        aria-live="polite"
+        role="alert" aria-live="polite"
       >
         <span v-if="apiStatus === 'checking'">Checking server availability…</span>
         <span v-else-if="apiStatus === 'down'">
@@ -44,24 +43,24 @@
         </span>
       </div>
 
-      <!-- STEP 1: Credentials -->
-      <form v-if="!mfa.required" @submit.prevent="handleLogin" autocomplete="off" novalidate :aria-busy="loading">
-        <!-- Identifier -->
-        <div class="mb-3 input-group group-dark rounded-3 overflow-hidden">
-          <span class="input-group-text border-0"><i class="bi bi-person-fill" aria-hidden="true"></i></span>
+      <!-- Form -->
+      <form @submit.prevent="handleLogin" autocomplete="off" novalidate :aria-busy="loading">
+        <!-- Email -->
+        <label class="form-label text-light small mb-1">Email</label>
+        <div class="mb-2 input-group group-dark rounded-3 overflow-hidden">
+          <span class="input-group-text border-0"><i class="bi bi-envelope-fill" aria-hidden="true"></i></span>
           <input
-            ref="idInput"
-            v-model.trim="form.identifier"
-            type="text"
+            ref="emailInput"
+            v-model.trim="form.email"
+            type="email"
             class="form-control border-0"
-            placeholder="Enter Username, Email, or Phone"
-            aria-label="Username, Email, or Phone"
-            autocomplete="username"
-            inputmode="text"
+            placeholder="you@example.com"
+            aria-label="Email"
+            autocomplete="email"
+            inputmode="email"
             autocapitalize="off"
             autocorrect="off"
-            enterkeyhint="next"
-            :aria-invalid="Boolean(errors.identifier)"
+            :aria-invalid="Boolean(errors.email)"
             :disabled="loading"
             required
             @keydown.enter.prevent="focusPwd()"
@@ -69,6 +68,7 @@
         </div>
 
         <!-- Password -->
+        <label class="form-label text-light small mb-1">Password</label>
         <div class="mb-1 input-group group-dark rounded-3 overflow-hidden">
           <span class="input-group-text border-0"><i class="bi bi-lock-fill" aria-hidden="true"></i></span>
           <input
@@ -82,7 +82,6 @@
             minlength="1"
             @keyup="onPwdKeyup"
             @blur="capsOn = false"
-            enterkeyhint="go"
             :disabled="loading"
             required
             ref="pwdInput"
@@ -101,7 +100,7 @@
         </div>
 
         <!-- Inline validation -->
-        <p v-if="errors.identifier" class="small text-danger mb-1">{{ errors.identifier }}</p>
+        <p v-if="errors.email" class="small text-danger mb-1">{{ errors.email }}</p>
         <p v-if="errors.password" class="small text-danger mb-1">{{ errors.password }}</p>
 
         <!-- CapsLock notice -->
@@ -122,34 +121,10 @@
           <span v-if="!loading">Login</span>
           <span v-else><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Logging in…</span>
         </button>
-      </form>
 
-      <!-- STEP 2: OTP / 2FA (optional: only if backend ever returns mfa_required) -->
-      <form v-else @submit.prevent="verifyOtp" autocomplete="off" novalidate>
-        <div class="mb-2 text-center">
-          <h2 class="h6 text-warning fw-bold m-0">Two-Factor Authentication</h2>
-          <p class="small text-light-50 m-0 mt-1">Enter the 6-digit code sent to your device.</p>
-        </div>
-        <div class="mb-2 input-group group-dark rounded-3 overflow-hidden">
-          <span class="input-group-text border-0"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i></span>
-          <input
-            v-model.trim="mfa.code"
-            type="text"
-            class="form-control border-0"
-            placeholder="123456"
-            inputmode="numeric"
-            pattern="^[0-9]{4,8}$"
-            maxlength="8"
-            required
-            :disabled="loading"
-            @keydown.enter.prevent="verifyOtp()"
-          />
-        </div>
-        <p v-if="mfa.error" class="small text-danger mb-2">{{ mfa.error }}</p>
-
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-outline-secondary w-50" :disabled="loading" @click="cancelMfa">Cancel</button>
-          <button type="submit" class="btn btn-warning w-50 fw-bold" :disabled="loading || !mfa.code">Verify</button>
+        <!-- Global error/success -->
+        <div v-if="notice.text" class="alert mt-2 py-2" :class="notice.type === 'error' ? 'alert-danger' : 'alert-success'">
+          {{ notice.text }}
         </div>
       </form>
 
@@ -161,7 +136,7 @@
         <router-link to="/forgot-password" class="link-info">Forgot Password?</router-link>
       </div>
 
-      <!-- Debug panel -->
+      <!-- Debug -->
       <details v-if="debug" class="mt-3 small text-light-50">
         <summary class="text-warning">Debug</summary>
         <div class="mt-2">
@@ -169,7 +144,6 @@
           <div>Origin: <code class="text-light">{{ origin }}</code></div>
           <div>Status: <code class="text-light">{{ apiStatus }}</code></div>
           <div>Last error: <code class="text-light">{{ lastError || '-' }}</code></div>
-          <div>MFA: <code class="text-light">{{ mfa }}</code></div>
         </div>
       </details>
     </div>
@@ -181,7 +155,6 @@ defineOptions({ name: 'LoginPage' })
 
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-
 const router = useRouter()
 
 /* ===== Backend base (NO /api) ===== */
@@ -189,16 +162,22 @@ const BACKEND_BASE =
   (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
   'https://smartbiz-backend-p45m.onrender.com'
 
-/* Small fetch helpers */
+/* ===== Fetch helpers (JSON only) ===== */
 async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND_BASE}${path}`, {
-    credentials: 'include',
+    credentials: 'omit',            // ← tumia 'include' tu kama unatumia cookies
     ...init,
+    headers: {
+      Accept: 'application/json',
+      ...(init?.headers || {}),
+    },
   })
   let data: any = null
   try { data = await res.json() } catch {}
   if (!res.ok) {
-    const err: any = new Error(data?.detail || data?.message || res.statusText)
+    const err: any = new Error(
+      data?.detail || data?.message || data?.error || `HTTP ${res.status}`
+    )
     err.status = res.status
     err.data = data
     throw err
@@ -209,8 +188,8 @@ async function postJSON<T>(path: string, body: any, signal?: AbortSignal): Promi
   return getJSON<T>(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal
+    body: JSON.stringify(body),     // ← JSON halali (keys kwenye quotes)
+    signal,
   })
 }
 
@@ -221,15 +200,13 @@ const showPwd  = ref(false)
 const capsOn   = ref(false)
 const remember = ref(true)
 const online   = ref(navigator.onLine)
-const form     = ref<{identifier:string;password:string}>({ identifier: '', password: '' })
-const errors   = ref<{identifier:string;password:string}>({ identifier: '', password: '' })
-const idInput  = ref<HTMLInputElement|null>(null)
-const pwdInput = ref<HTMLInputElement|null>(null)
+const form     = ref<{email:string;password:string}>({ email: '', password: '' })
+const errors   = ref<{email:string;password:string}>({ email: '', password: '' })
+const emailInput  = ref<HTMLInputElement|null>(null)
+const pwdInput    = ref<HTMLInputElement|null>(null)
+const notice   = ref<{type:'error'|'success';text:string}>({ type:'error', text:'' })
 const debug    = (import.meta.env.VITE_APP_DEBUG?.toString() === '1') || /[?&]debug=1/.test(location.search)
 const lastError = ref('')
-
-/* MFA (optional) */
-const mfa = ref<{required:boolean; token?:string; code?:string; error?:string}>({ required: false })
 
 /* API health status */
 const apiStatus = ref<'checking'|'ok'|'down'|'cors'>('checking')
@@ -241,17 +218,12 @@ const _onOffline = () => (online.value = false)
 onMounted(async () => {
   window.addEventListener('online', _onOnline)
   window.addEventListener('offline', _onOffline)
-  document.addEventListener('visibilitychange', onVisChange)
 
-  // If already authenticated (token saved), redirect
-  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
-  if (token) { await safePushByRole(); return }
-
-  const lastId = localStorage.getItem('last_identifier')
-  if (lastId) form.value.identifier = lastId
+  const savedEmail = localStorage.getItem('sbz_last_email')
+  if (savedEmail) form.value.email = savedEmail
 
   await nextTick()
-  idInput.value?.focus?.()
+  emailInput.value?.focus?.()
 
   checkApiHealth()
 })
@@ -259,24 +231,20 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('online', _onOnline)
   window.removeEventListener('offline', _onOffline)
-  document.removeEventListener('visibilitychange', onVisChange)
 })
 
-function onVisChange() {
-  if (document.visibilityState === 'visible' && apiStatus.value !== 'ok') checkApiHealth()
-}
-
 /* ─────────── Validation ─────────── */
-const normalizeId = (v?: string) => (v ?? '').trim()
-const canSubmit = computed(() => normalizeId(form.value.identifier).length > 0 && (form.value.password || '').length > 0)
-
+const emailRe = /^\S+@\S+\.\S+$/
+const canSubmit = computed(() =>
+  emailRe.test((form.value.email || '').trim()) && String(form.value.password || '').length >= 1
+)
 function validate() {
-  errors.value.identifier = ''
+  errors.value.email = ''
   errors.value.password = ''
-  const id = normalizeId(form.value.identifier)
-  if (!id) errors.value.identifier = 'Please enter your email/username/phone.'
+  const email = (form.value.email || '').trim()
+  if (!emailRe.test(email)) errors.value.email = 'Please enter a valid email address.'
   if (!form.value.password) errors.value.password = 'Please enter your password.'
-  return !(errors.value.identifier || errors.value.password)
+  return !(errors.value.email || errors.value.password)
 }
 
 const onPwdKeyup = (e: KeyboardEvent) => {
@@ -284,50 +252,22 @@ const onPwdKeyup = (e: KeyboardEvent) => {
 }
 function focusPwd() { pwdInput.value?.focus?.() }
 
-/* ─────────── Helpers: token/cookie session ─────────── */
-function saveAuthFromBody(data: any) {
+/* ─────────── Auth helpers ─────────── */
+function saveAuth(data: any) {
   const token = data?.access_token || data?.token || data?.accessToken
-  const user  = data?.user || {}
-  const role  = user?.role || data?.role || 'user'
-  const name  = user?.full_name || data?.name || user?.name || ''
-  const lang  = user?.language || data?.language || 'en'
   if (!token) return false
-  const storage = remember.value ? localStorage : sessionStorage
-  storage.setItem('access_token', token)
-  storage.setItem('user_role', role)
-  storage.setItem('user_name', name)
-  storage.setItem('user_lang', lang)
-  storage.setItem('auth_at', String(Date.now()))
-  localStorage.setItem('last_identifier', normalizeId(form.value.identifier).toLowerCase())
+  const store = remember.value ? localStorage : sessionStorage
+  store.setItem('sbz_token', token)
+  store.setItem('sbz_token_type', data?.token_type ?? 'Bearer')
+  store.setItem('sbz_auth_at', String(Date.now()))
+  localStorage.setItem('sbz_last_email', (form.value.email || '').trim().toLowerCase())
   return true
 }
-
-async function saveAuthFromCookieSession() {
-  try {
-    const res = await getJSON<{ valid:boolean; user?: any }>('/auth/session/verify')
-    if (!res.valid) return false
-    const profile = await getJSON<any>('/auth/me')
-    const storage = remember.value ? localStorage : sessionStorage
-    storage.setItem('user_role', profile?.role || 'user')
-    storage.setItem('user_name', profile?.full_name || profile?.username || '')
-    storage.setItem('user_lang', profile?.language || 'en')
-    storage.setItem('auth_at', String(Date.now()))
-    return true
-  } catch { return false }
+async function redirectAfterLogin() {
+  await router.push('/dashboard')   // ← badilisha ukihitaji role-based
 }
 
-async function safePushByRole() {
-  const role =
-    localStorage.getItem('user_role') ||
-    sessionStorage.getItem('user_role') ||
-    'user'
-  const target =
-    ({ admin: '/dashboard/admin', owner: '/dashboard/owner', user: '/dashboard/user' } as any)[role] ||
-    '/dashboard/user'
-  await router.push(target)
-}
-
-/* ─────────── Health check (NO /api) ─────────── */
+/* ─────────── Health check ─────────── */
 async function checkApiHealth() {
   apiStatus.value = 'checking'
   try {
@@ -335,95 +275,54 @@ async function checkApiHealth() {
     apiStatus.value = 'ok'
   } catch (err: any) {
     lastError.value = err?.message || 'Unable to reach server'
-    // If fetch reached network layer but blocked, label as cors
-    apiStatus.value = (err?.name === 'TypeError' && !navigator.onLine ? 'down' : 'cors')
+    apiStatus.value = navigator.onLine ? 'cors' : 'down'
   }
 }
 
-/* ─────────── Login flow (NO /api) ─────────── */
+/* ─────────── Login (email + password ONLY) ─────────── */
 let lastTry = 0
 let abortCtrl: AbortController | null = null
 const COOLDOWN_MS = 1200
-
-function buildLoginPayload(identifier: string, password: string) {
-  const emailLike = /\S+@\S+\.\S+/.test(identifier)
-  const digits = identifier.replace(/\D+/g, '')
-  const isPhone = digits.length >= 8 && !emailLike && /^[0-9+()\s-]+$/.test(identifier)
-  if (emailLike) return { email: identifier.toLowerCase(), password }
-  if (isPhone)   return { phone: digits, password }
-  return { username: identifier.toLowerCase(), password }
-}
 
 async function handleLogin() {
   const now = Date.now()
   if (now - lastTry < COOLDOWN_MS || loading.value) return
   lastTry = now
 
-  if (!navigator.onLine) { lastError.value = 'You are offline.'; return }
+  notice.value.text = ''
+  if (!navigator.onLine) { notice.value = { type:'error', text:'You are offline.' }; return }
   if (!validate()) return
 
   if (abortCtrl) abortCtrl.abort()
   abortCtrl = new AbortController()
 
-  const identifier = normalizeId(form.value.identifier)
-  const password   = form.value.password
-
   loading.value = true
   lastError.value = ''
   try {
-    const payload = buildLoginPayload(identifier, password)
+    const email = (form.value.email || '').trim().toLowerCase()
+    const password = String(form.value.password)
 
-    // POST /auth/login (JSON), cookies enabled
-    const data = await postJSON<any>('/auth/login', payload, abortCtrl.signal)
+    // Hapa tunatuma JSON: { "email": "...", "password": "..." }
+    const data = await postJSON<any>('/auth/login', { email, password }, abortCtrl.signal)
 
-    // Optional MFA flow (only if backend returns these fields)
-    if (data?.mfa_required && data?.mfa_token) {
-      mfa.value = { required: true, token: data.mfa_token }
-      return
-    }
-
-    // JWT or cookie-session
-    let authed = saveAuthFromBody(data)
-    if (!authed) authed = await saveAuthFromCookieSession()
-    if (!authed) throw new Error('Missing token/session in response.')
-
-    await safePushByRole()
+    if (!saveAuth(data)) throw new Error('Missing token in response.')
+    notice.value = { type:'success', text:'Login successful. Redirecting…' }
+    await redirectAfterLogin()
   } catch (err:any) {
-    lastError.value =
-      err?.data?.detail ||
-      err?.data?.message ||
-      err?.message ||
-      'Login failed'
-    // refresh health panel
+    const status = err?.status
+    const detail = err?.data?.detail || err?.data?.message || err?.message || 'Login failed.'
+    notice.value = { type:'error', text:
+      status === 401 ? 'Invalid email or password.' :
+      status === 422 ? 'Invalid request payload. Please try again.' :
+      String(detail)
+    }
+    lastError.value = String(detail)
     checkApiHealth()
   } finally {
     loading.value = false
     abortCtrl = null
   }
 }
-
-/* ─────────── MFA verify (optional; path shown if you later add it) ─────────── */
-async function verifyOtp() {
-  if (!mfa.value.code || !mfa.value.token) { mfa.value.error = 'Enter the code.'; return }
-  mfa.value.error = ''
-  loading.value = true
-  try {
-    // If/when you add the endpoint, keep it without /api:
-    const data = await postJSON<any>('/auth/mfa/verify', {
-      otp: mfa.value.code,
-      mfa_token: mfa.value.token,
-    })
-    let authed = saveAuthFromBody(data)
-    if (!authed) authed = await saveAuthFromCookieSession()
-    if (!authed) throw new Error('Session not established after OTP.')
-    await safePushByRole()
-  } catch (e:any) {
-    mfa.value.error = e?.data?.detail || e?.message || 'Invalid code.'
-  } finally {
-    loading.value = false
-  }
-}
-function cancelMfa() { mfa.value = { required: false } }
 </script>
 
 <!-- Global page bg for this route -->
@@ -436,7 +335,6 @@ html, body { background: #0b1220; }
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
   background: #0f1e34 !important;
   box-shadow: 0 8px 28px rgba(0,0,0,.45), 0 0 0 2px #ffd70033;
 }
@@ -477,6 +375,6 @@ hr { border-top: 2px solid #ffd700 !important; }
 .alert-dark { background: #0e1a30; }
 
 @media (min-width: 768px) {
-  .auth-card { padding: 1.5rem 2rem !important; }
+  .auth-card { padding: 1.25rem 1.75rem !important; }
 }
 </style>
