@@ -36,7 +36,7 @@
         <span v-if="apiStatus === 'checking'">Checking API availability…</span>
         <span v-else-if="apiStatus === 'down'">
           API unreachable. Ensure backend is running at
-          <code class="text-light">{{ API_ROOT }}</code>.
+          <code class="text-light">{{ API_BASE_HINT }}</code>.
         </span>
         <span v-else-if="apiStatus === 'cors'">
           Network/CORS error. Allow origin
@@ -165,7 +165,7 @@
       <details v-if="debug" class="mt-3 small text-light-50">
         <summary class="text-warning">Debug</summary>
         <div class="mt-2">
-          <div>API_ROOT: <code class="text-light">{{ API_ROOT }}</code></div>
+          <div>API_BASE: <code class="text-light">{{ API_BASE_HINT }}</code></div>
           <div>Origin: <code class="text-light">{{ origin }}</code></div>
           <div>API status: <code class="text-light">{{ apiStatus }}</code></div>
           <div>Last error: <code class="text-light">{{ lastError || '-' }}</code></div>
@@ -182,14 +182,13 @@ defineOptions({ name: 'LoginPage' })
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { api, API_ROOT_URL, loginJson, loginForm, verifySession } from '@/lib/api'
+import { api, loginJson, loginForm, verifySession } from '@/lib/api'
 
 const router = useRouter()
 
 /* ─────────── Utils ─────────── */
 const origin = window.location.origin
-const trimRightSlash = (s:string) => String(s || '').replace(/\/+$/, '')
-const API_ROOT = trimRightSlash(API_ROOT_URL)
+const API_BASE_HINT = ((import.meta.env.VITE_API_BASE as string) || '/api').replace(/\/+$/,'')
 const ABSOLUTE_LOGIN_URL = 'https://smartbiz-backend-p45m.onrender.com/api/auth/login' // fallback absolute
 
 /* ─────────── State ─────────── */
@@ -345,13 +344,13 @@ async function handleLogin() {
   try {
     let data: any = null
 
-    // 1) Preferred JSON login
+    // 1) Preferred JSON login (proxied /api/auth/login)
     try {
       const r1 = await loginJson(identifier, password)
-      data = r1.data
+      data = r1
     } catch (e1:any) {
       if (axios.isCancel(e1)) return
-      // fallback to absolute
+      // 2) Fallback: absolute URL to Render
       try {
         const payloadAbs = /\S+@\S+\.\S+/.test(identifier)
           ? { email: identifier, password }
@@ -362,10 +361,10 @@ async function handleLogin() {
           { withCredentials: true, headers: { 'Content-Type': 'application/json' }, cancelToken: inflightSource.token }
         )
         data = rAbs.data
-      } catch (eAbs:any) {
-        // fallback to urlencoded form
+      } catch {
+        // 3) Fallback: urlencoded form
         const r2 = await loginForm(identifier, password)
-        data = r2.data
+        data = r2
       }
     }
 
