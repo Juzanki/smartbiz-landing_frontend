@@ -1,4 +1,4 @@
-<!-- src/views/LoginPage.vue (BORESHWA – email+password JSON tu) -->
+<!-- src/views/LoginPage.vue -->
 <template>
   <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
     <div
@@ -45,7 +45,7 @@
 
       <!-- Form -->
       <form @submit.prevent="handleLogin" autocomplete="off" novalidate :aria-busy="loading">
-        <!-- Email -->
+        <!-- Email (used as identifier in request) -->
         <label class="form-label text-light small mb-1">Email</label>
         <div class="mb-2 input-group group-dark rounded-3 overflow-hidden">
           <span class="input-group-text border-0"><i class="bi bi-envelope-fill" aria-hidden="true"></i></span>
@@ -165,7 +165,7 @@ const BACKEND_BASE =
 /* ===== Fetch helpers (JSON only) ===== */
 async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND_BASE}${path}`, {
-    credentials: 'omit',            // ← tumia 'include' tu kama unatumia cookies
+    credentials: 'omit',            // weka 'include' tu kama unatumia cookies za session
     ...init,
     headers: {
       Accept: 'application/json',
@@ -188,7 +188,7 @@ async function postJSON<T>(path: string, body: any, signal?: AbortSignal): Promi
   return getJSON<T>(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),     // ← JSON halali (keys kwenye quotes)
+    body: JSON.stringify(body),     // JSON halali (keys kwenye quotes)
     signal,
   })
 }
@@ -264,7 +264,7 @@ function saveAuth(data: any) {
   return true
 }
 async function redirectAfterLogin() {
-  await router.push('/dashboard')   // ← badilisha ukihitaji role-based
+  await router.push('/dashboard')   // badilisha ukihitaji role-based
 }
 
 /* ─────────── Health check ─────────── */
@@ -279,7 +279,7 @@ async function checkApiHealth() {
   }
 }
 
-/* ─────────── Login (email + password ONLY) ─────────── */
+/* ─────────── Login (tuma identifier + password) ─────────── */
 let lastTry = 0
 let abortCtrl: AbortController | null = null
 const COOLDOWN_MS = 1200
@@ -302,8 +302,8 @@ async function handleLogin() {
     const email = (form.value.email || '').trim().toLowerCase()
     const password = String(form.value.password)
 
-    // Hapa tunatuma JSON: { "email": "...", "password": "..." }
-    const data = await postJSON<any>('/auth/login', { email, password }, abortCtrl.signal)
+    // ✅ Backend inahitaji 'identifier' + 'password'
+    const data = await postJSON<any>('/auth/login', { identifier: email, password }, abortCtrl.signal)
 
     if (!saveAuth(data)) throw new Error('Missing token in response.')
     notice.value = { type:'success', text:'Login successful. Redirecting…' }
