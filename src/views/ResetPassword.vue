@@ -2,7 +2,7 @@
 <template>
   <div class="page bg-dark d-flex align-items-center justify-content-center px-3">
     <div class="wrap" style="width:100%;max-width:520px">
-      <!-- Logo + title (kama login/signup) -->
+      <!-- Logo + title -->
       <div class="text-center mb-3 mt-2">
         <img
           src="/icons/logo.png"
@@ -27,7 +27,8 @@
           You seem to be offline. Please check your connection.
         </div>
         <div v-if="!resetToken" class="alert alert-dark border border-warning text-warning small py-2 mb-3" role="alert">
-          Reset session not found. <router-link to="/forgot-password" class="text-warning text-decoration-underline">Start again</router-link>.
+          Reset session not found.
+          <router-link to="/forgot-password" class="text-warning text-decoration-underline">Start again</router-link>.
         </div>
         <div v-if="hint" class="alert alert-dark border border-warning text-warning small py-2 mb-3" role="note">
           {{ hint }}
@@ -157,21 +158,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, API_ROOT_URL } from '@/lib/api' // axios instance (withCredentials on)
+import { api } from '@/lib/api' // ✅ no API_ROOT_URL import
 
 const router = useRouter()
 
 /* ─────────── State ─────────── */
 const password        = ref<string>('')
 const confirmPassword = ref<string>('')
-const showPwd         = ref<boolean>(false)
-const showConfirm     = ref<boolean>(false)
-const capsOn          = ref<boolean>(false)
-const loading         = ref<boolean>(false)
-const error           = ref<string>('')
-const success         = ref<string>('')
+const showPwd         = ref(false)
+const showConfirm     = ref(false)
+const capsOn          = ref(false)
+const loading         = ref(false)
+const error           = ref('')
+const success         = ref('')
 const online          = ref<boolean>(navigator.onLine)
-const hint            = ref<string>('')
+const hint            = ref('')
 
 /* Identifier for display (from Forgot → Verify) */
 const identifier   = ref<string>(sessionStorage.getItem('reset_identifier') || '')
@@ -188,9 +189,9 @@ const maskedIdentifier = computed(() => {
 
 /* Token handling (URL ?token=... preferred; else storage) */
 function getResetToken(): string {
-  const urlToken = new URLSearchParams(location.search).get('token')
-  const store    = sessionStorage.getItem('reset_token') || localStorage.getItem('reset_token')
-  return urlToken || store || ''
+  const urlToken = new URLSearchParams(location.search).get('token') || ''
+  const store    = sessionStorage.getItem('reset_token') || localStorage.getItem('reset_token') || ''
+  return urlToken || store
 }
 const resetToken = ref<string>(getResetToken())
 
@@ -199,7 +200,9 @@ window.addEventListener('online',  () => (online.value = true))
 window.addEventListener('offline', () => (online.value = false))
 
 onMounted(() => {
-  hint.value = `API base: ${API_ROOT_URL.replace(/\/+$/, '')}`
+  // Derive a friendly API hint from axios instance
+  const root = String(api.defaults.baseURL || '/api').replace(/\/+$/, '')
+  hint.value = `API base: ${root}`
 })
 
 /* ─────────── Validation & strength ─────────── */
@@ -293,12 +296,7 @@ async function resetPassword() {
       for (const body of payloads) {
         try {
           const res = await api.post(url, body, { timeout: 15000 })
-          if (res.status === 200 || res.status === 204) {
-            ok = true
-            break
-          }
-          ok = true
-          break
+          if (res.status === 200 || res.status === 204) { ok = true; break }
         } catch (e:any) {
           lastErr = e
           const st = e?.response?.status
