@@ -1,101 +1,47 @@
-# netlify.toml — SmartBiz (Vite + Vue 3 SPA) — PRODUCTION
+# netlify.toml — SmartBiz (Vite + Vue 3 SPA) — DIRECT MODE (no /api proxy)
 
 [build]
   command = "npm ci && npm run build"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION   = "20"
-  # Frontend itumie same-origin proxy kwenda backend (ona redirects #1 chini)
-  VITE_API_BASE  = "/api"
-  # (hiari) punguza noise ya vite
-  VITE_APP_VERSION = "1.0.0"
+  NODE_VERSION      = "20"
+  # Frontend iwasiliane moja kwa moja na backend (HAKUNA proxy ya /api/*)
+  VITE_API_BASE     = "https://smartbiz-backend-p45m.onrender.com"
+  VITE_APP_VERSION  = "1.0.0"
+  # (hiari) timeout/retries (ikifaa na code yako ya api.ts)
+  # VITE_API_TIMEOUT_MS   = "60000"
+  # VITE_API_MAX_RETRIES  = "3"
+  # VITE_API_CACHE_TTL_MS = "300000"
 
-# Zima Netlify Forms ili POST zako za XHR zisiishie kumezwa na Netlify
 [forms]
   enabled = false
 
-# Zima post-processing ya Netlify kwenye bundles
 [build.processing]
   skip_processing = true
 
 ################################################################################
-# Redirects / Proxies
-# (LAZIMA rules za /api/* ziwe JUU ya SPA fallback)
+# Redirects
 ################################################################################
 
-# 1) API proxy → Render (hu-forward METHODS zote; 200-rewrite)
-[[redirects]]
-  from   = "/api/*"
-  to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
-  status = 200
-  force  = true
-
-# 1b) Ruhusu preflight OPTIONS ipite (safety kwa browsers makinikia)
-[[redirects]]
-  from   = "/api/*"
-  to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
-  status = 200
-  force  = true
-  conditions = { Method = ["OPTIONS"] }
-
-# 2) Assets zi-pass bila kugong’ana na fallback
-[[redirects]]
-  from   = "/assets/*"
-  to     = "/assets/:splat"
-  status = 200
-  force  = true
-
-# 3) Faili za moja kwa moja
-[[redirects]]  # service worker
-  from   = "/sw.js"
-  to     = "/sw.js"
-  status = 200
-
-[[redirects]]  # favicon
-  from   = "/favicon.ico"
-  to     = "/favicon.ico"
-  status = 200
-
-[[redirects]]  # robots
-  from   = "/robots.txt"
-  to     = "/robots.txt"
-  status = 200
-
-[[redirects]]  # sitemap
-  from   = "/sitemap.xml"
-  to     = "/sitemap.xml"
-  status = 200
-
-# 4) SPA fallback (MWISHO KABISA)
+# SPA fallback (LAZIMA iwe mwisho)
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
 
-################################################################################
-# Canonicalization / HTTPS (hiari lakini inapendekezwa)
-################################################################################
-
-# Lazimisha HTTPS
+# (hiari) Lazimisha HTTPS kwenye subdomain ya Netlify
 [[redirects]]
   from   = "http://*smartbizsite.netlify.app/*"
   to     = "https://smartbizsite.netlify.app/:splat"
   status = 301
   force  = true
 
-# www → apex (badilisha kama unatumia domain yako)
-[[redirects]]
-  from   = "https://www.smartbiz.site/*"
-  to     = "https://smartbiz.site/:splat"
-  status = 308
-  force  = true
-
 ################################################################################
-# Headers
+# Headers (Security + Caching)
 ################################################################################
 
-# A) Usalama wa jumla + CSP inayoruhusu ku-connect kwa backend ya Render
+# A) Usalama wa jumla + CSP yenye connect-src kwa backend ya Render
 [[headers]]
   for = "/*"
   [headers.values]
@@ -104,8 +50,7 @@
     Referrer-Policy           = "strict-origin-when-cross-origin"
     Permissions-Policy        = "camera=(), microphone=(), geolocation=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    # ⚠️ Hakikisha domain ya backend iko hapa chini (connect-src).
-    # Ikiwa utabadilisha Render URL, badilisha pia hapa.
+    # ⚠ Badilisha URL hapa ukibadilisha backend.
     Content-Security-Policy = """
       default-src 'self' https: data: blob:;
       script-src  'self' 'unsafe-inline' https:;
@@ -120,36 +65,26 @@
       form-action 'self'
     """
 
-# (OPTIONAL) B) CORS headers via Netlify kwa /api/* — backend tayari ina CORS.
-# Unaweza kuondoa block hii ikiwa backend yako inatosha.
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Access-Control-Allow-Origin      = "https://smartbizsite.netlify.app"
-    Access-Control-Allow-Credentials = "true"
-    Access-Control-Allow-Headers     = "*"
-    Access-Control-Allow-Methods     = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-
-# C) index.html: usi-cache (ili deploy mpya zi-reflect mara moja)
+# B) index.html: isicache (ili deploy mpya zionekane papo hapo)
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-store, must-revalidate"
 
-# D) Bundles zenye hash: cache ya muda mrefu
+# C) Bundles zenye hash: cache ndefu
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# E) Sourcemaps
+# D) Sourcemaps (hiari)
 [[headers]]
   for = "/assets/*.map"
   [headers.values]
     Content-Type  = "application/json"
     Cache-Control = "public, max-age=3600"
 
-# F) Manifest & favicon
+# E) Manifest & favicon
 [[headers]]
   for = "/manifest.webmanifest"
   [headers.values]
@@ -159,35 +94,3 @@
   for = "/favicon.ico"
   [headers.values]
     Cache-Control = "public, max-age=86400"
-
-# G) WebAssembly (kama ipo)
-[[headers]]
-  for = "/assets/*.wasm"
-  [headers.values]
-    Content-Type  = "application/wasm"
-    Cache-Control = "public, max-age=31536000, immutable"
-
-# H) Picha
-[[headers]]
-  # Netlify haitoi pattern ya regex moja kwa moja kwenye extension nyingi,
-  # unaweza kutegemea rule ya /assets/* juu na headers za static server,
-  # au uwe na rules maalum kwa folders zako za media.
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=2592000"
-
-################################################################################
-# Context overrides (Deploy Previews / Branch deploys) — (hiari)
-################################################################################
-
-# Mfano: tumia backend nyingine kwenye deploy-preview
-#[context.deploy-preview.environment]
-#  VITE_API_BASE = "/api"
-
-#[context.deploy-preview.redirects]
-#  # kama unataka ku-point kwa backend tofauti ya preview, badilisha 'to' hapa
-#  [[context.deploy-preview.redirects]]
-#    from   = "/api/*"
-#    to     = "https://smartbiz-backend-preview.onrender.com/:splat"
-#    status = 200
-#    force  = true
