@@ -1,7 +1,20 @@
+// src/lib/api.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// ========= SmartBiz API helper (production-ready) =========
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+/**
+ * SmartBiz API helper — production-ready & Vite/Netlify friendly.
+ *
+ * Sifa kuu:
+ * - Base URL auto: VITE_API_BASE || VITE_BACKEND_BASE || "" (relative via Netlify _redirects)
+ * - Retries + timeout + abort (exponential backoff + jitter)
+ * - Auto-parse: JSON / text (na Blob kwa raw mode)
+ * - GET cache (TTL) + clearGetCache()
+ * - Cookie-based auth by default (credentials: "include")
+ * - Utilities: qs(), postForm(), upload(), buildClient() (kwa multiple bases)
+ * - Auth endpoints tayari: register, login, me, logout, verifyCode, resendCode
+ */
+
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
 
 type EnvLike = {
   VITE_API_BASE?: string;
@@ -10,23 +23,34 @@ type EnvLike = {
   VITE_API_MAX_RETRIES?: string | number;
   VITE_API_CACHE_TTL_MS?: string | number;
 };
+
 const ENV: EnvLike = ((import.meta as any)?.env ?? {}) as EnvLike;
 
+// ----------- Defaults / ENV -----------
 export const BASE: string =
   (ENV.VITE_API_BASE && String(ENV.VITE_API_BASE)) ||
   (ENV.VITE_BACKEND_BASE && String(ENV.VITE_BACKEND_BASE)) ||
-  "";
+  ""; // tumia relative path (pendekezo) ukitumia Netlify proxy
 
-const DEFAULT_TIMEOUT = Number(ENV.VITE_API_TIMEOUT_MS ?? 15_000);
-const MAX_RETRIES = Math.max(0, Number(ENV.VITE_API_MAX_RETRIES ?? 1));
-const GET_CACHE_TTL = Math.max(0, Number(ENV.VITE_API_CACHE_TTL_MS ?? 0));
+const DEFAULT_TIMEOUT = clampNumber(ENV.VITE_API_TIMEOUT_MS, 15_000);
+const MAX_RETRIES = Math.max(0, clampNumber(ENV.VITE_API_MAX_RETRIES, 1));
+const GET_CACHE_TTL = Math.max(0, clampNumber(ENV.VITE_API_CACHE_TTL_MS, 0));
 
-// ---------- utils ----------
+function clampNumber(v: unknown, dflt: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : dflt;
+}
+
+// ----------- Utils -----------
+function normalizePath(path: string): string {
+  if (!path) return "/";
+  return path.startsWith("/") ? path : `/${path}`;
+}
 function joinURL(base: string, path: string): string {
-  if (!base) return path.startsWith("/") ? path : `/${path}`;
+  const p = normalizePath(path);
+  if (!base) return p;
   const b = base.endsWith("/") ? base.slice(0, -1) : base;
-  const p = path.startsWith("/") ? path : `/${path}`;
-  return b + p;
+  return `${b}${p}`;
 }
 
 export function qs(params?: Record<string, any>): string {
@@ -54,42 +78,53 @@ export class ApiError extends Error {
   }
 }
 
+// ----------- GET cache -----------
 type CacheEntry = { ts: number; data: any };
 const getCache = new Map<string, CacheEntry>();
 export function clearGetCache() {
   getCache.clear();
 }
 
+// ----------- Backoff -----------
 function backoff(attempt: number): number {
-  const base = 400 * Math.pow(2, attempt);
+  const base = 400 * Math.pow(2, attempt); // 0→400, 1→800, 2→1600...
   const jitter = Math.floor(Math.random() * 150);
   return base + jitter;
 }
 
+// ----------- Content helpers -----------
 function isJson(res: Response): boolean {
-  const ct = res.headers.get("content-type")?.toLowerCase() || "";
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
   return ct.includes("application/json") || ct.includes("+json");
 }
 async function parseBody(res: Response): Promise<any> {
-  if (res.status === 204 || res.headers.get("content-length") === "0") return null;
-  if (isJson(res)) return await res.json().catch(() => ({}));
-  return await res.text().catch(() => "");
+  // HEAD au 204/empty
+  if (res.status === 204 || res.status === 205) return null;
+  const len = res.headers.get("content-length");
+  if (len === "0") return null;
+
+  if (isJson(res)) {
+    return await res.json().catch(() => ({}));
+  }
+
+  // text fallback
+  const text = await res.text().catch(() => "");
+  return text;
 }
 
-// ---------- core request ----------
-export async function request<T = any>(
-  path: string,
-  opts: {
-    method?: HttpMethod;
-    body?: any;
-    headers?: Record<string, string>;
-    timeoutMs?: number;
-    signal?: AbortSignal;
-    raw?: boolean;
-    noCredentials?: boolean;
-    cacheTtlMs?: number;
-  } = {}
-): Promise<T> {
+// ----------- Core -----------
+export type RequestOptions = {
+  method?: HttpMethod;
+  body?: any;
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  raw?: boolean;           // ukitaka Response as-is
+  noCredentials?: boolean; // zima cookies kwa request hii
+  cacheTtlMs?: number;     // override GET cache TTL
+};
+
+export async function request<T = any>(path: string, opts: RequestOptions = {}): Promise<T> {
   const method = (opts.method || "GET").toUpperCase() as HttpMethod;
   const url = joinURL(BASE, path);
 
@@ -123,7 +158,7 @@ export async function request<T = any>(
           headers["Content-Type"] = headers["Content-Type"] || "application/json";
           body = JSON.stringify(opts.body);
         } else {
-          body = opts.body as BodyInit;
+          body = opts.body as BodyInit; // FormData/Blob/ArrayBuffer ok
         }
       }
 
@@ -141,8 +176,9 @@ export async function request<T = any>(
 
       if (!res.ok) {
         const data = await parseBody(res);
+        // Retry only on 5xx and 429
         if ((res.status >= 500 || res.status === 429) && attempt < MAX_RETRIES) {
-          await new Promise(r => setTimeout(r, backoff(attempt)));
+          await sleep(backoff(attempt));
           continue;
         }
         const msg =
@@ -160,10 +196,12 @@ export async function request<T = any>(
     } catch (err: any) {
       clearTimeout(timeout);
       lastErr = err;
+
+      // Retry on abort (timeout) or network-ish errors
       const isAbort = err?.name === "AbortError";
       const isNet = /NetworkError|Failed to fetch|ECONNRESET|ENETUNREACH/i.test(err?.message || "");
       if ((isAbort || isNet) && attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, backoff(attempt)));
+        await sleep(backoff(attempt));
         continue;
       }
       break;
@@ -174,32 +212,36 @@ export async function request<T = any>(
   throw new ApiError(String((lastErr as any)?.message || "Network error"), { status: 0, data: null });
 }
 
-// ---------- shortcuts ----------
-export const getJSON = <T = any>(path: string, opts?: Parameters<typeof request>[1]) =>
+function sleep(ms: number) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// ----------- Shortcuts -----------
+export const getJSON = <T = any>(path: string, opts?: RequestOptions) =>
   request<T>(path, { ...(opts || {}), method: "GET" });
 
 export const postJSON = <T = any>(
   path: string,
   body?: any,
-  opts?: Omit<Parameters<typeof request>[1], "body" | "method">
+  opts?: Omit<RequestOptions, "body" | "method">
 ) => request<T>(path, { ...(opts || {}), method: "POST", body });
 
 export const putJSON = <T = any>(
   path: string,
   body?: any,
-  opts?: Omit<Parameters<typeof request>[1], "body" | "method">
+  opts?: Omit<RequestOptions, "body" | "method">
 ) => request<T>(path, { ...(opts || {}), method: "PUT", body });
 
 export const patchJSON = <T = any>(
   path: string,
   body?: any,
-  opts?: Omit<Parameters<typeof request>[1], "body" | "method">
+  opts?: Omit<RequestOptions, "body" | "method">
 ) => request<T>(path, { ...(opts || {}), method: "PATCH", body });
 
-export const delJSON = <T = any>(path: string, opts?: Parameters<typeof request>[1]) =>
+export const delJSON = <T = any>(path: string, opts?: RequestOptions) =>
   request<T>(path, { ...(opts || {}), method: "DELETE" });
 
-// ---------- forms & upload ----------
+// ----------- Forms & Upload -----------
 export function toFormUrlEncoded(obj: Record<string, any>): string {
   const u = new URLSearchParams();
   for (const [k, v] of Object.entries(obj)) {
@@ -226,7 +268,31 @@ export async function upload<T = any>(
   return request<T>(path, { method: "POST", body: fd });
 }
 
-// ---------- auth endpoints ----------
+// ----------- Build a custom API client (optional) -----------
+export function buildClient(customBase = BASE) {
+  const base = (customBase || "").trim();
+  const go = <T = any>(path: string, opts?: RequestOptions) =>
+    request<T>(path, { ...(opts || {}) });
+
+  return {
+    base,
+    request: go,
+    getJSON: <T = any>(p: string, o?: RequestOptions) => request<T>(p, { ...(o || {}), method: "GET" }),
+    postJSON: <T = any>(p: string, b?: any, o?: Omit<RequestOptions, "body" | "method">) =>
+      request<T>(p, { ...(o || {}), method: "POST", body: b }),
+    putJSON: <T = any>(p: string, b?: any, o?: Omit<RequestOptions, "body" | "method">) =>
+      request<T>(p, { ...(o || {}), method: "PUT", body: b }),
+    patchJSON: <T = any>(p: string, b?: any, o?: Omit<RequestOptions, "body" | "method">) =>
+      request<T>(p, { ...(o || {}), method: "PATCH", body: b }),
+    delJSON: <T = any>(p: string, o?: RequestOptions) =>
+      request<T>(p, { ...(o || {}), method: "DELETE" }),
+    postForm: <T = any>(p: string, form: Record<string, any>) => postForm<T>(p, form),
+    upload: <T = any>(p: string, files: Record<string, File | Blob>, fields?: Record<string, any>) =>
+      upload<T>(p, files, fields),
+  };
+}
+
+// ----------- Auth endpoints (rekebisha kama routes zako zinatofautiana) -----------
 const AUTH = {
   register: "/auth/register",
   login: "/auth/login",
@@ -235,6 +301,7 @@ const AUTH = {
   verifyCode: "/auth/verify",
   resendCode: "/auth/resend",
 };
+
 export type Me = { id: string; email: string; username?: string | null };
 
 export async function register(payload: {
@@ -249,23 +316,29 @@ export async function register(payload: {
 }) {
   return postJSON<Me>(AUTH.register, payload);
 }
+
 export async function login(payload: { identifier: string; password: string }) {
+  // Expected: { access_token, token_type, user }
   return postJSON<{ access_token: string; token_type: string; user: Me }>(AUTH.login, payload);
 }
+
 export async function me(opts?: { cacheTtlMs?: number }) {
   return getJSON<Me>(AUTH.me, { cacheTtlMs: opts?.cacheTtlMs ?? 5000 });
 }
+
 export async function logout(): Promise<{ ok: true } | any> {
   return postJSON(AUTH.logout, {});
 }
+
 export async function verifyCode(payload: { code: string }) {
   return postJSON(AUTH.verifyCode, payload);
 }
+
 export async function resendCode(payload: { destination?: string }) {
   return postJSON(AUTH.resendCode, payload);
 }
 
-// ---------- misc ----------
+// ----------- Misc helpers -----------
 export async function health() {
   return getJSON("/health", { noCredentials: true, timeoutMs: 8000 });
 }
@@ -286,6 +359,7 @@ export function ping(timeoutMs = 3000): Promise<"ok"> {
     });
 }
 
+// ----------- Default export -----------
 const api = {
   BASE,
   request,
@@ -298,12 +372,15 @@ const api = {
   upload,
   qs,
   clearGetCache,
+  buildClient,
+  // auth
   register,
   login,
   me,
   logout,
   verifyCode,
   resendCode,
+  // misc
   health,
   ping,
 };
