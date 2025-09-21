@@ -7,12 +7,10 @@
         <img
           src="/icons/logo.png"
           alt="SmartBiz Logo"
-          width="56"
-          height="56"
+          width="56" height="56"
           class="rounded-circle border border-warning shadow-sm"
           style="background:#fff;object-fit:contain"
-          loading="eager"
-          decoding="async"
+          loading="eager" decoding="async"
         />
         <h1 class="fw-bold text-warning mt-2 h5 m-0">Forgot Your Password?</h1>
         <p class="text-secondary small m-0 mt-1">
@@ -89,11 +87,30 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { useToast } from 'vue-toastification'
-import { api } from '@/lib/api' // **import only this** so build haivunjiki
-
 const router = useRouter()
-const toast  = useToast()
+
+/* ===== Backend base (NO /api) ===== */
+const BACKEND_BASE =
+  (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
+  'https://smartbiz-backend-p45m.onrender.com'
+
+/* ===== Tiny JSON helper (fetch) ===== */
+async function postJSON<T>(path: string, body: any, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${BACKEND_BASE}${path}`, {
+    method: 'POST',
+    credentials: 'omit',                        // JWT, si cookies
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  })
+  let data:any = null
+  try { data = await res.json() } catch {}
+  if (!res.ok) {
+    const err:any = new Error(data?.detail || data?.message || `HTTP ${res.status}`)
+    err.status = res.status; err.data = data; throw err
+  }
+  return data as T
+}
 
 /* ─────────── State ─────────── */
 const identifier = ref<string>('')
@@ -120,13 +137,12 @@ const canSubmit = computed(() => identifier.value.trim().length > 2)
 const _onOnline  = () => (online.value = true)
 const _onOffline = () => (online.value = false)
 
-/* Soft wake-up (usi-tegemee lib/api to export a helper) */
-async function wakeBackend(softMs = 4000) {
+/* Ping backend (Render cold start) */
+async function wakeBackend(ms = 4000) {
   try {
     const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), softMs)
-    const base = (import.meta.env.VITE_API_BASE as string) || '/api'
-    await fetch(`${base.replace(/\/+$/,'')}/health`, { credentials: 'include', signal: ctrl.signal })
+    const t = setTimeout(() => ctrl.abort(), ms)
+    await fetch(`${BACKEND_BASE}/health`, { credentials: 'omit', signal: ctrl.signal })
     clearTimeout(t)
   } catch { /* ignore */ }
 }
@@ -138,10 +154,8 @@ onMounted(async () => {
   await nextTick()
   idInput.value?.focus?.()
 
-  // Pre-warm backend (Render cold start) & show friendly hint
   await wakeBackend()
-  const envBase = (import.meta.env.VITE_API_BASE as string) || '/api'
-  hint.value = `API base: ${envBase.replace(/\/+$/,'')}`
+  hint.value = `API base: ${BACKEND_BASE}`
 })
 
 onBeforeUnmount(() => {
@@ -151,11 +165,10 @@ onBeforeUnmount(() => {
 
 /* Error parsing */
 function parseError(e:any): string {
-  const r = e?.response, d = r?.data
-  if (!r && e?.message?.toLowerCase?.().includes('network')) {
+  if (!e?.status && /network/i.test(e?.message || '')) {
     return 'Network/CORS error. Ensure your backend allows this origin.'
   }
-  return d?.detail || d?.message || e?.message || 'Failed to send reset code.'
+  return e?.data?.detail || e?.data?.message || e?.message || 'Failed to send reset code.'
 }
 
 /* Build payload */
@@ -172,19 +185,22 @@ function buildPayload(id: string) {
 
 /* Endpoints to try (first success wins) */
 const ENDPOINTS = [
+  '/auth/request-reset',
   '/api/auth/request-reset',
   '/api/auth/password/forgot',
   '/api/auth/forgot-password',
   '/api/password/forgot',
-  '/auth/request-reset',
 ]
 
 /* Main action */
+let abortCtrl: AbortController | null = null
 async function requestReset() {
   if (loading.value || !canSubmit.value || onCooldown.value) return
   if (!online.value) { error.value = 'You appear to be offline.'; return }
 
   error.value = ''; success.value = ''; loading.value = true
+  if (abortCtrl) abortCtrl.abort()
+  abortCtrl = new AbortController()
 
   let payload: any
   try {
@@ -192,6 +208,7 @@ async function requestReset() {
   } catch (e:any) {
     error.value = e?.message || 'Please enter a valid email or phone in +CCC... format.'
     loading.value = false
+    abortCtrl = null
     return
   }
 
@@ -200,14 +217,14 @@ async function requestReset() {
     let lastErr: any = null
     for (const p of ENDPOINTS) {
       try {
-        await api.post(p, payload, { timeout: 15000 })
+        await postJSON<any>(p, payload, abortCtrl.signal)
         sent = true
         break
       } catch (e:any) {
         lastErr = e
-        const st = e?.response?.status
-        if (!st || [404, 405, 415].includes(st)) continue
-        break
+        const st = e?.status
+        if (!st || [404, 405, 415].includes(st)) continue  // jaribu endpoint nyingine
+        break                                              // kosa la validation/server: usiendelee
       }
     }
     if (!sent) throw lastErr || new Error('No reset route responded.')
@@ -220,6 +237,7 @@ async function requestReset() {
     error.value = parseError(e)
   } finally {
     loading.value = false
+    abortCtrl = null
   }
 }
 </script>
@@ -253,11 +271,7 @@ input.form-control {
   transition: box-shadow .25s ease;
 }
 input.form-control::placeholder { color: #b9c3d3 !important; opacity: .9; }
-
-input:focus {
-  outline: none !important;
-  box-shadow: 0 0 0 2px #ffd70099 !important;
-}
+input:focus { outline: none !important; box-shadow: 0 0 0 2px #ffd70099 !important; }
 
 .btn-warning {
   background-color: #ffd700 !important;
@@ -274,6 +288,5 @@ input:focus {
 
 .text-warning { color: #ffd700 !important; }
 .text-secondary { color: #c7d0df !important; }
-
 .alert-dark { background: #0e1a30; }
 </style>
