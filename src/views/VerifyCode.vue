@@ -11,8 +11,7 @@
           height="56"
           class="rounded-circle border border-warning shadow-sm"
           style="background:#fff;object-fit:contain"
-          loading="eager"
-          decoding="async"
+          loading="eager" decoding="async"
         />
         <h1 class="fw-bold text-warning mt-2 h5 m-0">Enter Verification Code</h1>
         <p class="text-secondary small m-0 mt-1">
@@ -89,9 +88,35 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '@/lib/api' // ✅ API_ROOT_URL removed
-
 const router = useRouter()
+
+/* ===== Backend base (NO /api) ===== */
+const BACKEND_BASE =
+  (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
+  'https://smartbiz-backend-p45m.onrender.com'
+
+/* ===== Lightweight JSON helpers (fetch) ===== */
+async function jsonRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BACKEND_BASE}${path}`, {
+    credentials: 'omit',
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      ...(init?.headers || {}),
+    },
+  })
+  let data: any = null
+  try { data = await res.json() } catch {}
+  if (!res.ok) {
+    const err: any = new Error(data?.detail || data?.message || `HTTP ${res.status}`)
+    err.status = res.status
+    err.data = data
+    throw err
+  }
+  return data as T
+}
+const postJSON = <T,>(path: string, body: any) =>
+  jsonRequest<T>(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
 /* ─────────── State ─────────── */
 const digits = ref<string[]>(['', '', '', '', '', ''])
@@ -120,85 +145,52 @@ onMounted(async () => {
   window.addEventListener('online',  () => (online.value = true))
   window.addEventListener('offline', () => (online.value = false))
 
-  // Friendly API hint from axios instance
-  const root = String(api.defaults.baseURL || '/api').replace(/\/+$/, '')
-  hint.value = `API base: ${root}`
+  hint.value = `API base: ${BACKEND_BASE}`
 
   await nextTick()
   focusIndex(0)
 })
 
 /* ─────────── OTP input handlers ─────────── */
-function focusIndex(i: number) {
-  const el = otpRefs.value[i]
-  el?.focus?.()
-  el?.select?.()
-}
-
+function focusIndex(i: number) { const el = otpRefs.value[i]; el?.focus?.(); el?.select?.() }
 function onInput(i: number) {
   digits.value[i] = (digits.value[i] || '').replace(/\D/g, '').slice(0, 1)
   if (digits.value[i] && i < 5) focusIndex(i + 1)
 }
-
 function onKeydown(i: number, e: KeyboardEvent) {
-  const key = e.key
-  if (key === 'Backspace') {
-    if (!digits.value[i] && i > 0) {
-      digits.value[i - 1] = ''
-      focusIndex(i - 1)
-      e.preventDefault()
-    }
-  } else if (key === 'ArrowLeft' && i > 0) {
-    focusIndex(i - 1); e.preventDefault()
-  } else if (key === 'ArrowRight' && i < 5) {
-    focusIndex(i + 1); e.preventDefault()
-  } else if (!/^\d$/.test(key) && key.length === 1) {
-    e.preventDefault()
-  }
+  const k = e.key
+  if (k === 'Backspace') {
+    if (!digits.value[i] && i > 0) { digits.value[i - 1] = ''; focusIndex(i - 1); e.preventDefault() }
+  } else if (k === 'ArrowLeft' && i > 0) { focusIndex(i - 1); e.preventDefault() }
+  else if (k === 'ArrowRight' && i < 5) { focusIndex(i + 1); e.preventDefault() }
+  else if (!/^\d$/.test(k) && k.length === 1) { e.preventDefault() }
 }
-
 function onPaste(e: ClipboardEvent) {
-  const text = e.clipboardData?.getData('text') || ''
-  const onlyDigits = text.replace(/\D/g, '').slice(0, 6)
-  for (let i = 0; i < 6; i++) digits.value[i] = onlyDigits[i] || ''
-  const nextIdx = Math.min(5, onlyDigits.length)
-  focusIndex(nextIdx)
+  const only = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6)
+  for (let i = 0; i < 6; i++) digits.value[i] = only[i] || ''
+  focusIndex(Math.min(5, only.length))
 }
 
-/* ─────────── Networking helpers ─────────── */
+/* ─────────── Utilities ─────────── */
 function parseError(e: any): string {
-  const r = e?.response, d = r?.data
-  if (!r && e?.message?.toLowerCase?.().includes('network')) {
+  if (!e?.status && /network/i.test(e?.message || '')) {
     return 'Network/CORS error. Ensure your backend allows this origin.'
   }
-  return d?.detail || d?.message || e?.message || 'Verification failed.'
+  return e?.data?.detail || e?.data?.message || e?.message || 'Verification failed.'
 }
-
-/** Build payload; include identifier if we have it */
 function buildVerifyPayload(code: string) {
-  const payload: any = { code }
+  const p: any = { code }
   if (identifier.value) {
-    payload.identifier   = identifier.value
-    if (/\S+@\S+\.\S+/.test(identifier.value)) payload.email = identifier.value
-    if (identifier.value.startsWith('+'))      payload.phone_number = identifier.value
+    p.identifier = identifier.value
+    if (/\S+@\S+\.\S+/.test(identifier.value)) p.email = identifier.value
+    if (identifier.value.startsWith('+'))      p.phone_number = identifier.value
   }
-  return payload
+  return p
 }
 
-const VERIFY_ENDPOINTS = [
-  '/api/auth/verify-code',
-  '/api/auth/password/verify',
-  '/api/password/verify',
-  '/auth/verify-code',
-]
-
-const RESEND_ENDPOINTS = [
-  '/api/auth/request-reset/resend',
-  '/api/auth/request-reset',
-  '/api/auth/password/forgot',
-  '/api/password/forgot',
-  '/auth/request-reset',
-]
+/* Endpoints (tuna-probe kadhaa ili tushike majina tofauti ya route) */
+const VERIFY_ENDPOINTS = ['/auth/verify-code', '/api/auth/verify-code', '/api/auth/password/verify', '/api/password/verify']
+const RESEND_ENDPOINTS = ['/auth/request-reset', '/api/auth/request-reset', '/api/auth/request-reset/resend', '/api/password/forgot']
 
 /* ─────────── Actions ─────────── */
 async function verifyCode() {
@@ -210,16 +202,12 @@ async function verifyCode() {
   const payload = buildVerifyPayload(codeValue.value)
 
   try {
-    let data: any = null
-    let lastErr: any = null
+    let data: any = null; let lastErr: any = null
     for (const url of VERIFY_ENDPOINTS) {
-      try {
-        const res = await api.post(url, payload, { timeout: 15000 })
-        data = res.data
-        break
-      } catch (e: any) {
+      try { data = await postJSON<any>(url, payload); break }
+      catch (e:any) {
         lastErr = e
-        const st = e?.response?.status
+        const st = e?.status
         if (!st || [404, 405, 415].includes(st)) continue
         break
       }
@@ -232,7 +220,7 @@ async function verifyCode() {
 
     success.value = 'Code verified! Redirecting…'
     setTimeout(() => router.push('/reset-password'), 700)
-  } catch (e: any) {
+  } catch (e:any) {
     error.value = parseError(e)
   } finally {
     loading.value = false
@@ -250,16 +238,12 @@ async function resend() {
   if (identifier.value.startsWith('+'))      payload.phone_number = identifier.value
 
   try {
-    let ok = false
-    let lastErr: any = null
+    let ok = false; let lastErr: any = null
     for (const url of RESEND_ENDPOINTS) {
-      try {
-        await api.post(url, payload, { timeout: 15000 })
-        ok = true
-        break
-      } catch (e:any) {
+      try { await postJSON<any>(url, payload); ok = true; break }
+      catch (e:any) {
         lastErr = e
-        const st = e?.response?.status
+        const st = e?.status
         if (!st || [404, 405, 415].includes(st)) continue
         break
       }
@@ -313,9 +297,7 @@ html, body { background: #0b1220; }
   outline: none;
   transition: box-shadow .2s ease;
 }
-.otp-input:focus {
-  box-shadow: 0 0 0 2px #ffd70099 !important;
-}
+.otp-input:focus { box-shadow: 0 0 0 2px #ffd70099 !important; }
 @media (max-width: 420px) {
   .otp-input { width: 44px; height: 52px; font-size: 1.1rem; }
 }
