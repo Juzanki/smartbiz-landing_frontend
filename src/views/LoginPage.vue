@@ -162,7 +162,7 @@ const BACKEND_BASE =
   (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
   'https://smartbiz-backend-p45m.onrender.com'
 
-/* ===== Fetch helpers (JSON only) ===== */
+/* ===== Tiny JSON helpers (fetch) ===== */
 async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND_BASE}${path}`, {
     credentials: 'omit',            // JWT, sio cookies
@@ -279,18 +279,7 @@ async function checkApiHealth() {
   }
 }
 
-/* ─────────── Login (identifier + password) ───────────
-   CHAGUO 1 (moja kwa moja na fetch):
-   await fetch(`${API}/auth/login`, {
-     method: "POST",
-     headers: { "Content-Type": "application/json" },
-     credentials: "omit",                 // JWT, sio cookies
-     body: JSON.stringify({
-       identifier: emailInput.value,      // <— MUHIMU
-       password: passwordInput.value
-     })
-   })
-   → Hapa chini tunatumia helper postJSON() lakini inafanya kitu hichohicho. */
+/* ─────────── Login (identifier + password) ─────────── */
 let lastTry = 0
 let abortCtrl: AbortController | null = null
 const COOLDOWN_MS = 1200
@@ -313,14 +302,40 @@ async function handleLogin() {
     const email = (form.value.email || '').trim().toLowerCase()
     const password = String(form.value.password)
 
-    // ✅ Tunatuma identifier = email (backend flexible inakubali {identifier} AU {email})
-    let data = await postJSON<any>('/auth/login', { identifier: email, password }, abortCtrl.signal)
+    /* ====== CHAGUO 1: fetch moja kwa moja (kama ulivyoomba) ====== */
+    let data: any = null
+    try {
+      const res = await fetch(`${BACKEND_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        credentials: "omit",                        // JWT, si cookies
+        body: JSON.stringify({ identifier: email, password }),
+        signal: abortCtrl.signal,
+      })
+      // jaribu kusoma json bila kuvunja ikiwa body ni tupu
+      let body: any = null
+      try { body = await res.json() } catch {}
+      if (!res.ok) {
+        const err: any = new Error(body?.detail || body?.message || `HTTP ${res.status}`)
+        err.status = res.status
+        err.data = body
+        throw err
+      }
+      data = body
+    } catch (e: any) {
+      // tunaendelea na fallback hapa chini
+      if (![404, 405, 415].includes(e?.status)) {
+        // ikiwa ni kosa la uthibitisho/validation/500 — acha i-handled chini
+      }
+    }
 
-    // fallback ya hiari kama backend ya zamani ingetaka { email, password }
+    /* ====== Fallback: helper yetu postJSON (inapenya backends tofauti) ====== */
     if (!data?.access_token && !data?.token) {
-      try {
-        data = await postJSON<any>('/auth/login', { email, password }, abortCtrl.signal)
-      } catch {}
+      data = await postJSON<any>('/auth/login', { identifier: email, password }, abortCtrl.signal)
+      // fallback ndogo: baadhi ya backends huitegemea { email, password }
+      if (!data?.access_token && !data?.token) {
+        try { data = await postJSON<any>('/auth/login', { email, password }, abortCtrl.signal) } catch {}
+      }
     }
 
     if (!saveAuth(data)) throw new Error('Missing token in response.')
