@@ -45,7 +45,7 @@
 
       <!-- Form -->
       <form @submit.prevent="handleLogin" autocomplete="off" novalidate :aria-busy="loading">
-        <!-- Email (used as identifier in request) -->
+        <!-- Email (identifier) -->
         <label class="form-label text-light small mb-1">Email</label>
         <div class="mb-2 input-group group-dark rounded-3 overflow-hidden">
           <span class="input-group-text border-0"><i class="bi bi-envelope-fill" aria-hidden="true"></i></span>
@@ -165,7 +165,7 @@ const BACKEND_BASE =
 /* ===== Fetch helpers (JSON only) ===== */
 async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND_BASE}${path}`, {
-    credentials: 'omit',            // weka 'include' tu kama unatumia cookies za session
+    credentials: 'omit',            // JWT, sio cookies
     ...init,
     headers: {
       Accept: 'application/json',
@@ -188,7 +188,7 @@ async function postJSON<T>(path: string, body: any, signal?: AbortSignal): Promi
   return getJSON<T>(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),     // JSON halali (keys kwenye quotes)
+    body: JSON.stringify(body),
     signal,
   })
 }
@@ -264,7 +264,7 @@ function saveAuth(data: any) {
   return true
 }
 async function redirectAfterLogin() {
-  await router.push('/dashboard')   // badilisha ukihitaji role-based
+  await router.push('/dashboard')
 }
 
 /* ─────────── Health check ─────────── */
@@ -279,7 +279,18 @@ async function checkApiHealth() {
   }
 }
 
-/* ─────────── Login (tuma identifier + password) ─────────── */
+/* ─────────── Login (identifier + password) ───────────
+   CHAGUO 1 (moja kwa moja na fetch):
+   await fetch(`${API}/auth/login`, {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     credentials: "omit",                 // JWT, sio cookies
+     body: JSON.stringify({
+       identifier: emailInput.value,      // <— MUHIMU
+       password: passwordInput.value
+     })
+   })
+   → Hapa chini tunatumia helper postJSON() lakini inafanya kitu hichohicho. */
 let lastTry = 0
 let abortCtrl: AbortController | null = null
 const COOLDOWN_MS = 1200
@@ -302,8 +313,15 @@ async function handleLogin() {
     const email = (form.value.email || '').trim().toLowerCase()
     const password = String(form.value.password)
 
-    // ✅ Backend inahitaji 'identifier' + 'password'
-    const data = await postJSON<any>('/auth/login', { identifier: email, password }, abortCtrl.signal)
+    // ✅ Tunatuma identifier = email (backend flexible inakubali {identifier} AU {email})
+    let data = await postJSON<any>('/auth/login', { identifier: email, password }, abortCtrl.signal)
+
+    // fallback ya hiari kama backend ya zamani ingetaka { email, password }
+    if (!data?.access_token && !data?.token) {
+      try {
+        data = await postJSON<any>('/auth/login', { email, password }, abortCtrl.signal)
+      } catch {}
+    }
 
     if (!saveAuth(data)) throw new Error('Missing token in response.')
     notice.value = { type:'success', text:'Login successful. Redirecting…' }
