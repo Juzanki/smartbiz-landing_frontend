@@ -7,12 +7,10 @@
         <img
           src="/icons/logo.png"
           alt="SmartBiz Logo"
-          width="56"
-          height="56"
+          width="56" height="56"
           class="rounded-circle border border-warning shadow-sm"
           style="background:#fff;object-fit:contain"
-          loading="eager"
-          decoding="async"
+          loading="eager" decoding="async"
         />
         <h1 class="fw-bold text-warning mt-2 h5 m-0">Reset Your Password</h1>
         <p class="text-secondary small m-0 mt-1">
@@ -158,9 +156,32 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '@/lib/api' // ✅ no API_ROOT_URL import
-
 const router = useRouter()
+
+/* ===== Backend base (NO /api) ===== */
+const BACKEND_BASE =
+  (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
+  'https://smartbiz-backend-p45m.onrender.com'
+
+/* ===== Tiny JSON helpers (fetch) ===== */
+async function jsonRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BACKEND_BASE}${path}`, {
+    credentials: 'omit',
+    ...init,
+    headers: { Accept: 'application/json', ...(init?.headers || {}) },
+  })
+  let data: any = null
+  try { data = await res.json() } catch {}
+  if (!res.ok) {
+    const err: any = new Error(data?.detail || data?.message || `HTTP ${res.status}`)
+    err.status = res.status
+    err.data = data
+    throw err
+  }
+  return data as T
+}
+const postJSON = <T,>(path: string, body: any) =>
+  jsonRequest<T>(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
 /* ─────────── State ─────────── */
 const password        = ref<string>('')
@@ -200,9 +221,7 @@ window.addEventListener('online',  () => (online.value = true))
 window.addEventListener('offline', () => (online.value = false))
 
 onMounted(() => {
-  // Derive a friendly API hint from axios instance
-  const root = String(api.defaults.baseURL || '/api').replace(/\/+$/, '')
-  hint.value = `API base: ${root}`
+  hint.value = `API base: ${BACKEND_BASE}`
 })
 
 /* ─────────── Validation & strength ─────────── */
@@ -248,18 +267,18 @@ function onPwdKey(e: KeyboardEvent) {
 
 /* ─────────── Networking helpers ─────────── */
 function parseError(e: any): string {
-  const r = e?.response, d = r?.data
-  if (!r && e?.message?.toLowerCase?.().includes('network')) {
+  if (!e?.status && /network/i.test(e?.message || '')) {
     return 'Network/CORS error. Ensure your backend allows this origin.'
   }
-  return d?.detail || d?.message || e?.message || 'Failed to reset password.'
+  return e?.data?.detail || e?.data?.message || e?.message || 'Failed to reset password.'
 }
 
+/* Endpoints to probe (accepts several backend names) */
 const ENDPOINTS = [
+  '/auth/reset-password',
   '/api/auth/reset-password',
   '/api/auth/password/reset',
   '/api/password/reset',
-  '/auth/reset-password',
 ]
 
 /* ─────────── Submit ─────────── */
@@ -284,23 +303,21 @@ async function resetPassword() {
     for (const p of payloads) {
       p.identifier = identifier.value
       if (/\S+@\S+\.\S+/.test(identifier.value)) p.email = identifier.value
-      if (identifier.value.startsWith('+')) p.phone_number = identifier.value
+      if (identifier.value.startsWith('+'))      p.phone_number = identifier.value
     }
   }
 
   try {
     let ok = false
     let lastErr: any = null
-    // Try endpoints × payloads
+
     for (const url of ENDPOINTS) {
       for (const body of payloads) {
-        try {
-          const res = await api.post(url, body, { timeout: 15000 })
-          if (res.status === 200 || res.status === 204) { ok = true; break }
-        } catch (e:any) {
+        try { await postJSON<any>(url, body); ok = true; break }
+        catch (e:any) {
           lastErr = e
-          const st = e?.response?.status
-          // try next endpoint for 404/405/415; break for validation/server errors
+          const st = e?.status
+          // continue probing for 404/405/415; otherwise stop early
           if (st && ![404, 405, 415].includes(st)) break
         }
       }
