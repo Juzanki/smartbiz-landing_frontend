@@ -165,7 +165,7 @@ const BACKEND_BASE =
 /* ===== Tiny JSON helpers (fetch) ===== */
 async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND_BASE}${path}`, {
-    credentials: 'omit',            // JWT, sio cookies
+    credentials: 'omit',
     ...init,
     headers: {
       Accept: 'application/json',
@@ -279,10 +279,31 @@ async function checkApiHealth() {
   }
 }
 
-/* ─────────── Login (identifier + password) ─────────── */
+/* ─────────── Login (auto-compat payloads) ─────────── */
 let lastTry = 0
 let abortCtrl: AbortController | null = null
 const COOLDOWN_MS = 1200
+
+async function tryLoginShapes(email: string, password: string, signal: AbortSignal) {
+  // Kipaumbele: email_or_username (inavyotakiwa na backend yako)
+  const shapes = [
+    { body: { email_or_username: email, password },    label: 'email_or_username' },
+    { body: { email, password },                       label: 'email' },
+    { body: { identifier: email, password },           label: 'identifier' },
+  ]
+  let lastErr: any = null
+  for (const s of shapes) {
+    try {
+      const res = await postJSON<any>('/auth/login', s.body, signal)
+      return res
+    } catch (e: any) {
+      lastErr = e
+      // kama ni 422, jaribu shape inayofuata; vinginevyo toka
+      if (e?.status !== 422) throw e
+    }
+  }
+  throw lastErr || new Error('Login failed.')
+}
 
 async function handleLogin() {
   const now = Date.now()
@@ -302,41 +323,7 @@ async function handleLogin() {
     const email = (form.value.email || '').trim().toLowerCase()
     const password = String(form.value.password)
 
-    /* ====== CHAGUO 1: fetch moja kwa moja (kama ulivyoomba) ====== */
-    let data: any = null
-    try {
-      const res = await fetch(`${BACKEND_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        credentials: "omit",                        // JWT, si cookies
-        body: JSON.stringify({ identifier: email, password }),
-        signal: abortCtrl.signal,
-      })
-      // jaribu kusoma json bila kuvunja ikiwa body ni tupu
-      let body: any = null
-      try { body = await res.json() } catch {}
-      if (!res.ok) {
-        const err: any = new Error(body?.detail || body?.message || `HTTP ${res.status}`)
-        err.status = res.status
-        err.data = body
-        throw err
-      }
-      data = body
-    } catch (e: any) {
-      // tunaendelea na fallback hapa chini
-      if (![404, 405, 415].includes(e?.status)) {
-        // ikiwa ni kosa la uthibitisho/validation/500 — acha i-handled chini
-      }
-    }
-
-    /* ====== Fallback: helper yetu postJSON (inapenya backends tofauti) ====== */
-    if (!data?.access_token && !data?.token) {
-      data = await postJSON<any>('/auth/login', { identifier: email, password }, abortCtrl.signal)
-      // fallback ndogo: baadhi ya backends huitegemea { email, password }
-      if (!data?.access_token && !data?.token) {
-        try { data = await postJSON<any>('/auth/login', { email, password }, abortCtrl.signal) } catch {}
-      }
-    }
+    const data = await tryLoginShapes(email, password, abortCtrl.signal)
 
     if (!saveAuth(data)) throw new Error('Missing token in response.')
     notice.value = { type:'success', text:'Login successful. Redirecting…' }
