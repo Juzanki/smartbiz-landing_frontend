@@ -10,8 +10,5 @@
   "orientation": "portrait",
   "icons": [
     { "src": "/icons/logo.png", "sizes": "any", "type": "image/png", "purpose": "any maskable" }
-  ],
-  "screenshots": [
-    { "src": "/icons/privatejet.png", "type": "image/png", "label": "SmartBiz showcase" }
   ]
 }
