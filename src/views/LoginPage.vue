@@ -162,35 +162,22 @@ const BACKEND_BASE =
   (import.meta.env.VITE_BACKEND_BASE as string | undefined)?.replace(/\/+$/,'') ||
   'https://smartbiz-backend-p45m.onrender.com'
 
-/* ===== Tiny JSON helpers (fetch) ===== */
+/* ===== Tiny JSON helper (GET wrapper) ===== */
 async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND_BASE}${path}`, {
     credentials: 'omit',
     ...init,
-    headers: {
-      Accept: 'application/json',
-      ...(init?.headers || {}),
-    },
+    headers: { Accept: 'application/json', ...(init?.headers || {}) },
   })
   let data: any = null
   try { data = await res.json() } catch {}
   if (!res.ok) {
-    const err: any = new Error(
-      data?.detail || data?.message || data?.error || `HTTP ${res.status}`
-    )
+    const err: any = new Error(data?.detail || data?.message || data?.error || `HTTP ${res.status}`)
     err.status = res.status
     err.data = data
     throw err
   }
   return data as T
-}
-async function postJSON<T>(path: string, body: any, signal?: AbortSignal): Promise<T> {
-  return getJSON<T>(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal,
-  })
 }
 
 /* ─────────── State ─────────── */
@@ -279,31 +266,10 @@ async function checkApiHealth() {
   }
 }
 
-/* ─────────── Login (auto-compat payloads) ─────────── */
+/* ─────────── Login (sahihi: email_or_username) ─────────── */
 let lastTry = 0
 let abortCtrl: AbortController | null = null
 const COOLDOWN_MS = 1200
-
-async function tryLoginShapes(email: string, password: string, signal: AbortSignal) {
-  // Kipaumbele: email_or_username (inavyotakiwa na backend yako)
-  const shapes = [
-    { body: { email_or_username: email, password },    label: 'email_or_username' },
-    { body: { email, password },                       label: 'email' },
-    { body: { identifier: email, password },           label: 'identifier' },
-  ]
-  let lastErr: any = null
-  for (const s of shapes) {
-    try {
-      const res = await postJSON<any>('/auth/login', s.body, signal)
-      return res
-    } catch (e: any) {
-      lastErr = e
-      // kama ni 422, jaribu shape inayofuata; vinginevyo toka
-      if (e?.status !== 422) throw e
-    }
-  }
-  throw lastErr || new Error('Login failed.')
-}
 
 async function handleLogin() {
   const now = Date.now()
@@ -323,7 +289,22 @@ async function handleLogin() {
     const email = (form.value.email || '').trim().toLowerCase()
     const password = String(form.value.password)
 
-    const data = await tryLoginShapes(email, password, abortCtrl.signal)
+    // ✅ HAPA NDIPO MUHIMU: tumia email_or_username + password
+    const res = await fetch(`${BACKEND_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      credentials: 'omit',
+      body: JSON.stringify({ email_or_username: email, password }),
+      signal: abortCtrl.signal,
+    })
+    let data: any = null
+    try { data = await res.json() } catch {}
+    if (!res.ok) {
+      const err: any = new Error(data?.detail || data?.message || `HTTP ${res.status}`)
+      err.status = res.status
+      err.data = data
+      throw err
+    }
 
     if (!saveAuth(data)) throw new Error('Missing token in response.')
     notice.value = { type:'success', text:'Login successful. Redirecting…' }
