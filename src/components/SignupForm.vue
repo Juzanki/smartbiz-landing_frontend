@@ -43,6 +43,7 @@
           autocomplete="username"
           inputmode="text"
           :aria-invalid="!!errors.username"
+          @input="formatUsername"
           @blur="checkUsername()"
         />
         <div class="flex items-center gap-2">
@@ -73,7 +74,7 @@
         </div>
       </div>
 
-      <!-- Phone -->
+      <!-- Phone (optional) -->
       <div>
         <label for="phone" class="form-label">Phone</label>
         <FormInput
@@ -182,26 +183,25 @@ import FormSelect from '@/components/shared/FormSelect.vue'
 
 const toast = useToast()
 
-/* ---------- API base (VITE_API_URL) + axios instance ---------- */
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-console.log('API base =', API_BASE || '(not set)')
+/* ====== API base (absolute, sawa na LoginPage) ====== */
+const BACKEND_BASE =
+  (import.meta.env.VITE_BACKEND_BASE?.replace(/\/+$/,'')) ||
+  'https://smartbiz-backend-p45m.onrender.com'
+
 const api = axios.create({
-  baseURL: API_BASE || '/api',           // fallback: proxy via Netlify _redirects
-  headers: { 'Content-Type': 'application/json' },
+  baseURL: BACKEND_BASE,
+  headers: { 'Accept':'application/json', 'Content-Type':'application/json' },
+  withCredentials: false,
   timeout: 15000,
-  withCredentials: false
 })
 
-/* ---------- Helper: try multiple paths (avoid 404 due to prefix mismatch) ---------- */
+/* ---------- Helper: try multiple endpoints ---------- */
 async function requestFirstAvailable(paths, cfg){
   let lastErr
   for (const p of paths){
-    try {
-      const res = await api.request({ url: p, ...cfg })
-      return res
-    } catch (e){
+    try { return await api.request({ url: p, ...cfg }) }
+    catch (e){
       const st = e?.response?.status
-      // if 404, try next path; otherwise rethrow immediately
       if (st !== 404) throw e
       lastErr = e
     }
@@ -214,7 +214,7 @@ const step = ref(1)
 const loading = ref(false)
 const showPass = ref(false)
 const accept = ref(false)
-const usernameState = ref('idle') // idle|checking|ok|taken|error
+const usernameState = ref('idle') // idle|checking|ok
 const emailState = ref('idle')
 
 const form = reactive({
@@ -246,18 +246,28 @@ const bizTypes = [
 /* ---------- Validation ---------- */
 const touched = reactive({})
 const errors = reactive({})
-
 function touch(field){ touched[field] = true; validate() }
 
 function validate(){
   errors.full_name = !form.full_name?.trim() ? 'Full name is required' : ''
-  errors.username  = !/^[a-z0-9_\.]{3,20}$/i.test(form.username || '') ? '3–20 chars, letters/numbers/._' : ''
+  errors.username  = !/^[a-z0-9_]{3,20}$/i.test(form.username || '') ? '3–20 chars, letters/numbers/_' : ''
   errors.email     = !/^\S+@\S+\.\S+$/.test(form.email || '') ? 'Enter a valid email' : ''
-  errors.phone_number = !/^\+?[0-9]{7,15}$/.test(form.phone_number || '') ? 'Use international format e.g. +2557…' : ''
+  errors.phone_number = form.phone_number
+    ? (!/^\+?[0-9]{7,15}$/.test(form.phone_number) ? 'Use intl. format e.g. +2557…' : '')
+    : ''
   errors.password  = passScore(form.password).score < 2 ? 'Use 8+ chars incl. number & letter' : ''
   errors.business_name = step.value===2 && !form.business_name?.trim() ? 'Business name is required' : ''
 }
 watch(form, validate, { deep: true })
+
+/* ---------- Username normalizer ---------- */
+function formatUsername(){
+  form.username = String(form.username || '')
+    .toLowerCase()
+    .replace(/\s+/g,'_')
+    .replace(/[^a-z0-9_]/g,'')
+    .slice(0, 20)
+}
 
 /* ---------- Password strength ---------- */
 function passScore(pw=''){
@@ -280,13 +290,13 @@ const strength = computed(() => {
 
 /* ---------- Step control ---------- */
 const canGoStep2 = computed(() =>
-  !errors.full_name && !errors.username && !errors.email && !errors.phone_number && !errors.password &&
-  form.full_name && form.username && form.email && form.password && form.phone_number &&
-  usernameState.value !== 'taken' && emailState.value !== 'error'
+  !errors.full_name && !errors.username && !errors.email && !errors.password &&
+  form.full_name && form.username && form.email && form.password &&
+  usernameState.value !== 'taken'
 )
 function goStep(n){ step.value = n; window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
-/* ---------- Availability checks (using API base) ---------- */
+/* ---------- Availability checks (best-effort) ---------- */
 let tUser, tMail
 function checkUsername(){
   if (errors.username) return
@@ -295,14 +305,12 @@ function checkUsername(){
   tUser = setTimeout(async () => {
     try {
       await requestFirstAvailable(
-        ['/api/auth/check-username', '/auth/check-username'],
+        ['/auth/check-username', '/auth/check/username'],
         { method: 'get', params: { username: form.username } }
       )
       usernameState.value = 'ok'
-    } catch {
-      usernameState.value = 'ok'
-    }
-  }, 350)
+    } catch { usernameState.value = 'ok' } // kama endpoint haipo, acha ipite
+  }, 300)
 }
 function checkEmail(){
   if (errors.email) return
@@ -311,18 +319,16 @@ function checkEmail(){
   tMail = setTimeout(async () => {
     try {
       await requestFirstAvailable(
-        ['/api/auth/check-email', '/auth/check-email'],
-        { method: 'get', params: { email: form.email } }
+        ['/auth/check-email', '/auth/check/email'],
+        { method: 'get', params: { email: form.email.toLowerCase().trim() } }
       )
       emailState.value = 'ok'
-    } catch {
-      emailState.value = 'ok'
-    }
-  }, 350)
+    } catch { emailState.value = 'ok' }
+  }, 300)
 }
 
 /* ---------- Autosave draft ---------- */
-const DRAFT_KEY = 'signup_draft_v1'
+const DRAFT_KEY = 'signup_draft_v2'
 const hasDraft = !!localStorage.getItem(DRAFT_KEY)
 if (hasDraft){
   try { Object.assign(form, JSON.parse(localStorage.getItem(DRAFT_KEY))) } catch {}
@@ -339,44 +345,53 @@ function clearDraft(){
 const emit = defineEmits(['success'])
 const safeArea = { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }
 
-// NOTE: Adjust field names if your backend expects different casing.
-// Payload includes both snake_case and camelCase for tolerance.
 async function signup(){
   validate()
-  if (step.value === 1 && !canGoStep2.value){ toast.error('Complete account details first'); return }
-  if (step.value === 2 && (!accept.value || errors.business_name)){ toast.error('Review business details'); return }
+  if (step.value === 1 && !canGoStep2.value){
+    toast.error('Complete account details first'); return
+  }
+  if (step.value === 2 && (!accept.value || errors.business_name)){
+    toast.error('Review business details'); return
+  }
 
   loading.value = true
   try {
     const payload = {
-      email: form.email,
-      password: form.password,
-      phone: form.phone_number,
-      phone_country: 'TZ',
+      // REQUIRED kwa backend yako:
+      email: form.email.toLowerCase().trim(),
+      username: form.username.toLowerCase().trim(),
+      full_name: form.full_name.trim(),
+      password: String(form.password),
+
+      // OPTIONAL (tunarudufu snake + camel kwa uvumilivu)
+      phone: form.phone_number || null,
+      phone_number: form.phone_number || null,
       phoneCountry: 'TZ',
-      preferred_language: form.language,
+      phone_country: 'TZ',
       preferredLanguage: form.language,
-      business_name: form.business_name || null,
+      preferred_language: form.language,
       businessName: form.business_name || null,
-      business_type: form.business_type || null,
+      business_name: form.business_name || null,
       businessType: form.business_type || null,
-      termsAccepted: accept.value,
-      terms_accepted: accept.value
+      business_type: form.business_type || null,
+      termsAccepted: !!accept.value,
+      terms_accepted: !!accept.value,
     }
 
     await requestFirstAvailable(
-      ['/api/auth/signup', '/auth/signup', '/signup'],
+      ['/auth/signup', '/auth/register', '/signup'],
       { method: 'post', data: payload }
     )
 
     localStorage.removeItem(DRAFT_KEY)
     try { navigator.vibrate?.(12) } catch {}
-    toast.success('✅ Account created successfully!')
+    toast.success('✅ Account created successfully! Please log in.')
     emit('success', payload)
     window.location.href = '/login'
   } catch (err){
     console.error('signup error →', err?.response?.status, err?.response?.data || err.message)
-    toast.error(err?.response?.data?.detail || '❌ Signup failed. Please try again.')
+    const detail = err?.response?.data?.detail || '❌ Signup failed. Please try again.'
+    toast.error(detail)
   } finally {
     loading.value = false
   }
@@ -392,10 +407,10 @@ function resetForm(){
   emailState.value = 'idle'
   try { navigator.vibrate?.(6) } catch {}
 }
+function scorePassword(){ /* placeholder: inatumika ku-trigger computed */ }
 </script>
 
 <style scoped>
-/* Mobile-first helpers (Bootstrap-compatible colours) */
 .badge-on{ display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:9999px; background:#ffc107; color:#111; font-weight:700 }
 .badge-off{ display:inline-flex; align-items:center; justify-content:center; width:1.5rem; height:1.5rem; border-radius:9999px; background:#e5e7eb; color:#444; font-weight:700 }
 .err{ color:#dc3545; font-size:.85rem; margin:.25rem 0 0 }
