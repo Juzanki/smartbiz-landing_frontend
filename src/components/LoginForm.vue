@@ -21,7 +21,19 @@
         </div>
       </div>
 
-      <!-- Offline banner -->
+      <!-- Backend status / offline / errors -->
+      <transition name="fade">
+        <div
+          v-if="apiStatus !== 'ok'"
+          class="rounded-xl px-3 py-2 text-[12px] bg-amber-500/15 border border-amber-400/40 text-amber-800 dark:text-amber-200"
+          aria-live="polite"
+        >
+          <span v-if="apiStatus==='checking'">Checking server availability…</span>
+          <span v-else-if="apiStatus==='down'">Backend not reachable at <code>{{ BACKEND_BASE }}</code>.</span>
+          <span v-else-if="apiStatus==='cors'">Network/CORS error. Allow origin <code>{{ origin }}</code> on backend.</span>
+        </div>
+      </transition>
+
       <transition name="fade">
         <div
           v-if="!online"
@@ -31,7 +43,6 @@
         </div>
       </transition>
 
-      <!-- Error banner -->
       <transition name="fade">
         <div
           v-if="errorMsg"
@@ -195,6 +206,19 @@ import { useRouter } from 'vue-router'
 /** Router */
 const router = useRouter()
 
+/** Backend base (absolute URL; no /api) */
+const BACKEND_BASE =
+  (import.meta.env.VITE_BACKEND_BASE?.replace(/\/+$/,''))
+  || 'https://smartbiz-backend-p45m.onrender.com'
+
+/** Axios instance (absolute baseURL to avoid Netlify relative/CORS surprises) */
+const api = axios.create({
+  baseURL: BACKEND_BASE,
+  headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+  withCredentials: false,
+  timeout: 15000,
+})
+
 /** Safe-area */
 const safeArea = { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }
 
@@ -202,12 +226,11 @@ const safeArea = { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }
 const step = ref('login') // 'login' | 'mfa'
 const loading = ref(false)
 const errorMsg = ref('')
+const origin = window.location.origin
 const online = ref(navigator.onLine)
+const apiStatus = ref('checking') // checking | ok | down | cors
 
-const form = reactive({
-  identifier: '',
-  password: '',
-})
+const form = reactive({ identifier: '', password: '' })
 const remember = ref(true)
 const showPassword = ref(false)
 const capsOn = ref(false)
@@ -226,42 +249,55 @@ let cooldownTimer = null
 function onImgErr(e){ e.target.style.opacity = .7 }
 function toggleShow(){ showPassword.value = !showPassword.value }
 function checkCaps(ev){ capsOn.value = ev.getModifierState && ev.getModifierState('CapsLock') }
+function normIdentifier(v){
+  const s = String(v || '').trim()
+  return s.includes('@') ? s.toLowerCase() : s
+}
 
-/** NET */
+/** NET listeners */
 window.addEventListener('online',  () => online.value = true)
 window.addEventListener('offline', () => online.value = false)
 
-/** Focus */
-onMounted(() => { nextTick(() => idInput.value?.focus?.()) })
+/** Focus + health */
+onMounted(async () => {
+  nextTick(() => idInput.value?.focus?.())
+  apiStatus.value = 'checking'
+  try { await api.get('/health'); apiStatus.value = 'ok' }
+  catch (e){ apiStatus.value = online.value ? 'cors' : 'down' }
+})
 
-/** Login */
+/** Login (sends { email_or_username, password }) */
 async function handleLogin(){
   errorMsg.value = ''
-  if (!online.value) {
-    errorMsg.value = 'No internet connection.'
-    return
-  }
+  if (!online.value) { errorMsg.value = 'No internet connection.'; return }
+  if (!form.identifier || !form.password) { errorMsg.value = 'Please fill all fields.'; return }
+
   loading.value = true
   try {
-    const res = await axios.post('/auth/login', {
-      identifier: form.identifier,
-      password: form.password,
-      remember: remember.value,
-      // You may include a device fingerprint here if needed
-    })
+    const payload = {
+      email_or_username: normIdentifier(form.identifier),
+      password: String(form.password),
+      remember: !!remember.value,
+    }
+
+    // 👇 HAPA NDIPO MUHIMU: absolute URL + email_or_username
+    const res = await api.post('/auth/login', payload)
 
     if (res.data?.mfa_required) {
       tempToken.value = res.data.temp_token
       step.value = 'mfa'
-      await nextTick()
-      otpInputs.value?.[0]?.focus?.()
-      startCooldown(30)
+      await nextTick(); otpInputs.value?.[0]?.focus?.(); startCooldown(30)
     } else {
       await onAuthSuccess(res.data)
     }
   } catch (err) {
     const status = err?.response?.status
-    if (status === 401) errorMsg.value = 'Invalid credentials. Check and try again.'
+    if (!status) {
+      // Network/CORS
+      errorMsg.value = 'Network/CORS error. Check backend CORS and try again.'
+      apiStatus.value = 'cors'
+    } else if (status === 401) errorMsg.value = 'Invalid credentials. Check and try again.'
+    else if (status === 422) errorMsg.value = 'Invalid request payload. Please try again.'
     else if (status === 429) errorMsg.value = 'Too many attempts. Please wait a moment.'
     else errorMsg.value = err?.response?.data?.detail || 'Login failed. Try again.'
     console.error(err)
@@ -272,7 +308,6 @@ async function handleLogin(){
 
 /** OTP handlers */
 function onOtpInput(i){
-  // Only digits
   otp.value[i] = otp.value[i].replace(/\D/g,'').slice(0,1)
   if (otp.value[i] && i < 5) otpInputs.value[i+1]?.focus?.()
 }
@@ -291,7 +326,7 @@ async function verifyOtp(){
   loading.value = true
   try {
     const code = otp.value.join('')
-    const res = await axios.post('/auth/mfa/verify', { code, temp_token: tempToken.value })
+    const res = await api.post('/auth/mfa/verify', { code, temp_token: tempToken.value })
     await onAuthSuccess(res.data)
   } catch (err) {
     errorMsg.value = err?.response?.data?.detail || 'Invalid code. Please try again.'
@@ -301,11 +336,9 @@ async function verifyOtp(){
 }
 async function resendOtp(){
   try {
-    await axios.post('/auth/mfa/resend', { temp_token: tempToken.value })
+    await api.post('/auth/mfa/resend', { temp_token: tempToken.value })
     startCooldown(30)
-  } catch {
-    // Silent
-  }
+  } catch {/* silent */}
 }
 function startCooldown(sec){
   resendCooldown.value = sec
@@ -324,13 +357,22 @@ function backToLogin(){
 
 /** Auth success */
 async function onAuthSuccess(payload){
-  // NOTE: Prefer HTTPOnly secure cookies on backend for production.
-  localStorage.setItem('access_token', payload.access_token)
+  const token = payload?.access_token || payload?.token || payload?.accessToken
+  if (!token) throw new Error('Missing token in response.')
+
+  // storage: localStorage (remember) vs sessionStorage
+  const store = remember.value ? localStorage : sessionStorage
+  store.setItem('sbz_token', token)
+  store.setItem('sbz_token_type', payload?.token_type ?? 'Bearer')
+  store.setItem('sbz_auth_at', String(Date.now()))
+  if (form.identifier.includes('@')) {
+    localStorage.setItem('sbz_last_email', normIdentifier(form.identifier))
+  }
+
+  // Optional extras
   const user = payload.user || {}
   localStorage.setItem('user_role', user.role || 'user')
   localStorage.setItem('user_lang', user.language || 'en')
-
-  // Optional: set app locale if using vue-i18n globally
   try { if (typeof window !== 'undefined' && window?.$i18n) window.$i18n.locale = user.language || 'en' } catch {}
 
   // Redirect by role
@@ -341,17 +383,9 @@ async function onAuthSuccess(payload){
 }
 
 /** Social/Passkey placeholders */
-async function loginWith(provider){
-  // Redirect to your OAuth endpoint
-  window.location.href = `/auth/oauth/${provider}`
-}
+async function loginWith(provider){ window.location.href = `${BACKEND_BASE}/auth/oauth/${provider}` }
 async function loginWithPasskey(){
-  // Placeholder: coordinate with backend
   try {
-    // 1) start: const options = (await axios.get('/auth/passkey/start')).data
-    // 2) const cred = await navigator.credentials.get({ publicKey: options })
-    // 3) finish: await axios.post('/auth/passkey/finish', { cred })
-    // 4) onAuthSuccess(...)
     alert('Passkey flow requires backend endpoints. Wire /auth/passkey/start & /finish.')
   } catch (e) {
     errorMsg.value = 'Passkey sign-in failed. Try another method.'
@@ -389,9 +423,7 @@ async function loginWithPasskey(){
 }
 
 /* Links */
-.link {
-  @apply text-indigo-600 hover:underline dark:text-indigo-300;
-}
+.link { @apply text-indigo-600 hover:underline dark:text-indigo-300; }
 
 /* OTP */
 .otp-cell {
