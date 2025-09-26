@@ -183,6 +183,7 @@ import FormSelect from '@/components/shared/FormSelect.vue'
 
 const toast = useToast()
 
+<<<<<<< Updated upstream
 /* ====== API base (absolute, sawa na LoginPage) ====== */
 const BACKEND_BASE =
   (import.meta.env.VITE_BACKEND_BASE?.replace(/\/+$/,'')) ||
@@ -202,6 +203,28 @@ async function requestFirstAvailable(paths, cfg){
     try { return await api.request({ url: p, ...cfg }) }
     catch (e){
       const st = e?.response?.status
+=======
+/* ---------- API base (VITE_API_URL) + axios instance ---------- */
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+console.log('API base =', API_BASE || '(not set)')
+const api = axios.create({
+  baseURL: API_BASE || '/api',           // fallback: proxy via Netlify _redirects
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
+  withCredentials: false
+})
+
+/* ---------- Helper: try multiple paths (avoid 404 due to prefix mismatch) ---------- */
+async function requestFirstAvailable(paths, cfg){
+  let lastErr
+  for (const p of paths){
+    try {
+      const res = await api.request({ url: p, ...cfg })
+      return res
+    } catch (e){
+      const st = e?.response?.status
+      // if 404, try next path; otherwise rethrow immediately
+>>>>>>> Stashed changes
       if (st !== 404) throw e
       lastErr = e
     }
@@ -296,7 +319,11 @@ const canGoStep2 = computed(() =>
 )
 function goStep(n){ step.value = n; window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
+<<<<<<< Updated upstream
 /* ---------- Availability checks (best-effort) ---------- */
+=======
+/* ---------- Availability checks (using API base) ---------- */
+>>>>>>> Stashed changes
 let tUser, tMail
 function checkUsername(){
   if (errors.username) return
@@ -305,12 +332,23 @@ function checkUsername(){
   tUser = setTimeout(async () => {
     try {
       await requestFirstAvailable(
+<<<<<<< Updated upstream
         ['/auth/check-username', '/auth/check/username'],
         { method: 'get', params: { username: form.username } }
       )
       usernameState.value = 'ok'
     } catch { usernameState.value = 'ok' } // kama endpoint haipo, acha ipite
   }, 300)
+=======
+        ['/api/auth/check-username', '/auth/check-username'],
+        { method: 'get', params: { username: form.username } }
+      )
+      usernameState.value = 'ok'
+    } catch {
+      usernameState.value = 'ok'
+    }
+  }, 350)
+>>>>>>> Stashed changes
 }
 function checkEmail(){
   if (errors.email) return
@@ -319,8 +357,13 @@ function checkEmail(){
   tMail = setTimeout(async () => {
     try {
       await requestFirstAvailable(
+<<<<<<< Updated upstream
         ['/auth/check-email', '/auth/check/email'],
         { method: 'get', params: { email: form.email.toLowerCase().trim() } }
+=======
+        ['/api/auth/check-email', '/auth/check-email'],
+        { method: 'get', params: { email: form.email } }
+>>>>>>> Stashed changes
       )
       emailState.value = 'ok'
     } catch { emailState.value = 'ok' }
@@ -345,6 +388,8 @@ function clearDraft(){
 const emit = defineEmits(['success'])
 const safeArea = { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }
 
+// NOTE: Adjust field names if your backend expects different casing.
+// Payload includes both snake_case and camelCase for tolerance.
 async function signup(){
   validate()
   if (step.value === 1 && !canGoStep2.value){
@@ -357,6 +402,7 @@ async function signup(){
   loading.value = true
   try {
     const payload = {
+<<<<<<< Updated upstream
       // REQUIRED kwa backend yako:
       email: form.email.toLowerCase().trim(),
       username: form.username.toLowerCase().trim(),
@@ -380,6 +426,25 @@ async function signup(){
 
     await requestFirstAvailable(
       ['/auth/signup', '/auth/register', '/signup'],
+=======
+      email: form.email,
+      password: form.password,
+      phone: form.phone_number,
+      phone_country: 'TZ',
+      phoneCountry: 'TZ',
+      preferred_language: form.language,
+      preferredLanguage: form.language,
+      business_name: form.business_name || null,
+      businessName: form.business_name || null,
+      business_type: form.business_type || null,
+      businessType: form.business_type || null,
+      termsAccepted: accept.value,
+      terms_accepted: accept.value
+    }
+
+    await requestFirstAvailable(
+      ['/api/auth/signup', '/auth/signup', '/signup'],
+>>>>>>> Stashed changes
       { method: 'post', data: payload }
     )
 
@@ -390,8 +455,12 @@ async function signup(){
     window.location.href = '/login'
   } catch (err){
     console.error('signup error →', err?.response?.status, err?.response?.data || err.message)
+<<<<<<< Updated upstream
     const detail = err?.response?.data?.detail || '❌ Signup failed. Please try again.'
     toast.error(detail)
+=======
+    toast.error(err?.response?.data?.detail || '❌ Signup failed. Please try again.')
+>>>>>>> Stashed changes
   } finally {
     loading.value = false
   }

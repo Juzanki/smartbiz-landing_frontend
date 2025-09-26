@@ -1,10 +1,15 @@
+<<<<<<< Updated upstream
 # netlify.toml — SmartBiz (Vite + Vue 3 SPA) — DIRECT MODE (no /api proxy)
+=======
+# netlify.toml — SmartBiz (Vite + Vue 3 SPA)
+>>>>>>> Stashed changes
 
 [build]
   command = "npm ci && npm run build"
   publish = "dist"
 
 [build.environment]
+<<<<<<< Updated upstream
   NODE_VERSION      = "20"
   # Frontend iwasiliane moja kwa moja na backend (HAKUNA proxy ya /api/*)
   VITE_API_BASE     = "https://smartbiz-backend-p45m.onrender.com"
@@ -51,12 +56,77 @@
     Permissions-Policy        = "camera=(), microphone=(), geolocation=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     # ⚠ Badilisha URL hapa ukibadilisha backend.
+=======
+  NODE_VERSION = "20"
+  # Frontend itumie same-origin proxy:
+  VITE_API_BASE = "/api"
+
+# Tumia artifacts za Vite kama zilivyo (hakuna minify/transform ya Netlify)
+[build.processing]
+  skip_processing = true
+
+# ───────────────────────────── Redirects / Proxies ─────────────────────────────
+# 1) API proxy (LAZIMA juu ya rules zote ili isizimwe na SPA fallback)
+[[redirects]]
+  from   = "/api/*"
+  to     = "https://smartbiz-backend-p45m.onrender.com/:splat"
+  status = 200
+  force  = true
+
+# 2) Assets za Vite (zipitie tu; zisigeuzwe HTML)
+[[redirects]]
+  from   = "/assets/*"
+  to     = "/assets/:splat"
+  status = 200
+  force  = true
+
+# 3) Service worker (kama unatumia)
+[[redirects]]
+  from   = "/sw.js"
+  to     = "/sw.js"
+  status = 200
+
+# 4) Faili maalum (wazi wazi – si lazima, lakini hupunguza kejeli ya fallback)
+[[redirects]]
+  from   = "/favicon.ico"
+  to     = "/favicon.ico"
+  status = 200
+
+[[redirects]]
+  from   = "/robots.txt"
+  to     = "/robots.txt"
+  status = 200
+
+[[redirects]]
+  from   = "/sitemap.xml"
+  to     = "/sitemap.xml"
+  status = 200
+
+# 5) SPA fallback (MWISHO KABISA)
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# ───────────────────────────────── Headers ─────────────────────────────────
+# A) Usalama wa jumla
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options      = "nosniff"
+    Referrer-Policy             = "strict-origin-when-cross-origin"
+    Permissions-Policy          = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security   = "max-age=31536000; includeSubDomains; preload"
+    # ⚠ CSP: ruhusu backend yako ya Render kwenye requests (XHR/fetch/WebSocket).
+    #   Ukiisha kuondoa inline styles/scripts, ondoa 'unsafe-inline'.
+>>>>>>> Stashed changes
     Content-Security-Policy = """
       default-src 'self' https: data: blob:;
       script-src  'self' 'unsafe-inline' https:;
       style-src   'self' 'unsafe-inline' https:;
       img-src     'self' https: data: blob:;
       font-src    'self' https: data:;
+<<<<<<< Updated upstream
       connect-src 'self' https://smartbiz-backend-p45m.onrender.com https:;
       media-src   'self' https: data: blob:;
       worker-src  'self' blob:;
@@ -66,18 +136,35 @@
     """
 
 # B) index.html: isicache (ili deploy mpya zionekane papo hapo)
+=======
+      connect-src 'self' https://smartbiz-backend-p45m.onrender.com wss://smartbiz-backend-p45m.onrender.com https:;
+      media-src   'self' https: data: blob:;
+      frame-ancestors 'self';
+      base-uri 'self'
+    """
+
+# B) index.html isicache – ili updates zionekane papo hapo
+>>>>>>> Stashed changes
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-store, must-revalidate"
 
+<<<<<<< Updated upstream
 # C) Bundles zenye hash: cache ndefu
+=======
+# C) Bundles zenye hash: cache ya muda mrefu
+>>>>>>> Stashed changes
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
+<<<<<<< Updated upstream
 # D) Sourcemaps (hiari)
+=======
+# D) Sourcemaps (ziwe na cache fupi na content-type sahihi)
+>>>>>>> Stashed changes
 [[headers]]
   for = "/assets/*.map"
   [headers.values]
@@ -94,3 +181,19 @@
   for = "/favicon.ico"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+<<<<<<< Updated upstream
+=======
+
+# F) WebAssembly (kama unayo)
+[[headers]]
+  for = "/assets/*.wasm"
+  [headers.values]
+    Content-Type  = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# G) Images (cache nzuri, lakini si ya mwaka mzima kama bundles)
+[[headers]]
+  for = "/assets/*.(png|jpg|jpeg|gif|webp|avif|svg)"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000" # ~30 days
+>>>>>>> Stashed changes

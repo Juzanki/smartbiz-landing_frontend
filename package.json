@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 4173 --strictPort",
+    "preview": "vite preview",
     "clean": "rimraf dist node_modules/.cache 2> NUL || true",
     "check": "node -v && npm -v && vite --version"
   },
@@ -20,7 +20,7 @@
     "@vueuse/core": "^13.9.0",
     "@vueuse/motion": "^3.0.3",
     "apexcharts": "^5.3.4",
-    "axios": "^1.11.0",
+    "axios": "^1.12.1",
     "bootstrap": "^5.3.5",
     "chart.js": "^4.5.0",
     "echarts": "^5.6.0",
@@ -30,10 +30,10 @@
     "pinia": "^3.0.3",
     "qrcode.vue": "^3.6.0",
     "socket.io-client": "^4.8.1",
-    "vue": "^3.5.18",
+    "vue": "^3.5.21",
     "vue-echarts": "^7.0.3",
     "vue-i18n": "^9.14.5",
-    "vue-router": "^4.5.0",
+    "vue-router": "^4.5.1",
     "vue-toastification": "^2.0.0-rc.5",
     "vue3-apexcharts": "^1.8.0",
     "vue3-draggable-resizable": "^1.6.5"
@@ -51,7 +51,7 @@
     "tailwindcss": "^4.1.4",
     "terser": "^5.44.0",
     "unocss": "^66.1.0-beta.12",
-    "vite": "^7.1.2",
+    "vite": "^7.1.5",
     "vite-plugin-vue-devtools": "^7.7.2"
   }
 }

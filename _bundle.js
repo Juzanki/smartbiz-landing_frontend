@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>SmartBiz Assistance</title>
+    <meta name="description" content="SmartBiz Assistance — live streaming + AI host tools." />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- Epuka kuserve HTML ya zamani wakati wa ku-debug (production unaweza kuondoa) -->
+    <meta http-equiv="Cache-Control" content="no-store" />
+
+    <!-- Muhimu: mizizi ya routes/assets kwa SPA -->
+    <base href="/" />
+
+    <link rel="icon" href="/favicon.ico" />
+    <!-- <link rel="apple-touch-icon" href="/apple-touch-icon.png" /> -->
+    <!-- <link rel="manifest" href="/manifest.webmanifest" /> -->
+
+    <style>
+      :root {
+        --bg: #000;
+        --fg: #fff;
+        --muted: #b3b3b3;
+        --ring: #9fa8ff;
+        --ring-offline: #f59e0b;
+        --ring-route: #22d3ee;
+        --btn: #2563eb;
+        --btn-fg: #fff;
+        --btn-hover: #1e40af;
+      }
+      @media (prefers-color-scheme: light) {
+        :root { --bg: #ffffff; --fg: #0b1220; --muted: #5b6472; }
+      }
+      html, body, #app { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans",
+                     "Apple Color Emoji","Segoe UI Emoji";
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+      #app { display: grid; place-items: center; }
+      .sb-loader { display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: .95; }
+      .sb-ring {
+        width: 44px; height: 44px; border: 3px solid #ffffff33;
+        border-top-color: var(--ring); border-radius: 50%;
+        animation: sb-spin 1s linear infinite;
+      }
+      @keyframes sb-spin { to { transform: rotate(360deg); } }
+      .sb-note { color: var(--muted); font-size: 14px; }
+
+      body.offline .sb-ring { border-top-color: var(--ring-offline); }
+      body.route-loading .sb-ring { border-top-color: var(--ring-route); }
+
+      @media (prefers-reduced-motion: reduce) { .sb-ring { animation-duration: 2s; } }
+
+      button.sb-btn {
+        background: var(--btn); color: var(--btn-fg);
+        border: 0; padding: .6rem 1rem; border-radius: .6rem; cursor: pointer;
+      }
+      button.sb-btn:hover { background: var(--btn-hover); }
+    </style>
+    <script type="module" crossorigin src="/assets/index-DHUboV-f.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-BmgDbyrp.js">
+    <link rel="modulepreload" crossorigin href="/assets/vue-BJ6AcGOB.js">
+    <link rel="modulepreload" crossorigin href="/assets/utils-VjyMmbyW.js">
+    <link rel="modulepreload" crossorigin href="/assets/charts-DJEJGQjH.js">
+    <link rel="stylesheet" crossorigin href="/assets/vendor-CnFWJ7G4.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-C75K8LlY.css">
+  </head>
+
+  <body>
+    <div id="app">
+      <div class="sb-loader" role="status" aria-live="polite">
+        <div class="sb-ring" aria-hidden="true"></div>
+        <div>Loading SmartBiz…</div>
+        <div class="sb-note" id="sb-hint" aria-hidden="true"></div>
+      </div>
+      <noscript>
+        <p style="color:#eee;background:#111;padding:.75rem 1rem;border-radius:.75rem;border:1px solid #333;margin-top:1rem;">
+          JavaScript is required to run this app. Please enable JavaScript.
+        </p>
+      </noscript>
+    </div>
+
+    <!-- Guards za mapema + recovery bora kwa chunk/SW -->
+    <script>
+      (function () {
+        try {
+          document.documentElement.classList.remove('no-js');
+          document.documentElement.classList.add('js');
+        } catch (_) {}
+
+        // vh-fix (hasa iOS)
+        function setVH() {
+          try {
+            var vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', vh + 'px');
+          } catch(_) {}
+        }
+        setVH();
+        window.addEventListener('resize', setVH, { passive: true });
+        window.addEventListener('orientationchange', setVH, { passive: true });
+
+        // on/offline hint
+        function setNetHint() {
+          try {
+            var h = document.getElementById('sb-hint');
+            if (!h) return;
+            if (navigator.onLine) {
+              document.body.classList.remove('offline');
+              h.textContent = '';
+            } else {
+              document.body.classList.add('offline');
+              h.textContent = 'You seem offline. Some features may pause.';
+            }
+          } catch(_) {}
+        }
+        window.addEventListener('online', setNetHint);
+        window.addEventListener('offline', setNetHint);
+        setNetHint();
+
+        // Fail-safe: kama app haijamount baada ya muda, onyesha "Reload" na usafishe SW ya zamani
+        var TIMEOUT_MS = 12000;
+        setTimeout(function () {
+          if (!window.__APP_MOUNTED__) {
+            var el = document.getElementById('app');
+            if (!el) return;
+            el.innerHTML =
+              '<div style="text-align:center;max-width:560px;margin:0 auto;padding:24px">' +
+                '<div class="sb-ring" style="margin:0 auto 12px"></div>' +
+                '<div style="font-weight:700;margin-bottom:8px">Still loading…</div>' +
+                '<div class="sb-note" style="margin-bottom:12px">If this stays for long, try a hard refresh (Ctrl/Cmd + F5).</div>' +
+                '<button class="sb-btn" id="sb-reload">Reload</button>' +
+              '</div>';
+
+            try {
+              if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (rs) {
+                  rs.forEach(function (r) { r.unregister(); });
+                });
+              }
+              var btn = document.getElementById('sb-reload');
+              if (btn) btn.addEventListener('click', function () {
+                var u = new URL(location.href);
+                u.searchParams.set('v', Date.now().toString());
+                location.replace(u.toString());
+              });
+            } catch (_) {}
+          }
+        }, TIMEOUT_MS);
+      })();
+    </script>
+
+    <script nomodule>
+      document.getElementById('app').innerHTML =
+        '<div style="max-width:560px;margin:2rem auto;color:#eee">' +
+          '<h2>Unsupported browser</h2>' +
+          '<p>Please update your browser to the latest version to use SmartBiz.</p>' +
+        '</div>';
+    </script>
+
+    <!-- ✅ Vite entry (JS) – HII NI MUHIMU kwa mount -->
+    <!-- Kama unatumia TypeScript:
+    <script type="module" src="/src/main.ts"></script> -->
+  </body>
+</html>

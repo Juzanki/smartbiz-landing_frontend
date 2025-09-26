@@ -46,6 +46,7 @@ test-results/
 
 # ── OS & Editors
 .DS_Store
+<<<<<<< Updated upstream
 Thumbs.db
 .idea/
 .vscode/*
@@ -60,3 +61,8 @@ Thumbs.db
 *.tmp
 *.temp
 *.log.*
+=======
+.vscode/
+
+dev-dist/
+>>>>>>> Stashed changes
