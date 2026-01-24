@@ -1,983 +1,1698 @@
 <!-- src/views/LiveRoom.vue -->
 <template>
-  <div
-    class="room relative w-full min-h-[100dvh] font-sans text-white overflow-hidden select-none"
-    :class="{'freeze': anyPanelOpen}"
-    :style="[bgStyle, cssVars]"
-    @click="handleTapAnywhere"
-    @contextmenu.prevent
-  >
-    <!-- ===== Top App Bar ===== -->
-    <header
-      class="safe-top sticky top-0 z-[70] w-full px-3 py-2 bg-black/30 backdrop-blur-md border-b border-white/10"
-      aria-label="Live header"
-    >
-      <div class="flex items-center justify-between gap-2">
-        <!-- Host -->
-        <div class="flex items-center gap-2 min-w-0">
-          <div class="relative shrink-0">
-            <img :src="hostAvatar" alt="Host" class="w-9 h-9 rounded-full object-cover ring-2 ring-white/80" />
-            <span class="live-dot" aria-hidden="true"></span>
-          </div>
-          <div class="min-w-0">
-            <div class="flex items-center gap-1 text-xs font-semibold truncate">
-              <span class="truncate">{{ hostUsername }}</span>
-              <span v-if="isVerified" class="text-yellow-300" aria-label="Verified">✔</span>
-              <span class="chip chip-pink">LIVE</span>
-              <span class="chip chip-heart" :title="likeCount + ' likes'">❤️ {{ compactLikes }}</span>
+  <div class="live-root" @click="handleScreenTap">
+    <!-- =========================
+         VIDEO BACKGROUND
+         ========================= -->
+    <section class="stage">
+      <div class="video-background">
+        <video class="stage-video" autoplay muted playsinline loop></video>
+        
+        <!-- Video overlay -->
+        <div class="video-overlay">
+          
+          <!-- =========================
+               TOP BAR - ORIGINAL LAYOUT
+               ========================= -->
+          <header class="top-bar-original">
+            <!-- Left: Host Info with Level & Daily Rank -->
+            <div class="host-info-original" @click="openHostProfile">
+              <div class="host-avatar-original">
+                <img 
+                  src="https://randomuser.me/api/portraits/men/32.jpg" 
+                  alt="Julius Zakayo"
+                  class="host-avatar-img"
+                  @error="handleAvatarError"
+                />
+              </div>
+              <div class="host-details-original">
+                <div class="host-name-level">
+                  <span class="host-name">Julius Zakayo</span>
+                  <span class="host-level">LV 42</span>
+                </div>
+                <div class="daily-rank">Daily Rank</div>
+              </div>
             </div>
-            <div class="text-[11px]" :class="netClass">
-              {{ viewerCount.toLocaleString() }} watching • {{ netLabel }}
+            
+            <!-- Center: Add Goal Button -->
+            <button class="add-goal-btn" @click="openGoalModal">
+              <span class="goal-icon">🎯</span>
+              <span class="goal-text">Add goal</span>
+            </button>
+            
+            <!-- Right: Live Status & Controls -->
+            <div class="right-controls-original">
+              <!-- Live Indicator -->
+              <div class="live-status-original">
+                <span class="live-indicator">🔴 LIVE</span>
+                <span class="live-timer" v-if="showTimer">12:45</span>
+              </div>
+              
+              <!-- Notification Icon -->
+              <button class="notification-btn" @click="toggleNotifications">
+                <span class="notification-icon">🔔</span>
+                <span class="notification-badge" v-if="hasNotifications">3</span>
+              </button>
+              
+              <!-- End Live Button -->
+              <button class="end-live-btn-original" @click="handleEndButton" title="End Live">
+                <span class="end-icon">✕</span>
+              </button>
+            </div>
+          </header>
+          
+          <!-- =========================
+               TOP CONTRIBUTORS - P¹ P² P³
+               ========================= -->
+          <div class="top-contributors-original">
+            <div 
+              v-for="(contributor, index) in top3Contributors" 
+              :key="contributor.id"
+              class="contributor-original"
+              :class="`rank-${index + 1}`"
+              @click="openUserProfile(contributor.id)"
+            >
+              <div class="contributor-rank">P{{ index + 1 }}</div>
+              <img 
+                :src="contributor.avatar" 
+                :alt="contributor.name"
+                class="contributor-avatar-original"
+              />
+              <div class="contributor-info-original">
+                <div class="contributor-name-original">{{ contributor.name }}</div>
+                <div class="contributor-amount">🪙 {{ formatCompact(contributor.amount) }}</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- =========================
+               LIVE STATS (Gifts & Likes)
+               ========================= -->
+          <div class="live-stats-original">
+            <div class="stat-item">
+              <span class="stat-icon">🎁</span>
+              <span class="stat-value">{{ formatCompact(liveStats.giftsValue) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-icon">❤️</span>
+              <span class="stat-value">{{ formatCompact(liveStats.likes) }}</span>
+            </div>
+          </div>
+          
+          <!-- =========================
+               FULL SCREEN VIDEO AREA
+               ========================= -->
+          <div class="full-screen-video">
+            <!-- Video plays in background -->
+            <div class="video-focus-area"></div>
+          </div>
+          
+          <!-- =========================
+               COMMENT OVERLAY AREA
+               ========================= -->
+          <div class="comment-overlay-original">
+            <div class="comments-container">
+              <div 
+                v-for="comment in visibleComments" 
+                :key="comment.id"
+                class="comment-item"
+                :class="{ 'highlighted-comment': comment.isHighlighted }"
+              >
+                <img 
+                  :src="comment.avatar" 
+                  :alt="comment.senderName"
+                  class="comment-avatar"
+                />
+                <div class="comment-content">
+                  <span class="comment-sender">{{ comment.senderName }}:</span>
+                  <span class="comment-text">{{ comment.text }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- =========================
+               CHAT INPUT AREA
+               ========================= -->
+          <div class="chat-input-area-original">
+            <div class="input-wrapper">
+              <input
+                v-model="chatInput"
+                type="text"
+                placeholder="Types..."
+                @keyup.enter="sendChatMessage"
+                class="chat-input-field-original"
+              />
+              <button 
+                class="send-btn-original"
+                @click.stop="sendChatMessage"
+                :disabled="!canSendMessage"
+              >
+                <span class="send-icon">➤</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- =========================
+               BOTTOM ACTION BAR - ORIGINAL
+               ========================= -->
+          <nav class="bottom-bar-original">
+            <button 
+              class="action-btn"
+              @click.stop="openGuestsPanel"
+              :class="{ active: activePanel === 'guests' }"
+            >
+              <span class="action-icon">👥</span>
+              <span class="action-label">Guests</span>
+            </button>
+            
+            <button 
+              class="action-btn"
+              @click.stop="openHostControls"
+              :class="{ active: activePanel === 'host' }"
+            >
+              <span class="action-icon">👤</span>
+              <span class="action-label">Host</span>
+            </button>
+            
+            <button 
+              class="action-btn"
+              @click.stop="openGiftsPanel"
+              :class="{ active: activePanel === 'gifts' }"
+            >
+              <span class="action-icon">🎁</span>
+              <span class="action-label">Gifts</span>
+            </button>
+            
+            <button 
+              class="action-btn"
+              @click.stop="openShopPanel"
+              :class="{ active: activePanel === 'shop' }"
+            >
+              <span class="action-icon">🛍</span>
+              <span class="action-label">Shop/Products</span>
+            </button>
+            
+            <button 
+              class="action-btn"
+              @click.stop="openMorePanel"
+              :class="{ active: activePanel === 'more' }"
+            >
+              <span class="action-icon">⋯</span>
+              <span class="action-label">More</span>
+            </button>
+          </nav>
+        </div>
+      </div>
+      
+      <!-- =========================
+           MODALS & PANELS
+           ========================= -->
+      
+      <!-- Add Goal Modal -->
+      <transition name="fade">
+        <div v-if="showGoalModal" class="modal-overlay" @click.stop="closeGoalModal">
+          <div class="goal-modal" @click.stop>
+            <div class="modal-header">
+              <h3 class="modal-title">Set Live Goal</h3>
+              <button class="modal-close" @click="closeGoalModal">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="goal-options">
+                <div class="goal-type">
+                  <label class="goal-type-label">Goal Type</label>
+                  <select v-model="selectedGoalType" class="goal-type-select">
+                    <option value="gifts">Gifts</option>
+                    <option value="likes">Likes</option>
+                    <option value="viewers">Viewers</option>
+                    <option value="coins">Coins</option>
+                  </select>
+                </div>
+                
+                <div class="goal-target">
+                  <label class="goal-target-label">Target Amount</label>
+                  <input 
+                    v-model="goalTargetAmount" 
+                    type="number" 
+                    min="1" 
+                    class="goal-target-input"
+                    placeholder="Enter target"
+                  />
+                </div>
+                
+                <div class="goal-reward">
+                  <label class="goal-reward-label">Reward (Optional)</label>
+                  <input 
+                    v-model="goalReward" 
+                    type="text" 
+                    class="goal-reward-input"
+                    placeholder="What will you do when goal is reached?"
+                  />
+                </div>
+              </div>
+              
+              <button class="set-goal-btn" @click="setLiveGoal">
+                Set Goal
+              </button>
             </div>
           </div>
         </div>
-
-        <!-- Right controls -->
-        <div class="flex items-center gap-1">
-          <button class="btn-ghost text-[11px]" @click.stop="toggleCam">{{ camOn ? '📷 On' : '📷 Off' }}</button>
-          <button class="btn-ghost text-[11px]" @click.stop="toggleMic">{{ micOn ? '🎙️ On' : '🎙️ Off' }}</button>
-          <button class="btn-ghost text-[11px]" @click.stop="toggleMute">{{ muted ? '🔇' : '🔊' }}</button>
-          <button class="btn-danger text-[11px]" @click.stop="confirmEndStream">✖ End</button>
+      </transition>
+      
+      <!-- Gifts Panel -->
+      <transition name="slide-up">
+        <div v-if="activePanel === 'gifts'" class="panel-overlay" @click.stop="closePanel">
+          <div class="gifts-panel-original" @click.stop>
+            <div class="panel-header">
+              <h3 class="panel-title">Send Gifts</h3>
+              <button class="panel-close" @click="closePanel">✕</button>
+            </div>
+            <div class="gifts-grid-original">
+              <div 
+                v-for="gift in availableGifts" 
+                :key="gift.id"
+                class="gift-item-original"
+                @click="sendGift(gift)"
+              >
+                <div class="gift-icon">{{ gift.icon }}</div>
+                <div class="gift-name">{{ gift.name }}</div>
+                <div class="gift-price">🪙 {{ gift.price }}</div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <!-- Quick chips -->
-      <div class="mt-2 flex items-center gap-1 text-[10px] overflow-x-auto no-scrollbar">
-        <span class="chip chip-amber">🔥 Ranking</span>
-        <span class="chip chip-sky">⭐ Featured</span>
-        <span class="chip chip-indigo">🌍 Explore</span>
-        <span class="chip chip-stroke">👑 TopFan</span>
-      </div>
-    </header>
-
-    <!-- ===== Ad Ticker ===== -->
-    <div class="ticker-wrap" role="marquee" aria-label="Promoted messages">
-      <div class="ticker">
-        <div v-for="(ad,i) in ads" :key="i" class="ticker-item" @click.stop="openAd(ad)">
-          <span class="opacity-80">•</span><span class="ml-1">{{ ad.text }}</span>
+      </transition>
+      
+      <!-- Shop Panel -->
+      <transition name="slide-up">
+        <div v-if="activePanel === 'shop'" class="panel-overlay" @click.stop="closePanel">
+          <div class="shop-panel-original" @click.stop>
+            <div class="panel-header">
+              <h3 class="panel-title">Shop Products</h3>
+              <button class="panel-close" @click="closePanel">✕</button>
+            </div>
+            <div class="products-grid">
+              <div 
+                v-for="product in availableProducts" 
+                :key="product.id"
+                class="product-item"
+                @click="viewProduct(product)"
+              >
+                <img :src="product.image" :alt="product.name" class="product-image" />
+                <div class="product-info">
+                  <div class="product-name">{{ product.name }}</div>
+                  <div class="product-price">${{ product.price }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div v-for="(ad,i) in ads" :key="'d'+i" class="ticker-item" @click.stop="openAd(ad)">
-          <span class="opacity-80">•</span><span class="ml-1">{{ ad.text }}</span>
+      </transition>
+      
+      <!-- More Panel -->
+      <transition name="slide-up">
+        <div v-if="activePanel === 'more'" class="panel-overlay" @click.stop="closePanel">
+          <div class="more-panel-original" @click.stop>
+            <div class="panel-header">
+              <h3 class="panel-title">More Options</h3>
+              <button class="panel-close" @click="closePanel">✕</button>
+            </div>
+            <div class="more-options">
+              <button class="more-option" @click="shareLive">
+                <span class="option-icon">↗️</span>
+                <span class="option-text">Share Live</span>
+              </button>
+              <button class="more-option" @click="toggleEffects">
+                <span class="option-icon">✨</span>
+                <span class="option-text">Effects</span>
+              </button>
+              <button class="more-option" @click="openSettings">
+                <span class="option-icon">⚙️</span>
+                <span class="option-text">Settings</span>
+              </button>
+              <button class="more-option" @click="reportIssue">
+                <span class="option-icon">🚨</span>
+                <span class="option-text">Report</span>
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="fade fade-left" /><div class="fade fade-right" />
-    </div>
-
-    <!-- ===== Topic & Goal ===== -->
-    <div class="absolute z-[60] left-1/2 -translate-x-1/2 top-[74px] sm:top-[82px] w-[92vw] max-w-md pointer-events-none">
-      <div class="mx-auto text-center">
-        <div class="inline-flex px-3 py-1 text-[11px] rounded-full bg-white/10 border border-white/15">🎯 {{ topic }}</div>
-        <div v-if="currentGoal" class="mt-1 inline-flex px-3 py-1 text-[11px] font-semibold rounded-full text-white bg-gradient-to-r from-yellow-400 to-pink-500 border border-white/15 animate-pulse">
-          Goal: {{ currentGoal }}
+      </transition>
+      
+      <!-- Toast Notifications -->
+      <transition name="slide-up">
+        <div v-if="toast.show" class="toast-notification" :class="toast.type">
+          <span class="toast-icon">{{ toast.icon }}</span>
+          <span class="toast-message">{{ toast.message }}</span>
         </div>
-      </div>
-    </div>
-
-    <!-- ===== Offline ===== -->
-    <div v-if="!online" class="fixed top-[46px] left-1/2 -translate-x-1/2 z-[80] px-3 py-1 rounded-lg bg-amber-600/90 text-white text-xs shadow" role="alert">
-      You are offline. Some features are paused.
-    </div>
-
-    <!-- ===== Stage / Video ===== -->
-    <div class="absolute inset-0 -z-10">
-      <video ref="videoFeed" :muted="muted" autoplay playsinline class="absolute inset-0 w-full h-full object-cover" />
-      <div v-if="!effectsOn" class="absolute inset-0 pointer-events-none opacity-40"
-           style="background: radial-gradient(420px 240px at 20% 20%, rgba(255,255,255,.12), transparent 70%)"></div>
-    </div>
-
-    <!-- ===== Effects (click-through) ===== -->
-    <ErrorBoundary class="contents" @error="onChildError('effects')">
-      <div class="pointer-events-none absolute inset-0">
-        <!-- Persistent FX layers selected from Effects panel -->
-        <div
-          v-for="id in activeEffects"
-          :key="'fx-'+id"
-          class="effect-layer"
-          :class="layerClass(id)"
-          aria-hidden="true"
-        />
-
-        <!-- Optional extra effect components -->
-        <component :is="FaceFilterLayer"    v-if="FaceFilterLayer && effectsOn && selectedFilter !== 'none'" :filter="selectedFilter" />
-        <component :is="FloatingParticles"  v-if="FloatingParticles && effectsOn" />
-        <component
-          :is="AnimatedGiftEffect"
-          v-if="AnimatedGiftEffect && effectsOn && giftEvents.length"
-          :gifts="giftEvents"
-        />
-        <component :is="StageLighting"      v-if="StageLighting && effectsOn" />
-      </div>
-    </ErrorBoundary>
-
-    <!-- ===== Big Gifts & Flying ===== -->
-    <component
-      :is="LiveGiftAnimation"
-      v-if="LiveGiftAnimation && currentGiftAnimation"
-      :gift="currentGiftAnimation"
-      class="absolute left-0 right-0 z-50 pointer-events-none"
-      :style="{ top: '38%', bottom: `calc(var(--dock-h) + 8px + var(--safe-bottom) + var(--kb))` }"
-    />
-    <transition-group name="fly" tag="div" class="absolute inset-x-0 z-50 pointer-events-none"
-                      :style="{ top: '38%', bottom: `calc(var(--dock-h) + 8px + var(--safe-bottom) + var(--kb))` }">
-      <component :is="GiftFly" v-for="(gift, i) in flyingGifts" :key="gift.id || i" :gift="gift" />
-    </transition-group>
-
-    <!-- ===== Chat Feed ===== -->
-    <ErrorBoundary @error="onChildError('chat')">
-      <component
-        :is="LiveMessageFeed"
-        v-if="LiveMessageFeed"
-        :messages="liveMessages"
-        class="fixed left-3 z-40 w-[92vw] max-w-md"
-        :style="{ bottom: `calc(var(--dock-h) + var(--chat-h) + 16px + var(--safe-bottom) + var(--kb))` }"
-      />
-    </ErrorBoundary>
-
-    <!-- ===== Chat Input ===== -->
-    <ErrorBoundary @error="onChildError('chatInput')">
-      <div ref="chatWrap" class="fixed left-3 z-50 w-[92vw] max-w-md"
-           :style="{ bottom: `calc(var(--dock-h) + 8px + var(--safe-bottom) + var(--kb))` }">
-        <component
-          :is="ChatInput"
-          v-if="ChatInput"
-          v-model="chatMessage"
-          :suggestions="smartReplies"
-          @send="handleSendMessage"
-          @attach="handleAttach"
-          @typing="setTyping"
-        />
-      </div>
-    </ErrorBoundary>
-
-    <!-- ===== Like bubble & counter ===== -->
-    <div class="absolute right-3 z-40 flex flex-col items-center"
-         :style="{ bottom: `calc(var(--dock-h) + 12px + var(--safe-bottom) + var(--kb))` }">
-      <button class="btn-like" @click.stop="handleTapAnywhere" aria-label="Send like">❤️</button>
-      <span class="text-sm text-pink-200 font-bold mt-1">{{ compactLikes }}</span>
-    </div>
-
-    <!-- floating hearts render -->
-    <div v-for="h in floatingLikes" :key="h.id" class="floating-like" :style="{ left: h.x + 'px', top: h.y + 'px' }">❤️</div>
-
-    <!-- ===== Bottom Dock ===== -->
-    <nav class="safe-bottom fixed left-0 right-0 z-40" :style="{ bottom: '0', paddingBottom: 'calc(var(--safe-bottom))' }" aria-label="Live actions">
-      <div class="dock" ref="dockRef">
-        <button
-          v-for="a in bottomActions"
-          :key="a.label"
-          type="button"
-          :aria-label="a.label"
-          @click="a.onClick"
-          :class="['dock-btn', a.kind && 'dock-'+a.kind]"
-        >
-          <i :class="a.icon + ' text-[18px]'" />
-          <span class="dock-label text-[11px] mt-0.5">{{ a.label }}</span>
-        </button>
-      </div>
-    </nav>
-
-    <!-- ===== Floating Controls ===== -->
-    <div class="fixed right-2 top-[94px] z-[65] flex flex-col gap-2">
-      <button class="btn-ghost text-[11px]" @click.stop="togglePip">⧉ PIP</button>
-      <button class="btn-ghost text-[11px]" @click.stop="toggleFullscreen">{{ isFull ? '⤢ Exit' : '⤢ Full' }}</button>
-    </div>
-
-    <!-- ===== Panels & Modals (ONE-AT-A-TIME) ===== -->
-    <transition name="fade">
-      <div
-        v-if="anyPanelOpen"
-        class="overlay"
-        role="dialog"
-        aria-modal="true"
-        @click.self="closeAllPanels"
-        @touchstart.self="onOverlayTouchStart"
-        @touchmove.self="onOverlayTouchMove"
-      >
-        <!-- Co-Hosts -->
-        <component
-          :is="CoHostControlSheet"
-          v-if="showHostsPanel && CoHostControlSheet"
-          class="panel-mount"
-          :hosts="hosts"
-          :requests="joinRequests"
-          :suggested="suggestedFriends"
-          @close="closeAllPanels"
-          @invite="onInvite"
-          @approve="onApprove"
-          @reject="onReject"
-          @toggle-mic="onToggleMic"
-          @toggle-cam="onToggleCam"
-          @remove="onRemoveHost"
-          @swap-main="onSwapMain"
-          @role-change="onRoleChange"
-          @quick-mute="onQuickMute"
-          @quick-cam="onQuickCam"
-        >
-          <template #grid-panel>
-            <component
-              :is="GridPanel"
-              v-if="GridPanel"
-              :hosts="hosts"
-              @assign="onAssign"
-              @expand="onExpand"
-              @pin="onPin"
-              @reorder="onReorder"
-            />
-          </template>
-          <template #smart-cam>
-            <component :is="SmartCam" v-if="SmartCam" :active="camOn" :mic="micOn" @snapshot="onSnapshot" />
-          </template>
-        </component>
-
-        <!-- Fallback (old HostsPanel) -->
-        <component :is="HostsPanel" v-else-if="showHostsPanel && HostsPanel" @close="closeAllPanels" class="panel-mount" />
-
-        <!-- Guests -->
-        <component :is="GuestsPanel" v-if="showGuestPanel && GuestsPanel" @close="closeAllPanels" class="panel-mount" />
-
-        <!-- Effects: correct v-model bindings -->
-        <component
-          :is="EffectsPanel"
-          v-if="showEffectsPanel && EffectsPanel"
-          v-model="showEffectsPanel"
-          v-model:effects="activeEffects"
-          @close="closeAllPanels"
-          class="panel-mount"
-        />
-
-        <!-- Gifts (robust: Drawer -> Panel -> Minimal) -->
-        <component
-          :is="GiftUI"
-          v-if="showGiftDrawer"
-          :gifts="giftList"
-          @send="g => (handleGiftSend(g), closeAllPanels())"
-          @close="closeAllPanels"
-          class="panel-mount"
-        />
-
-        <!-- Share -->
-        <ShareSheet
-          v-if="showShareSheet"
-          class="panel-mount"
-          :url="shareUrl"
-          title="Join my Live"
-          @close="closeAllPanels"
-          @copy="toastRef?.success('Link copied')"
-        />
-
-        <!-- Settings / Wallet / Goal -->
-        <component :is="SettingsModal"    v-if="showSettings     && SettingsModal"    @close="closeAllPanels" class="panel-mount" />
-        <component :is="WalletTopupModal" v-if="showWalletTopup  && WalletTopupModal" @close="closeAllPanels" class="panel-mount" />
-        <component :is="SuperChatModal"   v-if="showSuperChatModal && SuperChatModal" @confirm="handleSuperChat" @close="closeAllPanels" class="panel-mount" />
-        <component :is="AddGoal"          v-if="showAddGoal && AddGoal"               @set="v => (currentGoal = v, closeAllPanels())" @close="closeAllPanels" class="panel-mount" />
-      </div>
-    </transition>
-
-    <!-- ===== Toasts ===== -->
-    <Toast ref="toastRef" />
+      </transition>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent, h } from 'vue'
-import { nanoid } from 'nanoid'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-/* ---------- Lazy component resolver (return NULL if missing) ---------- */
-const modules = import.meta.glob('../components/**/*.vue')
-function lazyFromGlob(paths){
-  const found = paths.find(p => modules[p])
-  return found ? defineAsyncComponent({
-    loader: modules[found],
-    onError(err){ console.warn('Async component failed:', err) }
-  }) : null
+const router = useRouter()
+
+// =========================
+// LIVE DATA
+// =========================
+
+// Live Stats (as per image)
+const liveStats = ref({
+  viewers: 3240,
+  gifts: 2300,  // 2.3K as per image
+  likes: 5600,  // 5.6K as per image
+  giftsValue: 2300
+})
+
+// Top 3 Contributors (P¹ P² P³)
+const top3Contributors = ref([
+  { id: 'p1', name: 'Eman', avatar: 'https://randomuser.me/api/portraits/women/1.jpg', amount: 4500 },
+  { id: 'p2', name: 'Sami', avatar: 'https://randomuser.me/api/portraits/men/2.jpg', amount: 3200 },
+  { id: 'p3', name: 'Robert', avatar: 'https://randomuser.me/api/portraits/men/5.jpg', amount: 2800 }
+])
+
+// Active Panel
+const activePanel = ref(null)
+const showGoalModal = ref(false)
+const showTimer = ref(true)
+const hasNotifications = ref(true)
+
+// Chat State
+const chatInput = ref('')
+const chatComments = ref([])
+
+// Goal Settings
+const selectedGoalType = ref('gifts')
+const goalTargetAmount = ref('')
+const goalReward = ref('')
+
+// Available Gifts
+const availableGifts = ref([
+  { id: 'rose', name: 'Rose', icon: '🌹', price: 10 },
+  { id: 'heart', name: 'Heart', icon: '❤️', price: 50 },
+  { id: 'coffee', name: 'Coffee', icon: '☕', price: 100 },
+  { id: 'fire', name: 'Fire', icon: '🔥', price: 200 },
+  { id: 'diamond', name: 'Diamond', icon: '💎', price: 500 },
+  { id: 'crown', name: 'Crown', icon: '👑', price: 1000 }
+])
+
+// Available Products
+const availableProducts = ref([
+  { id: 'prod1', name: 'Wireless Earbuds', image: 'https://via.placeholder.com/100x100/333/fff?text=Earbuds', price: 49.99 },
+  { id: 'prod2', name: 'Smart Watch', image: 'https://via.placeholder.com/100x100/333/fff?text=Watch', price: 199.99 },
+  { id: 'prod3', name: 'Phone Case', image: 'https://via.placeholder.com/100x100/333/fff?text=Case', price: 24.99 },
+  { id: 'prod4', name: 'Power Bank', image: 'https://via.placeholder.com/100x100/333/fff?text=Power', price: 39.99 }
+])
+
+// =========================
+// COMPUTED PROPERTIES
+// =========================
+
+const visibleComments = computed(() => {
+  // Show only last 5 comments for overlay
+  return chatComments.value.slice(-5)
+})
+
+const canSendMessage = computed(() => {
+  return chatInput.value.trim().length > 0
+})
+
+// =========================
+// FUNCTIONS
+// =========================
+
+function handleScreenTap(event) {
+  // Handle screen tap for likes
+  liveStats.value.likes++
+  showToast('+1 Like', 'info')
 }
 
-/* ---------- ErrorBoundary (FIX: wraps attrs to root) ---------- */
-const ErrorBoundary = {
-  name:'ErrorBoundary', emits:['error'], inheritAttrs: false,
-  errorCaptured(err,_i,info){ this.$emit('error',{err,info}); return false },
-  render(){ return h('div', { ...this.$attrs }, this.$slots.default?.()) }
+function openHostProfile() {
+  showToast('Opening host profile', 'info')
 }
 
-/* ---------- Toast ---------- */
-const Toast = {
-  name:'Toast',
-  data:()=>({items:[]}),
-  methods:{
-    push(type,text,ttl=4000){ const id=nanoid(); this.items.push({id,type,text}); setTimeout(()=>this.items=this.items.filter(i=>i.id!==id),ttl) },
-    success(t,ttl){ this.push('ok',t,ttl) }, warn(t,ttl){ this.push('warn',t,ttl) }, error(t,ttl){ this.push('error',t,ttl) }
-  },
-  render(){
-    return h('div',{class:'fixed right-3 top-3 z-[90] space-y-2'}, this.items.map(t =>
-      h('div',{
-        key:t.id,
-        class:[
-          'px-3 py-2 rounded-lg shadow text-sm flex items-center gap-2',
-          t.type==='error'?'bg-rose-600':t.type==='warn'?'bg-amber-600':'bg-emerald-600'
-        ]
-      },[
-        h('span',null, t.type==='error'?'⚠':t.type==='warn'?'⚑':'✓'),
-        h('span',null, t.text)
-      ])
-    ))
+function openUserProfile(userId) {
+  showToast(`Opening ${userId}'s profile`, 'info')
+}
+
+function openGoalModal() {
+  showGoalModal.value = true
+  closePanel()
+}
+
+function closeGoalModal() {
+  showGoalModal.value = false
+}
+
+function setLiveGoal() {
+  if (!goalTargetAmount.value) {
+    showToast('Please set a target amount', 'error')
+    return
+  }
+  
+  showToast(`Goal set: ${goalTargetAmount.value} ${selectedGoalType.value}`, 'success')
+  closeGoalModal()
+}
+
+function toggleNotifications() {
+  hasNotifications.value = false
+  showToast('Notifications cleared', 'info')
+}
+
+function handleEndButton() {
+  if (confirm('Are you sure you want to end the live stream?')) {
+    showToast('Live stream ended', 'success')
+    setTimeout(() => {
+      router.push('/profile')
+    }, 1500)
   }
 }
 
-/* ---------- Built-in Gifts fallback (mobile-first) ---------- */
-const MinimalGiftSheet = {
-  name:'MinimalGiftSheet',
-  props:{ gifts: { type: Array, default: ()=>[] } },
-  emits:['send','close'],
-  data:()=>({ query:'' }),
-  computed:{
-    filtered(){ const q=this.query.trim().toLowerCase(); return q? this.gifts.filter(g=>g.name.toLowerCase().includes(q)): this.gifts }
-  },
-  methods:{ send(g){ this.$emit('send', g) } },
-  render(){
-    return h('div',{class:'sheet'},[
-      h('header',{class:'sheet-head'},[
-        h('div',{class:'sh-title'},'🎁 Gifts'),
-        h('button',{class:'sh-close',ariaLabel:'Close',onClick:()=>this.$emit('close')},'✖')
-      ]),
-      h('div',{class:'flex items-center gap-2 mb-2'},[
-        h('input',{class:'share-input',placeholder:'Search gifts…',value:this.query,onInput:(e)=>this.query=e.target.value}),
-        h('button',{class:'btn-ghost',onClick:()=>this.$emit('close')},'Close')
-      ]),
-      h('div',{class:'gift-grid'},
-        this.filtered.map(g => h('button',{
-          key:g.id,class:'gift-card',onClick:()=>this.send(g)
-        },[
-          h('div',{class:'gift-emoji'},g.icon),
-          h('div',{class:'gift-name'},g.name),
-          h('div',{class:'gift-price'},`${g.price} 💎`)
-        ]))
-      ),
-      h('footer',{class:'sheet-foot'},[
-        h('div',null,'Tip: tap a gift to send')
-      ])
-    ])
-  }
+// Panel Management
+function openPanel(panelName) {
+  activePanel.value = panelName
 }
 
-/* ---------- Share Sheet ---------- */
-const ShareSheet = {
-  name:'ShareSheet',
-  props:{ url:String, title:{type:String,default:'Share'} },
-  emits:['close','copy','share'],
-  computed:{
-    enc(){ return encodeURIComponent(this.url || '') },
-    encTitle(){ return encodeURIComponent(this.title) },
-    links(){
-      return {
-        whatsapp: `https://api.whatsapp.com/send?text=${this.encTitle}%20${this.enc}`,
-        telegram: `https://t.me/share/url?url=${this.enc}&text=${this.encTitle}`,
-        x:        `https://twitter.com/intent/tweet?url=${this.enc}&text=${this.encTitle}`
-      }
-    }
-  },
-  methods:{
-    async copy(){ try{ await navigator.clipboard.writeText(this.url); this.$emit('copy') }catch{} },
-    async nativeShare(){ if(navigator.share){ try{ await navigator.share({ title:this.title, url:this.url }); this.$emit('share') }catch{} } },
-    open(link){ window.open(link,'_blank') }
-  },
-  render(){
-    return h('div',{class:'sheet'},[
-      h('header',{class:'sheet-head'},[
-        h('div',{class:'sh-title'},'🔗 Share'),
-        h('button',{class:'sh-close',ariaLabel:'Close',onClick:()=>this.$emit('close')},'✖')
-      ]),
-      h('div',{class:'share-body'},[
-        h('input',{class:'share-input',value:this.url,readOnly:true,onFocus:e=>e.target.select()}),
-        h('div',{class:'share-actions'},[
-          h('button',{class:'btn-ghost',onClick:this.copy},'Copy Link'),
-          h('button',{class:'btn-ghost',onClick:this.nativeShare},'Native Share')
-        ]),
-        h('div',{class:'share-quick'},[
-          h('button',{class:'share-chip',onClick:()=>this.open(this.links.whatsapp)},'🟢 WhatsApp'),
-          h('button',{class:'share-chip',onClick:()=>this.open(this.links.telegram)},'🔵 Telegram'),
-          h('button',{class:'share-chip',onClick:()=>this.open(this.links.x)},'⚫️ X (Twitter)')
-        ])
-      ])
-    ])
-  }
+function closePanel() {
+  activePanel.value = null
 }
 
-/* ---------- Components ---------- */
-const LiveMessageFeed   = lazyFromGlob(['../components/Live/LiveMessageFeed.vue','../components/live/LiveMessageFeed.vue'])
-const ChatInput         = lazyFromGlob(['../components/Live/ChatInput.vue','../components/ChatInput.vue','../components/live/ChatInput.vue'])
-const SettingsModal     = lazyFromGlob(['../components/modals/SettingsModal.vue'])
-const WalletTopupModal  = lazyFromGlob(['../components/modals/WalletTopupModal.vue'])
-const GiftDrawer        = lazyFromGlob(['../components/modals/GiftDrawer.vue'])
-const GiftsPanel        = lazyFromGlob(['../components/modals/GiftsPanel.vue'])
-const SuperChatModal    = lazyFromGlob(['../components/modals/SuperChatModal.vue'])
-const EffectsPanel      = lazyFromGlob(['../components/modals/EffectsStudioMobile.vue','../components/modals/EffectsPanel.vue'])
-const HostsPanel        = lazyFromGlob(['../components/modals/HostsPanel.vue'])
-const GuestsPanel       = lazyFromGlob(['../components/modals/GuestsPanel.vue'])
-const AddGoal           = lazyFromGlob(['../components/Goals/AddGoal.vue','../components/goals/AddGoal.vue'])
-
-const FloatingParticles = lazyFromGlob(['../components/effects/FloatingParticles.vue'])
-const AnimatedGiftEffect= lazyFromGlob(['../components/effects/AnimatedGiftEffect.vue'])
-const StageLighting     = lazyFromGlob(['../components/effects/StageLighting.vue'])
-const FaceFilterLayer   = lazyFromGlob(['../components/effects/FaceFilterLayer.vue'])
-
-const LiveGiftAnimation = lazyFromGlob(['../components/Live/LiveGiftAnimation.vue','../components/live/LiveGiftAnimation.vue','../components/LiveGiftAnimation.vue'])
-const GiftFly           = lazyFromGlob(['../components/Live/GiftFly.vue','../components/live/GiftFly.vue','../components/GiftFly.vue'])
-
-/* NEW: Co-Host + Grid + SmartCam */
-const CoHostControlSheet = lazyFromGlob([
-  '../components/modals/CoHostControlSheet.vue',
-  '../components/Live/CoHostControlSheet.vue',
-])
-const GridPanel = lazyFromGlob([
-  '../components/modals/GridPanel.vue',
-  '../components/Common/GridPanel.vue',
-  '../components/live/GridPanel.vue',
-])
-const SmartCam = lazyFromGlob([
-  '../components/Common/SmartCam.vue',
-  '../components/live/SmartCam.vue',
-])
-
-/* ---------- Host / Room ---------- */
-const hostUsername = 'Host'
-const hostAvatar   = '/avatars/default.png'
-const isVerified   = true
-const topic        = ref('Boosting Business Engagement')
-
-/* ---------- State ---------- */
-const viewerCount  = ref(340)
-const likeCount    = ref(40)
-const chatMessage  = ref('')
-const liveMessages = ref([])
-const currentGoal  = ref('')
-let   selectedFilter = 'none'              // optional face filter
-const currentGiftAnimation = ref(null)
-const flyingGifts  = ref([])
-const floatingLikes= ref([])
-const giftEvents   = ref([])               // feed AnimatedGiftEffect
-const smartReplies = ['Welcome!','Where are you watching from?','Follow for more!']
-const muted        = ref(false)
-const camOn        = ref(true)
-const micOn        = ref(true)
-const online       = ref(navigator.onLine)
-
-/* Effects from panel (persist layers even after close) */
-const activeEffects = ref([])              // e.g. ['sparkles','glow',...]
-
-/* Co-host data */
-const hosts = ref([
-  { id: 1, name: 'Host A', avatar: '/avatars/host1.png', mic: true,  cam: true,  role: 'cohost', speaking: true  },
-  { id: 2, name: 'Host B', avatar: '/avatars/host2.png', mic: false, cam: true,  role: 'guest',  speaking: false },
-])
-const joinRequests = ref([
-  { id: 101, name: 'Stella', avatar: '/avatars/user3.png' },
-  { id: 102, name: 'Henry',  avatar: '/avatars/user4.png' },
-])
-const suggestedFriends = ref([
-  { id: 201, name: 'Hope🥰',            avatar: '/avatars/friend1.jpg' },
-  { id: 202, name: 'Mission-Tridah 🌹', avatar: '/avatars/friend2.jpg' },
-  { id: 203, name: 'Son of vission 💄', avatar: '/avatars/friend3.jpg' }
-])
-
-/* Ads */
-const ads = ref([
-  { text: 'Mama D Gift Shop — 20% off on Diamonds today!', url: '#' },
-  { text: '🌟 Sponsor your brand here — DM @SmartBiz', url: '#' },
-  { text: 'TopFan Challenge: Win VIP Badge this weekend', url: '#' },
-  { text: 'Join multi-guest panel at 9 PM!', url: '#' }
-])
-
-/* Compact likes */
-const compactLikes = computed(() => formatCompact(likeCount.value))
-
-/* Net / effects */
-const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
-const net = ref({ downlink:null, effectiveType:null })
-const netOK   = computed(()=> !/2g|slow-2g/.test(net.value.effectiveType || ''))
-const effectsOn = computed(()=> !reducedMotion && netOK.value)
-const netLabel = computed(()=> net.value.effectiveType ? `${net.value.effectiveType}${net.value.downlink ? ' • '+net.value.downlink+'Mbps':''}` : 'online')
-const netClass = computed(()=> netOK.value ? 'text-emerald-300' : 'text-amber-300')
-
-/* Panels (one-at-a-time) */
-const showGiftDrawer     = ref(false)
-const showSuperChatModal = ref(false)
-const showHostsPanel     = ref(false)
-const showGuestPanel     = ref(false)
-const showEffectsPanel   = ref(false)
-const showSettings       = ref(false)
-const showWalletTopup    = ref(false)
-const showAddGoal        = ref(false)
-const showShareSheet     = ref(false)
-
-const anyPanelOpen = computed(() =>
-  showGiftDrawer.value || showSuperChatModal.value || showHostsPanel.value || showGuestPanel.value ||
-  showEffectsPanel.value || showSettings.value || showWalletTopup.value || showAddGoal.value || showShareSheet.value
-)
-function closeAllPanels(){
-  showGiftDrawer.value = showSuperChatModal.value = showHostsPanel.value = showGuestPanel.value =
-  showEffectsPanel.value = showSettings.value = showWalletTopup.value = showAddGoal.value = showShareSheet.value = false
-}
-function openOnly(refVar){ closeAllPanels(); refVar.value = true }
-
-/* Video */
-const videoFeed = ref(null)
-const isFull    = ref(false)
-
-/* Layout Vars */
-const dockRef = ref(null)
-const chatWrap = ref(null)
-const dockH = ref(64)
-const chatH = ref(56)
-const kbInset = ref(0)
-const cssVars = computed(() => ({
-  '--dock-h': `${dockH.value}px`,
-  '--chat-h': `${chatH.value}px`,
-  '--kb': `${kbInset.value}px`,
-  '--safe-bottom': 'env(safe-area-inset-bottom,0px)'
-}))
-
-/* ---------- Utils ---------- */
-const toastRef = ref(null)
-function onChildError(area){ toastRef.value?.error(`Unexpected error in ${area}.`) }
-function setTyping(_v){}
-function readNet(){ const c=navigator.connection||navigator.mozConnection||navigator.webkitConnection; if(!c) return; net.value={downlink:c.downlink,effectiveType:c.effectiveType} }
-function formatCompact(n){
-  const abs = Math.abs(n)
-  if (abs < 1_000) return `${n}`
-  if (abs < 1_000_000) return `${(n/1_000).toFixed(abs>=10_000?0:1)}k`
-  if (abs < 1_000_000_000) return `${(n/1_000_000).toFixed(abs>=10_000_000?0:1)}M`
-  return `${(n/1_000_000_000).toFixed(abs>=10_000_000_000?0:1)}B`
-}
-function openAd(ad){ if(ad?.url && ad.url !== '#') window.open(ad.url, '_blank') }
-const shareUrl = computed(() => location.href)
-async function measureChat(){ await nextTick(); const el = chatWrap.value; if(el) chatH.value = Math.max(48, Math.min(84, el.offsetHeight || 56)) }
-
-/* Dock height auto-measure */
-let dockRO
-function measureDock(){
-  const el = dockRef.value
-  if (!el) return
-  const update = () => (dockH.value = Math.max(56, el.offsetHeight || 64))
-  dockRO = new ResizeObserver(update); dockRO.observe(el); update()
+function openGuestsPanel() {
+  openPanel('guests')
 }
 
-/* visualViewport keyboard inset */
-function attachViewportListener(){
-  const vv = window.visualViewport
-  if (!vv) return
-  const update = () => { kbInset.value = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop)) }
-  vv.addEventListener('resize', update); vv.addEventListener('scroll', update); update()
-  onBeforeUnmount(()=>{ vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update) })
+function openHostControls() {
+  showToast('Host controls opened', 'info')
 }
 
-/* ---------- Chat ---------- */
-function handleSendMessage(payload){
-  const text = typeof payload === 'string' ? payload : payload?.text
-  if (!text?.trim()) return
-  liveMessages.value.push({ id: nanoid(), sender:'You', type:'chat', text })
-  chatMessage.value = ''
-  measureChat()
-}
-function handleAttach(files){
-  liveMessages.value.push({ id:nanoid(), sender:'You', type:'attach', files: files.map(f=>f.name).join(', ') })
+function openGiftsPanel() {
+  openPanel('gifts')
 }
 
-/* ---------- Likes ---------- */
-let lastTap = 0
-function handleTapAnywhere(ev){
-  const now = Date.now(), dbl = now - lastTap < 280; lastTap = now
-  likeCount.value += dbl ? 2 : 1
-  const x = ev?.clientX ?? (window.innerWidth - 40), y = ev?.clientY ?? (window.innerHeight - 120)
-  const id = nanoid(); floatingLikes.value.push({ id, x, y })
-  try{ navigator.vibrate?.(dbl ? 16 : 8) }catch{}
-  setTimeout(()=>{ const i = floatingLikes.value.findIndex(f=>f.id===id); if(i>=0) floatingLikes.value.splice(i,1) }, 1100)
+function openShopPanel() {
+  openPanel('shop')
 }
 
-/* ---------- Gifts ---------- */
-function handleGiftSend(gift){
-  liveMessages.value.push({ id:nanoid(), sender:hostUsername, type:'gift', icon:gift.icon, name:gift.name })
-  flyingGifts.value.push({ ...gift, id:nanoid() }); setTimeout(()=>flyingGifts.value.shift(), 2600)
-  currentGiftAnimation.value = gift; setTimeout(()=> currentGiftAnimation.value = null, 3600)
-  giftEvents.value.push({
-    id: nanoid(),
+function openMorePanel() {
+  openPanel('more')
+}
+
+// Chat System
+function sendChatMessage() {
+  if (!chatInput.value.trim()) return
+  
+  const comment = {
+    id: `comment-${Date.now()}`,
+    senderName: 'You',
+    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+    text: chatInput.value.trim(),
     timestamp: Date.now(),
-    icon: gift.icon,
-    name: gift.name,
-    duration: 2800,
-    animation: 'shine',
-    tier: 'rare',
-    confetti: true
-  })
-}
-
-/* ---------- SuperChat ---------- */
-function handleSuperChat({ amount, message }){
-  liveMessages.value.push({ id:nanoid(), sender:hostUsername, type:'chat', text:`🌟 SuperChat (${amount}): ${message}` })
-}
-
-/* ---------- Panel triggers ---------- */
-function openHostsPanel(){ openOnly(showHostsPanel) }
-function openGuestsPanel(){ openOnly(showGuestPanel) }
-function openGifts(){ try{ openOnly(showGiftDrawer) } catch { showGiftDrawer.value = true } }
-function goToRecharge(){ openOnly(showWalletTopup) }
-function openShare(){ openOnly(showShareSheet) }
-function quickShare(){
-  const url = shareUrl.value
-  if (navigator.share) navigator.share({ title:'Join my Live', url }).catch(()=>{})
-  else navigator.clipboard?.writeText(url).then(()=>toastRef.value?.success('Link copied'))
-}
-function toggleMute(){ muted.value = !muted.value }
-function toggleCam(){ camOn.value = !camOn.value; toastRef.value?.warn(camOn.value ? 'Camera enabled' : 'Camera disabled') }
-function toggleMic(){ micOn.value = !micOn.value; toastRef.value?.warn(micOn.value ? 'Mic unmuted' : 'Mic muted') }
-
-/* ---------- PIP / Full ---------- */
-async function togglePip(){
-  const el = videoFeed.value; if(!el) return toastRef.value?.warn('Video not ready')
-  try{
-    if(document.pictureInPictureElement) await document.exitPictureInPicture()
-    else if(el.requestPictureInPicture) await el.requestPictureInPicture()
-    else toastRef.value?.warn('Picture-in-Picture not supported')
-  }catch{ toastRef.value?.error('Failed to toggle PIP') }
-}
-async function toggleFullscreen(){
-  try{
-    if(!document.fullscreenElement){ await document.documentElement.requestFullscreen(); isFull.value = true }
-    else { await document.exitFullscreen(); isFull.value = false }
-  }catch{ toastRef.value?.error('Failed to toggle fullscreen') }
-}
-
-/* ---------- Bottom Dock actions ---------- */
-const bottomActions = [
-  { label: '+Hosts',  icon: 'i-tabler-user-plus', onClick: openHostsPanel },
-  { label: '+Guests', icon: 'i-tabler-users',     onClick: openGuestsPanel },
-  { label: 'Effects', icon: 'i-tabler-sparkles',  onClick: () => openOnly(showEffectsPanel), kind:'indigo' },
-  { label: 'Share',   icon: 'i-tabler-share-3',   onClick: openShare, kind:'red' },
-  { label: 'Gifts',   icon: 'i-tabler-gift',      onClick: openGifts, kind:'pink' },
-  { label: 'More',    icon: 'i-tabler-dots',      onClick: () => openOnly(showSettings) }
-]
-
-/* ---------- Co-host Helpers & Handlers ---------- */
-function findHostIndex(id){ return hosts.value.findIndex(h => h.id === id) }
-function onInvite({ input, provisional }) { if (provisional) joinRequests.value.unshift(provisional); toastRef.value?.success('Invite sent') }
-function onApprove(id){
-  const req = joinRequests.value.find(r => r.id === id)
-  if (!req) return
-  hosts.value.push({ ...req, mic: false, cam: false, role: 'guest', speaking: false })
-  joinRequests.value = joinRequests.value.filter(r => r.id !== id)
-  toastRef.value?.success(`${req.name} added`)
-}
-function onReject(id){ joinRequests.value = joinRequests.value.filter(r => r.id !== id) }
-function onToggleMic({ id, on }){ const i = findHostIndex(id); if (i < 0) return; hosts.value[i].mic = on }
-function onToggleCam({ id, on }){ const i = findHostIndex(id); if (i < 0) return; hosts.value[i].cam = on }
-function onRemoveHost(id){ hosts.value = hosts.value.filter(h => h.id !== id) }
-function onSwapMain(id){ const i = findHostIndex(id); if (i <= 0) return; const [x] = hosts.value.splice(i,1); hosts.value.unshift(x); toastRef.value?.success('Swapped to main') }
-function onRoleChange({ id, role }){ const i = findHostIndex(id); if (i < 0) return; hosts.value[i].role = role }
-function onQuickMute(){ hosts.value.forEach(h => h.mic = false) }
-function onQuickCam(){ hosts.value.forEach(h => h.cam = false) }
-
-/* GridPanel interactions */
-function onReorder({ from, to }){ const arr=[...hosts.value]; const [moved]=arr.splice(from,1); arr.splice(to,0,moved); hosts.value=arr }
-function onPin({ from }){ if (from === 0) return; const [x] = hosts.value.splice(from,1); hosts.value.unshift(x) }
-function onAssign(){ openOnly(showHostsPanel); toastRef.value?.warn('Pick a guest to assign') }
-function onExpand(host){ toastRef.value?.success(`Expanding ${host.name}`) }
-
-/* SmartCam */
-function onSnapshot(file){ liveMessages.value.push({ id: nanoid(), sender: 'You', type: 'attach', files: file?.name || 'snapshot' }) }
-
-/* ---------- Overlay swipe close (mobile-friendly) ---------- */
-const drag = ref({ startY: 0, dy: 0 })
-function onOverlayTouchStart(e){ drag.value.startY = e.touches?.[0]?.clientY ?? 0; drag.value.dy = 0 }
-function onOverlayTouchMove(e){
-  const y = e.touches?.[0]?.clientY ?? 0
-  drag.value.dy = y - drag.value.startY
-  if (drag.value.dy > 90) closeAllPanels()
-}
-
-/* ---------- Lifecycle ---------- */
-let viewersTimer, wakeLock = null
-async function enableWakeLock(){ try{ wakeLock = await navigator.wakeLock?.request?.('screen') }catch{} }
-function releaseWakeLock(){ try{ wakeLock?.release?.(); wakeLock = null }catch{} }
-async function tryLockOrientation(){ try{ await screen.orientation?.lock?.('portrait-primary') }catch{} }
-function onOnline(){ online.value = true }
-function onOffline(){ online.value = false }
-function onKeydown(e){ if (e.key === 'Escape' && anyPanelOpen.value) closeAllPanels() }
-
-onMounted(()=>{
-  readNet()
-  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection
-  c?.addEventListener?.('change', readNet)
-
-  viewersTimer = setInterval(()=>{ viewerCount.value += Math.random() < 0.6 ? 1 : 0 }, 3000)
-  enableWakeLock(); tryLockOrientation()
-
-  window.addEventListener('online', onOnline)
-  window.addEventListener('offline', onOffline)
-  window.addEventListener('keydown', onKeydown)
-
-  attachViewportListener()
-  measureChat(); measureDock()
-  window.addEventListener('resize', measureChat)
-})
-onBeforeUnmount(()=>{
-  clearInterval(viewersTimer)
-  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection
-  c?.removeEventListener?.('change', readNet)
-  releaseWakeLock()
-  window.removeEventListener('online', onOnline)
-  window.removeEventListener('offline', onOffline)
-  window.removeEventListener('keydown', onKeydown)
-  window.removeEventListener('resize', measureChat)
-  dockRO?.disconnect?.()
-})
-
-/* ---------- Demo gifts ---------- */
-const giftList = [
-  { id:'rose',    name:'Rose',    icon:'🌹', price:1  },
-  { id:'heart',   name:'Heart',   icon:'💖', price:5  },
-  { id:'rocket',  name:'Rocket',  icon:'🚀', price:10 },
-  { id:'diamond', name:'Diamond', icon:'💎', price:20 }
-]
-
-/* Gift UI resolver with guaranteed fallback */
-const GiftUI = computed(() => GiftDrawer || GiftsPanel || MinimalGiftSheet)
-
-/* ---------- Background ---------- */
-const bgStyle = computed(() => ({
-  background: 'radial-gradient(1200px 600px at 20% -10%, #0b1220 0%, #171a2a 40%, #0b1220 100%)'
-}))
-
-/* ===== FX helpers (classes defined in <style>) ===== */
-function layerClass(id){
-  return {
-    sparkles:'sparkle-layer',
-    glow:'glow-layer',
-    hearts:'heart-layer',
-    stars:'star-layer',
-    bokeh:'bokeh-layer',
-    neon:'neon-layer',
-    confetti:'confetti-layer'
-  }[id] || ''
-}
-
-/* ===== End controls ===== */
-function confirmEndStream(){
-  if (confirm('End the live?')) {
-    toastRef.value?.warn('Live ended')
-    // hapa unaweza kuweka cleanup/redirect
+    isHighlighted: Math.random() > 0.8
+  }
+  
+  chatComments.value.push(comment)
+  chatInput.value = ''
+  
+  // Simulate random comments from others
+  if (Math.random() > 0.5) {
+    setTimeout(() => {
+      const names = ['Sarah', 'Mike', 'Lisa', 'David', 'Maria']
+      const messages = [
+        'Great content!',
+        '🔥🔥🔥',
+        'Amazing!',
+        'Watching from here',
+        'Thanks for the tips!'
+      ]
+      
+      const randomComment = {
+        id: `rand-${Date.now()}`,
+        senderName: names[Math.floor(Math.random() * names.length)],
+        avatar: `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 10) + 1}.jpg`,
+        text: messages[Math.floor(Math.random() * messages.length)],
+        timestamp: Date.now(),
+        isHighlighted: Math.random() > 0.9
+      }
+      
+      chatComments.value.push(randomComment)
+    }, 1000 + Math.random() * 2000)
   }
 }
+
+function sendGift(gift) {
+  showToast(`Sent ${gift.name} gift!`, 'success')
+  liveStats.value.gifts += gift.price
+  liveStats.value.giftsValue += gift.price
+  
+  // Add gift comment
+  const giftComment = {
+    id: `gift-${Date.now()}`,
+    senderName: 'You',
+    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+    text: `Sent ${gift.icon} ${gift.name}`,
+    timestamp: Date.now(),
+    isHighlighted: true
+  }
+  
+  chatComments.value.push(giftComment)
+  closePanel()
+}
+
+function viewProduct(product) {
+  showToast(`Viewing ${product.name} - $${product.price}`, 'info')
+}
+
+// More Panel Functions
+function shareLive() {
+  showToast('Live stream link copied!', 'success')
+  closePanel()
+}
+
+function toggleEffects() {
+  showToast('Effects toggled', 'info')
+  closePanel()
+}
+
+function openSettings() {
+  showToast('Settings opened', 'info')
+  closePanel()
+}
+
+function reportIssue() {
+  showToast('Report submitted', 'info')
+  closePanel()
+}
+
+// Utility Functions
+function formatCompact(num) {
+  if (typeof num !== 'number') return '0'
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
+  return num.toString()
+}
+
+function handleAvatarError(event) {
+  event.target.src = 'https://cdn-icons-png.flaticon.com/512/847/847969.png'
+}
+
+// Toast System
+const toast = ref({
+  show: false,
+  message: '',
+  type: 'info',
+  icon: 'ℹ️'
+})
+
+function showToast(message, type = 'info') {
+  const icons = {
+    info: 'ℹ️',
+    success: '✅',
+    error: '❌'
+  }
+  
+  toast.value = {
+    show: true,
+    message,
+    type,
+    icon: icons[type] || 'ℹ️'
+  }
+  
+  setTimeout(() => {
+    toast.value.show = false
+  }, 2000)
+}
+
+// Lifecycle
+onMounted(() => {
+  // Initialize with sample comments
+  const sampleComments = [
+    { id: '1', senderName: 'Sarah', avatar: 'https://randomuser.me/api/portraits/women/1.jpg', text: 'Amazing content! 🥰', timestamp: Date.now() - 30000, isHighlighted: true },
+    { id: '2', senderName: 'Mike', avatar: 'https://randomuser.me/api/portraits/men/6.jpg', text: 'Great tips!', timestamp: Date.now() - 25000 },
+    { id: '3', senderName: 'Lisa', avatar: 'https://randomuser.me/api/portraits/women/7.jpg', text: '🔥🔥🔥', timestamp: Date.now() - 20000 },
+    { id: '4', senderName: 'David', avatar: 'https://randomuser.me/api/portraits/men/8.jpg', text: 'Watching from Kenya', timestamp: Date.now() - 15000 }
+  ]
+  
+  chatComments.value = sampleComments
+  
+  // Auto-update live stats
+  const statsInterval = setInterval(() => {
+    liveStats.value.viewers += Math.floor(Math.random() * 10) - 3
+    liveStats.value.likes += Math.floor(Math.random() * 5) + 1
+  }, 5000)
+  
+  onUnmounted(() => {
+    clearInterval(statsInterval)
+  })
+})
 </script>
 
 <style scoped>
-/* ===== Utilities ===== */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.safe-top { padding-top: max(env(safe-area-inset-top), .25rem); }
-.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), .25rem); }
+/* ==============================================
+   ORIGINAL LIVE ROOM STYLE
+   ============================================== */
 
-/* Freeze background when panels open (mobile friendly) */
-.freeze { overflow: hidden; touch-action: none; }
-
-/* ===== Chips ===== */
-.chip { padding:.15rem .45rem; border-radius:9999px; border:1px solid rgba(255,255,255,.14); white-space:nowrap }
-.chip-pink   { background:linear-gradient(90deg, rgba(236,72,153,.25), rgba(236,72,153,.15)); color:#fecdd3; }
-.chip-stroke { background:rgba(255,255,255,.06); }
-.chip-amber  { background:linear-gradient(90deg, rgba(245,158,11,.25), rgba(245,158,11,.15)); color:#fde68a; }
-.chip-sky    { background:linear-gradient(90deg, rgba(14,165,233,.25), rgba(14,165,233,.15)); color:#bae6fd; }
-.chip-indigo { background:linear-gradient(90deg, rgba(99,102,241,.25), rgba(99,102,241,.15)); color:#c7d2fe; }
-.chip-heart  { background:linear-gradient(90deg, rgba(244,63,94,.32), rgba(236,72,153,.18)); color:#fecdd3; }
-
-/* ===== Buttons ===== */
-.btn-ghost{
-  background: rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.25);
-  padding:.25rem .5rem; border-radius:9999px; color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.35);
-}
-.btn-ghost:focus-visible{ outline:2px solid #fff; outline-offset:2px }
-.btn-danger{
-  background: linear-gradient(180deg, rgba(239,68,68,.95), rgba(220,38,38,.88));
-  border:1px solid rgba(255,255,255,.25);
-  padding:.25rem .5rem; border-radius:9999px; color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.35);
-}
-.btn-like{
-  width:44px; height:44px; display:grid; place-items:center; color:#fff;
-  background:linear-gradient(180deg,#f472b6,#ec4899);
-  border-radius:9999px; border:1px solid rgba(255,255,255,.25);
-  box-shadow:0 10px 24px rgba(236,72,153,.35);
-}
-
-/* ===== Dock ===== */
-.dock{
-  height: var(--dock-h);
-  display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:.6rem;
-  padding:.35rem .9rem calc(.35rem + var(--safe-bottom));
-  background: rgba(12,12,20,.55); backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(255,255,255,.18);
+.live-root {
+  min-height: 100dvh;
+  width: 100%;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
   position: relative;
-}
-@media (max-width: 380px){
-  .dock{ grid-template-columns: repeat(3, minmax(0,1fr)); row-gap: .5rem; }
-}
-.dock-btn{
-  position:relative;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  height: calc(var(--dock-h) - .7rem); border-radius:16px; font-size:12px;
-  border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.10); backdrop-filter: blur(14px);
-  color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.45);
-  box-shadow:0 8px 22px rgba(0,0,0,.40); transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
-}
-.dock-btn:active{ transform:scale(.96) }
-.dock-btn:focus-visible{ outline:2px solid #fff; outline-offset:2px }
-.dock-label{ color:#fff }
-.dock-pink{   background:linear-gradient(180deg, rgba(236,72,153,.28), rgba(236,72,153,.14)); }
-.dock-red{    background:linear-gradient(180deg, rgba(239,68,68,.30), rgba(239,68,68,.16)); }
-.dock-indigo{ background:linear-gradient(180deg, rgba(99,102,241,.32), rgba(99,102,241,.18)); }
-
-/* ===== Live dot ===== */
-.live-dot{
-  position:absolute; right:-2px; top:-2px; width:10px; height:10px;
-  background:#ef4444; border:1px solid white; border-radius:9999px; animation:pulse 1.2s infinite;
-}
-@keyframes pulse { 0%,100%{ transform:scale(1); opacity:1 } 50%{ transform:scale(.6); opacity:.5 } }
-
-/* ===== Floating hearts ===== */
-.floating-like{
-  position: fixed; font-size: 18px; animation: floatUp 1.1s ease-out forwards; pointer-events: none;
-  text-shadow: 0 4px 18px rgba(236,72,153,.45);
-}
-@keyframes floatUp {
-  0%{ transform:translate(-50%,0) scale(1); opacity:1 }
-  100%{ transform:translate(-50%,-100px) scale(1.35); opacity:0 }
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* ===== Overlay & Panel mount ===== */
-.overlay{
-  position: fixed; inset: 0; z-index: 75;
-  background: rgba(0,0,0,.28);
-  display: grid; place-items: end center; /* bottom-sheet feel; child can override */
+.stage {
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.video-background {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  z-index: 1;
+}
+
+.stage-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.4;
+  filter: brightness(0.7);
+  z-index: 1;
+}
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.video-overlay > * {
   pointer-events: auto;
 }
-.panel-mount{ pointer-events: auto; }
 
-/* ===== Built-in Sheet styles ===== */
-.sheet{
-  width: min(640px, 96vw);
-  background: rgba(20,20,28,.92);
-  backdrop-filter: blur(12px);
-  border-top-left-radius: 18px; border-top-right-radius: 18px;
-  border: 1px solid rgba(255,255,255,.12);
+/* =========================
+   TOP BAR - ORIGINAL STYLE
+   ========================= */
+.top-bar-original {
+  position: absolute;
+  top: max(env(safe-area-inset-top), 12px);
+  left: 12px;
+  right: 12px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 15px;
+  background: rgba(20, 20, 30, 0.9);
+  border-radius: 15px;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.host-info-original {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.host-avatar-original {
+  width: 45px;
+  height: 45px;
+  position: relative;
+}
+
+.host-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ff6b35;
+}
+
+.host-details-original {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.host-name-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.host-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+}
+
+.host-level {
+  font-size: 14px;
+  color: #ff6b35;
+  font-weight: 800;
+  background: rgba(255, 107, 53, 0.15);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.daily-rank {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+}
+
+.add-goal-btn {
+  padding: 8px 16px;
+  background: rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 20px;
+  color: #00f0ff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.add-goal-btn:hover {
+  background: rgba(0, 240, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.goal-icon {
+  font-size: 14px;
+}
+
+.goal-text {
+  font-weight: 700;
+}
+
+.right-controls-original {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-shrink: 0;
+}
+
+.live-status-original {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.live-indicator {
+  color: #ff4444;
+  font-size: 12px;
+  font-weight: bold;
+  animation: pulseLive 1.5s ease infinite;
+}
+
+.live-timer {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.notification-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.notification-icon {
+  font-size: 18px;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #ff4444, #ff3366);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.end-live-btn-original {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 68, 68, 0.2);
+  border: 1px solid rgba(255, 68, 68, 0.4);
+  color: #ff4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.end-live-btn-original:hover {
+  background: rgba(255, 68, 68, 0.35);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.4);
+}
+
+@keyframes pulseLive {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* =========================
+   TOP CONTRIBUTORS - ORIGINAL
+   ========================= */
+.top-contributors-original {
+  position: absolute;
+  top: 90px;
+  right: 20px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100px;
+}
+
+.contributor-original {
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border: 2px solid;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.contributor-original:hover {
+  transform: translateX(-5px);
+}
+
+.contributor-original.rank-1 {
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.15);
+}
+
+.contributor-original.rank-2 {
+  border-color: #c0c0c0;
+  background: rgba(192, 192, 192, 0.15);
+}
+
+.contributor-original.rank-3 {
+  border-color: #cd7f32;
+  background: rgba(205, 127, 50, 0.15);
+}
+
+.contributor-rank {
+  font-size: 12px;
+  font-weight: 800;
+  color: white;
+  min-width: 20px;
+}
+
+.contributor-avatar-original {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.contributor-info-original {
+  flex: 1;
+  min-width: 0;
+}
+
+.contributor-name-original {
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.contributor-amount {
+  font-size: 10px;
+  color: #ffd700;
+  font-weight: 600;
+}
+
+/* =========================
+   LIVE STATS - ORIGINAL
+   ========================= */
+.live-stats-original {
+  position: absolute;
+  top: 90px;
+  left: 20px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-icon {
+  font-size: 16px;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: white;
+}
+
+/* =========================
+   FULL SCREEN VIDEO AREA
+   ========================= */
+.full-screen-video {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.video-focus-area {
+  position: absolute;
+  top: 140px;
+  left: 0;
+  right: 0;
+  bottom: 180px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* =========================
+   COMMENT OVERLAY - ORIGINAL
+   ========================= */
+.comment-overlay-original {
+  position: absolute;
+  bottom: 60px;
+  left: 12px;
+  right: 12px;
+  height: 120px;
+  z-index: 90;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.comments-container {
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comments-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.comments-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.comments-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.comment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  animation: commentSlide 0.3s ease;
+}
+
+.comment-item.highlighted-comment {
+  background: rgba(0, 240, 255, 0.2);
+  border-left: 3px solid #00f0ff;
+}
+
+.comment-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.comment-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-sender {
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  margin-right: 4px;
+}
+
+.comment-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+@keyframes commentSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* =========================
+   CHAT INPUT AREA - ORIGINAL
+   ========================= */
+.chat-input-area-original {
+  position: absolute;
+  bottom: 120px;
+  left: 12px;
+  right: 12px;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 25px;
+  padding: 5px 5px 5px 15px;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-input-field-original {
+  flex: 1;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.chat-input-field-original::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.send-btn-original {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00f0ff, #0099ff);
+  border: none;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+.send-btn-original:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.send-btn-original:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========================
+   BOTTOM BAR - ORIGINAL
+   ========================= */
+.bottom-bar-original {
+  position: absolute;
+  bottom: max(env(safe-area-inset-bottom), 8px);
+  left: 12px;
+  right: 12px;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(20, 20, 30, 0.9);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  min-width: 55px;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.action-btn.active {
+  background: rgba(0, 240, 255, 0.15);
+  color: #00f0ff;
+}
+
+.action-icon {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.action-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.1;
+}
+
+/* =========================
+   MODALS & PANELS
+   ========================= */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(30px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goal-modal {
+  background: rgba(30, 30, 40, 0.95);
+  border-radius: 20px;
+  padding: 20px;
+  max-width: 350px;
+  width: 90%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.goal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.goal-type, .goal-target, .goal-reward {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goal-type-label, .goal-target-label, .goal-reward-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.goal-type-select, .goal-target-input, .goal-reward-input {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.goal-type-select option {
+  background: #1a1a2e;
+  color: white;
+}
+
+.set-goal-btn {
+  padding: 14px;
+  background: linear-gradient(135deg, #00f0ff, #0099ff);
+  border: none;
+  border-radius: 10px;
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.set-goal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 240, 255, 0.3);
+}
+
+/* Panel Overlay */
+.panel-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20px);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.gifts-panel-original, .shop-panel-original, .more-panel-original {
+  background: rgba(20, 20, 30, 0.95);
+  border-radius: 24px 24px 0 0;
+  width: 100%;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.panel-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.panel-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+}
+
+.panel-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Gifts Grid */
+.gifts-grid-original {
+  flex: 1;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.gift-item-original {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.gift-item-original:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  border-color: #00f0ff;
+}
+
+.gift-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.gift-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.gift-price {
+  font-size: 13px;
+  color: #ffd700;
+  font-weight: 600;
+}
+
+/* Shop Products Grid */
+.products-grid {
+  flex: 1;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.product-item {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.product-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.product-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.product-info {
   padding: 12px;
 }
-.sheet-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-.sh-title{ font-weight:800; }
-.sh-close{ background:transparent; border:1px solid rgba(255,255,255,.18); border-radius:10px; padding:.25rem .5rem; color:#fff }
 
-.gift-grid{
-  display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; padding:8px 2px;
-}
-@media (max-width: 420px){
-  .gift-grid{ grid-template-columns: repeat(3, minmax(0,1fr)); }
-}
-.gift-card{
-  display:grid; place-items:center; gap:2px; padding:10px 6px; border-radius:14px;
-  border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.08); color:#fff
-}
-.gift-emoji{ font-size:22px; }
-.gift-name{ font-size:12px; opacity:.92 }
-.gift-price{ font-size:11px; opacity:.8 }
-
-.sheet-foot{ display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
-
-.share-body{ display:flex; flex-direction:column; gap:10px; padding:6px 2px; }
-.share-input{
-  width:100%; border:1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06);
-  border-radius:10px; padding:.55rem .7rem; color:#fff;
-}
-.share-actions{ display:flex; gap:8px; }
-.share-quick{ display:flex; gap:8px; flex-wrap:wrap; }
-.share-chip{
-  border:1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08);
-  padding:.45rem .7rem; border-radius:999px; color:#fff
+.product-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
 }
 
-/* ===== Ticker ===== */
-.ticker-wrap{
-  position: sticky; top: 48px; z-index: 68; height: 28px; overflow: hidden;
-  margin: 0 8px; border-radius: 9999px; border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.06); backdrop-filter: blur(10px);
-}
-.ticker{
-  display: inline-flex; align-items: center; height: 28px; white-space: nowrap;
-  will-change: transform; animation: tickerMove 28s linear infinite;
-}
-.ticker-item{ display: inline-flex; align-items: center; padding: 0 16px; font-size: 12px; opacity: .92; cursor: pointer; }
-@keyframes tickerMove{ 0%{ transform: translateX(0) } 100%{ transform: translateX(-50%) } }
-
-/* ===== Persistent FX layers (CSS-only, GPU friendly) ===== */
-.effect-layer{ position:absolute; inset:0; pointer-events:none; }
-
-.sparkle-layer{
-  background-image:
-    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.8) 50%, transparent 52%),
-    radial-gradient(2px 2px at 70% 60%, rgba(255,255,255,.7) 50%, transparent 52%),
-    radial-gradient(1.5px 1.5px at 40% 80%, rgba(255,255,255,.6) 50%, transparent 52%);
-  background-repeat: no-repeat;
-  animation: sparkleMove 2.6s linear infinite;
-  opacity:.28; mix-blend-mode: screen;
-}
-@keyframes sparkleMove{
-  0%{ background-position: 0% 0%, 100% 0%, 50% 100% }
-  100%{ background-position: 100% 100%, 0% 100%, 60% 0% }
+.product-price {
+  font-size: 13px;
+  color: #00f0ff;
+  font-weight: 700;
 }
 
-.glow-layer{
-  background: radial-gradient(60% 45% at 50% 55%, rgba(255,255,255,.14), transparent 60%);
-  animation: pulse 2.2s ease-in-out infinite; mix-blend-mode: screen;
+/* More Options */
+.more-options {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.heart-layer::before{
-  content:'💖'; position:absolute; left:50%; bottom:-24px; transform: translateX(-50%);
-  font-size:3.8rem; filter: drop-shadow(0 0 6px rgba(255,255,255,.45));
-  animation: floatUp 3.2s ease-in-out infinite;
+.more-option {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
 }
 
-.star-layer{
-  background-image:
-    radial-gradient(1.2px 1.2px at 30% 20%, rgba(255,255,255,.84) 50%, transparent 52%),
-    radial-gradient(1.2px 1.2px at 80% 70%, rgba(255,255,255,.84) 50%, transparent 52%),
-    radial-gradient(1px 1px at 60% 40%, rgba(255,255,255,.7) 50%, transparent 52%);
-  background-repeat:no-repeat; opacity:.28; mix-blend-mode: screen;
+.more-option:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateX(5px);
 }
 
-.bokeh-layer{
-  background:
-    radial-gradient(60px 40px at 20% 70%, rgba(255,255,255,.12), transparent 60%),
-    radial-gradient(70px 50px at 70% 30%, rgba(255,255,255,.10), transparent 60%);
-  animation: bokehFade 6s infinite alternate; mix-blend-mode: lighten;
+.option-icon {
+  font-size: 18px;
 }
 
-.neon-layer{
-  background:
-    repeating-linear-gradient(45deg, rgba(0,255,255,.18) 0 10px, rgba(255,0,255,.18) 10px 20px, transparent 20px 30px);
-  mix-blend-mode: lighten; animation: glowPulse 3s ease-in-out infinite; opacity:.25;
+.option-text {
+  flex: 1;
 }
 
-.confetti-layer{
-  background:
-    radial-gradient(3px 3px at 10% 90%, rgba(244,63,94,.8), transparent 60%),
-    radial-gradient(3px 3px at 40% 20%, rgba(34,197,94,.8), transparent 60%),
-    radial-gradient(3px 3px at 80% 60%, rgba(59,130,246,.8), transparent 60%);
-  animation: confettiDrift 3.2s linear infinite;
-  opacity:.32; mix-blend-mode: lighten;
+/* Toast Notifications */
+.toast-notification {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 30, 40, 0.95);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 3000;
+  max-width: 90%;
+  animation: toastSlide 0.3s ease;
 }
-@keyframes confettiDrift{ 0%{ transform: translateY(0) } 100%{ transform: translateY(-12px) } }
 
-/* Animations */
-@keyframes pulse{ 0%,100%{opacity:.22} 50%{opacity:.44} }
-@keyframes glowPulse{ 0%,100%{ filter:brightness(1.08) } 50%{ filter:brightness(1.4) } }
-@keyframes floatUp{ 0%{ transform: translate(-50%,0) scale(1); opacity:1 } 100%{ transform: translate(-50%,-100px) scale(1.08); opacity:0 } }
-@keyframes bokehFade{ 0%{ opacity:.12 } 100%{ opacity:.42 } }
+.toast-notification.info {
+  border-left: 4px solid #00f0ff;
+}
 
-/* ===== Transitions ===== */
-.fade-enter-active, .fade-leave-active { transition: opacity .25s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.toast-notification.success {
+  border-left: 4px solid #00ff88;
+}
+
+.toast-notification.error {
+  border-left: 4px solid #ff4444;
+}
+
+.toast-icon {
+  font-size: 16px;
+}
+
+.toast-message {
+  font-size: 14px;
+  color: white;
+  font-weight: 500;
+  flex: 1;
+}
+
+@keyframes toastSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+   ========================= */
+@media (max-width: 480px) {
+  .top-bar-original {
+    left: 8px;
+    right: 8px;
+    padding: 8px 12px;
+  }
+  
+  .host-avatar-original {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .host-name {
+    font-size: 14px;
+  }
+  
+  .host-level {
+    font-size: 12px;
+  }
+  
+  .daily-rank {
+    font-size: 11px;
+  }
+  
+  .add-goal-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .notification-btn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .end-live-btn-original {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .top-contributors-original {
+    right: 12px;
+    width: 90px;
+  }
+  
+  .live-stats-original {
+    left: 12px;
+  }
+  
+  .comment-overlay-original {
+    left: 8px;
+    right: 8px;
+    bottom: 55px;
+    height: 110px;
+  }
+  
+  .chat-input-area-original {
+    left: 8px;
+    right: 8px;
+    bottom: 115px;
+  }
+  
+  .bottom-bar-original {
+    left: 8px;
+    right: 8px;
+    padding: 10px 12px;
+  }
+  
+  .action-btn {
+    min-width: 50px;
+  }
+  
+  .action-icon {
+    font-size: 18px;
+  }
+  
+  .action-label {
+    font-size: 10px;
+  }
+}
+
+/* Panel transitions */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>
